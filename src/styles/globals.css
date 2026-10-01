@@ -1,0 +1,221 @@
+@import "tailwindcss";
+
+/* Theme is driven by [data-theme] on <html>, set by useThemeSync. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --color-accent: oklch(0.7 0.16 var(--accent-h));
+  --color-accent-soft: oklch(0.7 0.16 var(--accent-h) / 0.18);
+  --color-fg: var(--text-1);
+  --color-fg-muted: var(--text-2);
+  --color-fg-subtle: var(--text-3);
+  --color-line: var(--glass-border);
+
+  --radius-window: 18px;
+  --radius-panel: 22px;
+  --radius-control: 10px;
+}
+
+/* ───────────────────────── Design tokens ───────────────────────── */
+
+:root {
+  --accent-h: 275;
+
+  /* Glass material — the alpha/blur are overridden per surface. */
+  --glass-tint: oklch(0.99 0.004 var(--accent-h));
+  --glass-alpha: 58%;
+  --glass-blur: 28px;
+  --glass-sat: 180%;
+  --glass-border: oklch(1 0 0 / 0.55);
+  --glass-highlight: oklch(1 0 0 / 0.75);
+  --glass-inner: oklch(1 0 0 / 0.45);
+
+  --text-1: oklch(0.2 0.02 270);
+  --text-2: oklch(0.38 0.02 270);
+  --text-3: oklch(0.52 0.015 270);
+
+  --shadow-ambient: 0 1px 2px oklch(0.2 0.03 270 / 0.08), 0 8px 24px oklch(0.2 0.03 270 / 0.1);
+  --shadow-window:
+    0 1px 1px oklch(0.2 0.03 270 / 0.06),
+    0 10px 24px -6px oklch(0.2 0.03 270 / 0.16),
+    0 40px 80px -24px oklch(0.2 0.04 270 / 0.32);
+  --shadow-window-idle:
+    0 1px 1px oklch(0.2 0.03 270 / 0.05),
+    0 8px 18px -8px oklch(0.2 0.03 270 / 0.14),
+    0 24px 48px -24px oklch(0.2 0.04 270 / 0.2);
+
+  --wall-1: oklch(0.86 0.09 200);
+  --wall-2: oklch(0.8 0.12 300);
+  --wall-3: oklch(0.88 0.08 350);
+  --wall-4: oklch(0.9 0.07 150);
+  --wall-base: oklch(0.95 0.02 260);
+
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --glass-tint: oklch(0.24 0.025 var(--accent-h));
+  --glass-alpha: 52%;
+  --glass-border: oklch(1 0 0 / 0.12);
+  --glass-highlight: oklch(1 0 0 / 0.16);
+  --glass-inner: oklch(1 0 0 / 0.06);
+
+  --text-1: oklch(0.97 0.005 270);
+  --text-2: oklch(0.8 0.012 270);
+  --text-3: oklch(0.64 0.015 270);
+
+  --shadow-ambient: 0 1px 2px oklch(0 0 0 / 0.3), 0 8px 24px oklch(0 0 0 / 0.3);
+  --shadow-window:
+    0 1px 1px oklch(0 0 0 / 0.3),
+    0 12px 28px -6px oklch(0 0 0 / 0.45),
+    0 48px 96px -24px oklch(0 0 0 / 0.7);
+  --shadow-window-idle:
+    0 1px 1px oklch(0 0 0 / 0.25),
+    0 8px 18px -8px oklch(0 0 0 / 0.4),
+    0 24px 48px -24px oklch(0 0 0 / 0.5);
+
+  --wall-1: oklch(0.5 0.16 190);
+  --wall-2: oklch(0.42 0.2 290);
+  --wall-3: oklch(0.48 0.2 340);
+  --wall-4: oklch(0.45 0.14 160);
+  --wall-base: oklch(0.13 0.03 275);
+
+  color-scheme: dark;
+}
+
+/* Accessibility: user asked for less transparency (OS setting or Aurora setting). */
+[data-transparency="reduced"] {
+  --glass-alpha: 94% !important;
+  --glass-blur: 0px !important;
+}
+
+/* ───────────────────────── Base ───────────────────────── */
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--text-1);
+  background: var(--wall-base);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv11";
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  user-select: text;
+}
+
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* ───────────────────────── Materials ───────────────────────── */
+
+@layer components {
+  /* Frosted glass: tint + blur + saturation + hairline border + top specular edge. */
+  .glass {
+    background: color-mix(in oklab, var(--glass-tint) var(--glass-alpha), transparent);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    border: 1px solid var(--glass-border);
+    box-shadow:
+      inset 0 1px 0 0 var(--glass-highlight),
+      var(--shadow-ambient);
+  }
+
+  /* Acrylic: denser, used for menus and popovers where legibility matters most. */
+  .acrylic {
+    --glass-alpha: 78%;
+    --glass-blur: 40px;
+  }
+
+  /* Diagonal sheen + film grain — the "reflection" layer. Put on a positioned element. */
+  .glass-sheen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+      linear-gradient(135deg, oklch(1 0 0 / 0.14) 0%, transparent 38%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    mix-blend-mode: overlay;
+  }
+
+  /* Recessed well inside a glass surface (inputs, list containers). */
+  .glass-well {
+    background: color-mix(in oklab, var(--text-1) 6%, transparent);
+    border: 1px solid color-mix(in oklab, var(--text-1) 8%, transparent);
+    border-radius: var(--radius-control);
+  }
+
+  .hairline {
+    border-color: var(--glass-border);
+  }
+}
+
+/* ───────────────────────── Wallpaper ───────────────────────── */
+
+@keyframes aurora-drift-a {
+  0%, 100% { transform: translate3d(-8%, -6%, 0) scale(1); }
+  50% { transform: translate3d(6%, 4%, 0) scale(1.15); }
+}
+@keyframes aurora-drift-b {
+  0%, 100% { transform: translate3d(6%, 8%, 0) scale(1.1); }
+  50% { transform: translate3d(-6%, -4%, 0) scale(0.95); }
+}
+@keyframes aurora-drift-c {
+  0%, 100% { transform: translate3d(0, 4%, 0) rotate(0deg); }
+  50% { transform: translate3d(4%, -6%, 0) rotate(12deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob {
+    animation: none !important;
+  }
+}
+[data-motion="reduced"] .aurora-blob {
+  animation: none !important;
+}
+
+/* Thin, unobtrusive scrollbars inside glass. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--text-1) 22%, transparent) transparent;
+}
+
+/* ───────────────────────── Window material (dynamic transparency) ───────────────────────── */
+
+.window-surface {
+  --glass-alpha: var(--glass-alpha-user, 62%);
+  transition:
+    box-shadow 260ms ease,
+    --glass-alpha 200ms ease;
+}
+[data-focused="false"] > * > .window-surface {
+  --glass-alpha: calc(var(--glass-alpha-user, 62%) - 12%);
+}
+[data-dragging="true"] > * > .window-surface {
+  --glass-alpha: calc(var(--glass-alpha-user, 62%) - 20%);
+}
+
+@property --glass-alpha {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 58%;
+}
