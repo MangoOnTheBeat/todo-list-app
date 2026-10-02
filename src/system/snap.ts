@@ -1,4 +1,4 @@
-import { GAP, TOPBAR_H, workArea } from './layout';
+import { GAP, SECONDARY_BAR_H, TOPBAR_H, workArea } from './layout';
 import type { Display, Rect, SnapZone } from './types';
 
 /** Resolve a named zone to a concrete rect inside a display's work area (with gutters). */
@@ -46,8 +46,9 @@ export function detectZone(px: number, py: number, display: Display): SnapZone |
   const b = display.bounds;
   const left = px <= b.x + EDGE;
   const right = px >= b.x + b.w - EDGE;
-  const top = py <= b.y + TOPBAR_H + 4;
-  const nearTop = py <= b.y + TOPBAR_H + CORNER;
+  const bar = display.primary ? TOPBAR_H : SECONDARY_BAR_H;
+  const top = py <= b.y + bar + 4;
+  const nearTop = py <= b.y + bar + CORNER;
   const nearBottom = py >= b.y + b.h - CORNER;
 
   if (left) return nearTop ? 'top-left' : nearBottom ? 'bottom-left' : 'left';

@@ -1,153 +1,185 @@
 # Aurora OS — Architecture
 
+Aurora OS is a desktop-environment concept that runs entirely in the browser. It has no
+backend: every "system" (files, calendar, telemetry, media, AI) is a local, deterministic
+model behind the same interfaces a real platform would provide.
+
 ## Folder structure
 
 ```
 src/
-├─ main.tsx, App.tsx          Entry; App wires global hooks + MotionConfig
-├─ system/                    The "kernel" of the shell — no JSX besides lazy app imports
-│  ├─ types.ts                WindowState, Display, VirtualDesktop, AppManifest, SnapZone…
-│  ├─ appRegistry.ts          App manifests (icon, gradient, sizes, lazy component)
-│  ├─ layout.ts               Shell metrics, work-area + clamping math
-│  ├─ snap.ts                 Zone → rect resolution, edge detection, layout templates
-│  ├─ motion.ts               Spring vocabulary shared by every animation
-│  ├─ dockRegistry.ts         Dock icon geometry for minimize targets
-│  └─ store/
-│     ├─ windowStore.ts       Window manager state + actions (Zustand)
-│     └─ systemStore.ts       User preferences, persisted to localStorage
-├─ components/
-│  ├─ shell/                  Desktop, Wallpaper, WindowLayers, TopBar, Dock, DesktopHUD
-│  ├─ window/                 Window, TitleBar, ResizeHandles, SnapPreview, SnapLayoutsFlyout
-│  └─ ui/                     Primitives: AppIcon, GlassButton (more in Phase 2)
-├─ apps/                      One folder per app; default export receives AppProps
-├─ hooks/                     useThemeSync, useDisplaySync, useGlobalShortcuts, useClock
-├─ services/
-│  ├─ commands.ts             System verbs (tile, lock, toggle DND…) shared by search, panels, AI
-│  ├─ search/                 Provider-based search: fuzzy ranking, top hit, grouped sections
-│  ├─ vfs.ts                  In-memory file tree (search, recents; Files app in Phase 3)
+├─ main.tsx, App.tsx            Entry. App wires global hooks and MotionConfig.
+├─ system/                      The core shell. Stores, models and pure geometry; no UI.
+│  ├─ types.ts                  WindowState, Display, VirtualDesktop, AppManifest, SnapZone…
+│  ├─ appRegistry.ts            App manifests: icon, gradient, sizes, singleton, lazy component
+│  ├─ layout.ts                 Shell metrics, per-display work areas, clamping, display lookup
+│  ├─ snap.ts                   Zone → rect, edge/corner detection, snap-layout templates
+│  ├─ overview.ts               Exposé grid solver for Overview
+│  ├─ motion.ts                 Spring vocabulary shared by every animation
+│  ├─ dockRegistry.ts           Dock icon geometry (minimize targets)
+│  └─ store/                    Zustand stores (see "State management")
+├─ services/                    Domain logic used by several surfaces
+│  ├─ commands.ts               System verbs (tile, lock, toggle DND…) shared by UI, search, AI
+│  ├─ search/                   Provider-based universal search + fuzzy ranking
+│  ├─ ai/                       Aurora AI: intents, parsers, context, organiser, triage, voice
+│  ├─ vfs.ts                    Virtual file-system model, seed data and helpers
+│  ├─ metrics.ts                Simulated hardware telemetry (ref-counted sampler)
 │  └─ notificationSimulator.ts  Seeds a backlog and drips live notifications
-├─ styles/globals.css         Tokens, materials, wallpaper keyframes
-└─ assets/
+├─ components/
+│  ├─ shell/                    Desktop, TopBar, Dock, panels, Overview, lock screen, displays…
+│  ├─ window/                   Window, TitleBar (+tabs), ResizeHandles, snap preview & flyout
+│  ├─ assistant/                Assistant chat/panel, voice HUD, context nudge, orb
+│  └─ ui/                       AppKit, AppIcon, charts, context menu, slider, media card…
+├─ apps/                        One folder per app; default export receives AppProps
+├─ hooks/                       Theme, display, clock, shortcuts, media clock, search controller
+├─ styles/globals.css           Tokens, materials, wallpaper variants, touch rules
+├─ assets/                      Logo
+└─ __tests__/                   Vitest suites (AI intents and parsers)
 ```
 
-`system/` never imports from `components/`; components read the system through stores and
-pure functions. That keeps the window manager testable without a DOM and lets any surface
-(dock, launcher, AI assistant) drive windows through the same actions.
+**Dependency direction.** `system/` never imports from `components/` or `apps/`.
+`services/` may use `system/` stores. Components read state through stores and act through
+store actions or `services/commands`. The window manager can therefore be tested without a
+DOM, and any surface (dock, keyboard, search, AI) drives windows through the same actions.
 
-## Component breakdown (Phase 1)
+## Component breakdown
+
+### Shell (`components/shell`)
 
 | Component | Responsibility |
 | --- | --- |
-| `Desktop` | Z-ordered scene: wallpaper → window layers → chrome → overlays |
-| `Wallpaper` | Pure-CSS animated aurora; compositor-only, paused under reduced motion |
-| `WindowLayers` | One layer per virtual desktop; slides + recedes on switch, `inert` when hidden |
-| `Window` | Geometry in motion values; drag, resize, tear-off, snap, minimize-to-dock, focus |
-| `TitleBar` | Drag handle, double-click maximize, window controls, snap-layouts trigger |
-| `SnapLayoutsFlyout` | Template grid (halves, 2/3+1/3, thirds, quarters) |
-| `SnapPreview` | Accent glass ghost showing the landing zone while dragging |
-| `Dock` | Magnifying dock, running/focused indicators, launch bounce, minimize targets |
-| `TopBar` | Focused app, virtual-desktop switcher, status cluster + clock |
-| `DesktopHUD` | Transient desktop-switch indicator + live-region announcement |
+| `Desktop` | Scene graph. Windows span the virtual screen; system chrome sits in a box the size of the primary display |
+| `Wallpaper` | Animated aurora built from CSS keyframes that only move transforms. Five variants via `[data-wallpaper]` |
+| `WindowLayers` | One layer per virtual desktop: slides and recedes on switch, and is `inert` when hidden. Computes Overview slots |
+| `TopBar` | Launcher, focused app, search, Overview, desktop switcher, Ask Aurora, status icons, clock |
+| `Dock` / `DockPreviews` | Distance-based magnification, running indicators, launch bounce, live window previews |
+| `ShellPanels` | Hosts one panel at a time and a click-away catcher, and returns focus to the opener |
+| `Launcher` / `SearchOverlay` | App grid with recent files / universal search (combobox) |
+| `NotificationCenter` / `Toasts` / `NotificationCard` | Calendar header, AI digest, grouped and bundled notifications, swipeable banners |
+| `QuickSettings` | Connectivity toggles, modes, brightness and volume, media card |
+| `Overview` | Dimmed backdrop, desktop strip and captions. The windows themselves are the previews |
+| `LockScreen` | Glass lock screen with clock, unread count and media controls |
+| `SecondaryDisplays` | Bezel and status strip for each extra display |
+| `DesktopHUD` / `Announcer` | Desktop-switch indicator; screen-reader live narration |
+| `DisplayFilters` | Brightness and Night Light overlays |
+
+### Window system (`components/window`)
+
+| Component | Responsibility |
+| --- | --- |
+| `Window` | Geometry in motion values; drag, resize, tear-off, snapping, merging into tabs, minimize into the dock, Overview transform |
+| `TitleBar` | Drag handle, double-click to maximize, controls, tab strip, drop target for grouping |
+| `SnapLayoutsFlyout` / `SnapPreview` | Layout templates; accent-coloured preview of where the window will land |
+| `ResizeHandles` | Eight edges, enlarged for coarse pointers |
+
+### Apps (`apps/`)
+
+| App | Highlights |
+| --- | --- |
+| Files | Places, tags, trash; grid/list; multi-select; F2 rename; drag-to-move; Quick Look; **AI Organize** panel with undo |
+| Notes | Locally persisted notes, pinning, search; opens documents from Files; **Summarize** |
+| Settings | Appearance, wallpapers, displays (incl. simulated second display), desktop & dock, notifications, Aurora AI, accessibility, keyboard, about |
+| Calendar | Week view (3-day on narrow windows) and month view, quick create, event details, **Find focus time** |
+| Clock | World clock with analog dials, timer, stopwatch with laps, focus sessions that toggle DND |
+| System Monitor | Stat tiles, CPU/memory/network area charts with hover, per-core bars, top processes |
+| Task Manager | Sortable process table grouped by kind, End task (closes the window), startup apps |
+| Horizon | Tabs, history, address bar with search fallback, bookmarks, reader view, built-in pages |
+| Atrium | Featured carousel, categories, search, install progress, updates, detail pages |
+| Resonance | Library, likes, generative cover art, canvas visualiser, transport and volume |
+| Aurora AI | The assistant as a window (shares its conversation with the panel) |
+
+### Aurora AI (`services/ai`, `components/assistant`)
+
+```
+typed text ─┐                 ┌─ intents.ts ── interpret() ─▶ Intent.match → params
+voice ──────┼─▶ respond() ─▶  │               execute()   ─▶ Intent.run   → AiReply { text, cards, actions }
+search ─────┘                 └─ clauses()  splits "open X and snap it left" into steps
+                                    │
+             uses ─▶ when.ts (dates) · fileQuery.ts (NL file filters) · context.ts ("this")
+                     organizer.ts · productivity.ts · text.ts (summaries) · commands.ts · stores
+```
+
+- **Intent engine** (`intents.ts`): about 30 intents in priority order, covering apps, windows,
+  desktops, settings, calendar queries and creation, file search and organisation, notes,
+  timers, media, system insight, summaries, tips and help. Every action uses existing store
+  actions, so the UI reflects it immediately, and most replies offer **Undo**. The engine is
+  deterministic; a language model could replace `interpret()` without touching any intent.
+- **Context** (`context.ts`): the top-most non-assistant window. It resolves "this" and
+  produces suggestion chips such as "Summarize this page" or "Organize Downloads".
+- **Natural-language search**: an `ai` search provider turns a sentence into one
+  "do it" result, or answers structured file questions inline.
+- **Smart notifications** (`notifications.ts`): triage re-ranks urgency, bundles low-value
+  items (no banner) and writes the digest shown in the notification center.
+- **Smart file organisation** (`organizer.ts`): rule-based planner. Each group has a reason
+  and a confidence, nothing moves until you confirm, and changes can be undone.
+- **Productivity** (`productivity.ts`): free focus blocks and context-driven recommendations.
+- **Voice** (`voice.ts`): a source-agnostic controller. It uses the Web Speech API when the
+  browser has it, and a simulated source that "speaks" sample phrases everywhere else.
+  Both feed the same `respond()` pipeline.
 
 ## State management plan
 
-**Zustand**, split by rate-of-change and persistence needs:
+Zustand stores, split by how often they change and whether they persist:
 
 | Store | Holds | Persisted |
 | --- | --- | --- |
-| `windowStore` | windows, z-order, focus, desktops, displays, snap preview | Phase 5 (session restore) |
-| `systemStore` | theme, accent, transparency, motion, glass clarity, dock prefs | ✅ localStorage |
-| `shellStore` | open panel, overview, lock | — |
-| `notificationStore` | notifications, banner queue, Do Not Disturb | — |
-| `mediaStore` | simulated media session: track, position, likes | — |
-| `aiStore` (P4) | conversation, suggestions, context snapshot | partial |
+| `windowStore` | windows, z-order, focus, desktops, tab groups, displays, snap/group targets | session (windows, desktops, groups) |
+| `systemStore` | theme, accent, wallpaper, glass, motion, device toggles, AI prefs, dual display | ✅ |
+| `shellStore` | open panel, Overview, lock, search seed | — |
+| `notificationStore` | notifications, banner queue, DND (with triage on `post`) | — |
+| `fileStore` | virtual file tree (flat map with parent ids) | — |
+| `calendarStore` | events (seeded relative to the current week) | — |
+| `notesStore` | notes | ✅ |
+| `mediaStore` | simulated media session | — |
+| `aiStore` | conversation, thinking flag, voice state and transcript | — |
+| `metrics` (service) | telemetry history and processes; the sampler runs only while consumed | — |
 
 Rules:
 
-1. **High-frequency state never goes through React.** Drag/resize write to Framer Motion
-   values; only the final rect is committed. Dock magnification is a motion-value pipeline.
-2. **One write path for geometry.** Every rect change (drag commit, snap, maximize, display
-   resize) goes through the store; `Window` springs its motion values to whatever the store says.
-3. **Fine-grained selectors.** Components subscribe to the slice they render
-   (`s.windows[id]`, `s.focusedId === id`); `Window` is memoised on `id/depth/zIndex`.
-4. **Actions are the API.** Dock, keyboard shortcuts and (later) the AI assistant all call
-   the same `openApp / focusWindow / snapWindow…` — the assistant gets window control for free.
+1. **High-frequency values never go through React.** Drag and resize write to Framer Motion
+   values, dock magnification is a motion-value pipeline, and the visualiser draws on canvas.
+2. **One write path for geometry.** Every rect change goes through the store; `Window`
+   springs to whatever the store says.
+3. **Fine-grained selectors.** Components subscribe to the slice they render; `Window` is
+   memoised on `id / depth / zIndex / overview`.
+4. **Actions are the API.** Dock, keyboard, search and AI call the same store actions and
+   `commands`, so behaviour is identical whichever way a request arrives.
+5. **Persistence is opt-in and fails softly.** `persist` swallows storage errors, so private
+   windows and sandboxed previews still run.
 
 ## Window system
 
-- **Coordinates** are global virtual-screen pixels. Each window has a `displayId`; work areas,
-  snap zones and maximize resolve against that display.
-- **Modes**: `normal | maximized | snapped` plus an orthogonal `minimized` flag, so restoring
-  from the dock returns a window to its tiled position. `restoreRect` remembers the free-form
-  rect; snapped→snapped keeps the original.
-- **Tear-off**: dragging a tiled window morphs it back to `restoreRect` size while keeping the
-  grab point proportionally under the cursor.
-- **Focus & depth**: `order` is the z-stack. Depth (distance from top) drives a subtle
-  scale-down and lower glass opacity; the focused window gets an accent rim + glow.
-- **Virtual desktops**: windows carry `desktopId`; layers stay mounted so app state survives
-  switching. Removing a desktop migrates its windows to the neighbour.
-- **Minimize**: the window's `transform-origin` is moved onto its dock icon, then it scales
-  and blurs into it — a genie-like effect at transform-only cost.
+- **Coordinates** are global virtual-screen pixels. Each window has a `displayId`. Work areas,
+  snap zones and maximize are resolved against that display.
+- **Modes** are `normal | maximized | snapped`, plus an independent `minimized` flag.
+  `restoreRect` remembers the free-form rect.
+- **Tear-off**: dragging a tiled window returns it to its `restoreRect` size, keeping the
+  grab point under the cursor.
+- **Tabs**: drop a window onto another window's title bar (only the top-most window under
+  the pointer counts). Every tab stays mounted; hidden tabs are `visibility: hidden` and
+  `inert`. Dragging a tab downward detaches it.
+- **Overview**: `overviewLayout` picks the grid that maximises average scale, and each
+  window animates its inner layer to `{dx, dy, scale}`. The previews are live, and no app
+  mounts twice.
+- **Virtual desktops**: windows carry `desktopId`; layers stay mounted. Removing a desktop
+  moves its windows to the neighbouring one.
 
-## Multi-monitor architecture
+## Multi-monitor
 
-`Display { id, bounds, primary, scale }` lives in the window store. Today `useDisplaySync`
-maps the viewport to the primary display. A host with several screens (e.g. the Window
-Management API `getScreenDetails()`, or an Electron/Tauri shell) would publish one `Display`
-per screen through `setDisplayBounds`; `displayAt()` routes drag snapping to the display
-under the pointer, and `setDisplayBounds` re-flows tiled windows when a display changes.
-Phase 5 adds a simulated dual-display mode to exercise this path in the browser.
+`Display { id, bounds, primary, scale }` lives in the window store. `useDisplaySync`
+publishes the display set:
 
-## Keyboard shortcuts
+- one display (the viewport) by default;
+- with **Settings → Displays → Simulate a second display**, a 60/40 split with a bezel.
 
-Chosen to avoid browser-reserved combos. See `useGlobalShortcuts.ts` (`SHORTCUTS`) — also
-shown in the Welcome app.
+`setDisplays` reassigns windows whose display disappeared and re-flows the rest.
+`displayAt()` routes snapping to the display under the pointer, and `commitRect()` moves a
+window to the display that holds its centre. Secondary displays have their own work area
+(no dock, a slim status strip). A real host would call `setDisplays` from the Window
+Management API (`getScreenDetails()`) or a native shell.
 
-## Performance strategy (Phase 1 measures)
+## Testing
 
-- Geometry via transforms (`x/y`), springs on motion values: no layout thrash, no re-renders mid-gesture.
-- Apps are `React.lazy` chunks; first paint ships only the shell (Welcome is ~2.5 kB gz).
-- Wallpaper is CSS keyframes on `transform` only.
-- `filter: blur()` is used only during open/minimize transitions and removed via
-  `transitionEnd`, because a lingering filter on an ancestor disables child `backdrop-filter`.
-- Hidden desktops are `visibility: hidden` so their glass isn't composited.
-
-## Accessibility (Phase 1 measures)
-
-- Windows are `role="dialog"` (non-modal) labelled by their title; minimized/hidden content is `inert`.
-- Every control has an accessible name; dock items expose running/focused state via `aria-pressed`.
-- Focus moves into a window when it is activated; global shortcuts skip editable targets.
-- Desktop switches are announced via a polite live region.
-- Honors `prefers-reduced-motion` and `prefers-reduced-transparency` (and in-app overrides);
-  reduced motion swaps springs for instant transitions and freezes the wallpaper.
-
-## Phase 2 — shell surfaces
-
-| Surface | Entry points | Notes |
-| --- | --- | --- |
-| Launcher | Aurora mark, `Ctrl Alt A` | Rises from the dock; typing switches the grid to search results |
-| Search | Magnifier, `Ctrl K` | Combobox with grouped results and a single top hit; inline calculator |
-| Notification center | Clock, `Ctrl Alt N` | Month view, notifications grouped by app, DND toggle, swipe to dismiss |
-| Banners | — | Max three, auto-retire after 6 s (paused on hover); DND holds all but time-sensitive |
-| Quick settings | Status icons, `Ctrl Alt Q` | Toggles, brightness/volume, now-playing card |
-| Overview | Grid button, `Ctrl Alt ↑` | The real windows animate into a grid, so previews are live; desktop strip on top |
-| Dock previews | Hover a running app | Mini frames at each window's aspect ratio; click to jump, × to close |
-| Tab groups | Drag a window onto another's title bar | Tabs share one frame; drag a tab downward to detach |
-| Lock screen | Launcher/Quick settings, `Ctrl Alt L` | Clock, unread count, media controls; any key or click unlocks |
-
-**One panel at a time.** `shellStore.panel` is a single value, so opening one surface closes
-the other; a transparent catcher behind the panel closes it on outside click, and Escape is
-handled centrally.
-
-**Overview without duplication.** Rather than rendering thumbnails, `useOverviewSlots`
-computes a grid (choosing the column count that maximises average scale) and each `Window`
-animates its inner layer to `{dx, dy, scale}`. Previews are therefore live, and apps don't
-mount twice.
-
-**Tab groups keep app state.** Every member stays mounted; non-selected tabs are
-`visibility: hidden` and `inert`. Switching tabs hands the frame geometry to the new tab.
-Grouping only targets the top-most window under the pointer.
-
-**Search providers** (`services/search/providers.ts`) each return scored results; the engine
-merges them, promotes the best as the top hit and caps each section at five. The AI phase
-adds a natural-language provider without changing the UI.
+`npm test` runs Vitest on jsdom: recognition for 36 phrasings, execution against real
+stores (settings, chained window commands, calendar creation, DND), title extraction, and
+the date, duration and file-query parsers.

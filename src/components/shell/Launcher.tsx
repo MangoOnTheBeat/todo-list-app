@@ -40,7 +40,7 @@ export function Launcher() {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 30, scale: 0.96, transition: { duration: 0.16 } }}
       transition={springs.panel}
-      className="glass acrylic glass-sheen absolute bottom-[100px] left-1/2 z-[1300] flex max-h-[calc(100vh-150px)] w-[min(620px,calc(100vw-32px))] -translate-x-1/2 origin-bottom flex-col overflow-hidden rounded-[28px]"
+      className="pointer-events-auto glass acrylic glass-sheen absolute bottom-[100px] left-1/2 z-[1300] flex max-h-[calc(100vh-150px)] w-[min(620px,calc(100vw-32px))] -translate-x-1/2 origin-bottom flex-col overflow-hidden rounded-[28px]"
       style={{ boxShadow: 'inset 0 1px 0 var(--glass-highlight), var(--shadow-window)' }}
     >
       <div className="p-5 pb-3">

@@ -40,7 +40,7 @@ export function NotificationCenter() {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 60, transition: { duration: 0.18 } }}
       transition={springs.panel}
-      className="glass acrylic glass-sheen absolute bottom-[100px] right-2.5 top-11 z-[1300] flex w-[min(380px,calc(100vw-20px))] flex-col overflow-hidden rounded-[var(--radius-panel)]"
+      className="pointer-events-auto glass acrylic glass-sheen absolute bottom-[100px] right-2.5 top-11 z-[1300] flex w-[min(380px,calc(100vw-20px))] flex-col overflow-hidden rounded-[var(--radius-panel)]"
       style={{ boxShadow: 'inset 0 1px 0 var(--glass-highlight), var(--shadow-window)' }}
     >
       <header className="px-5 pb-3 pt-5">
@@ -54,7 +54,7 @@ export function NotificationCenter() {
         <button
           onClick={() => setDnd(!dnd)}
           aria-pressed={dnd}
-          className={clsx('ml-auto flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium', dnd ? 'bg-accent text-white' : 'glass-well text-fg-muted')}
+          className={clsx('ml-auto flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium', dnd ? 'bg-accent-fill text-white' : 'glass-well text-fg-muted')}
         >
           <BellOff className="size-3" />
           Do Not Disturb
@@ -160,7 +160,7 @@ function MiniCalendar({ now }: { now: Date }) {
           key={i}
           className={clsx(
             'mx-auto grid size-6 place-items-center rounded-full tabular-nums',
-            d === now.getDate() ? 'bg-accent font-semibold text-white shadow-[0_0_12px_-2px_var(--color-accent)]' : 'text-fg-muted',
+            d === now.getDate() ? 'bg-accent-fill font-semibold text-white shadow-[0_0_12px_-2px_var(--color-accent)]' : 'text-fg-muted',
           )}
         >
           {d ?? ''}

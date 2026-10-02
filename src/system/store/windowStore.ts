@@ -1,6 +1,7 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { getApp } from '../appRegistry';
-import { clampToDisplay, workArea } from '../layout';
+import { clampToDisplay, COMPACT_W, displayForRect, workArea } from '../layout';
 import { zoneRect } from '../snap';
 import { uid } from '../ids';
 import type { AppId, Display, Rect, SnapZone, VirtualDesktop, WindowState } from '../types';
@@ -45,7 +46,8 @@ export interface WindowStore {
   minimizeWindow: (id: string) => void;
   restoreWindow: (id: string) => void;
   toggleMaximize: (id: string) => void;
-  snapWindow: (id: string, zone: SnapZone) => void;
+  /** Snap into a zone; `displayId` moves the window to another display first. */
+  snapWindow: (id: string, zone: SnapZone, displayId?: string) => void;
   /** Commit a free-form rect after a drag/resize; leaves maximized/snapped mode. */
   commitRect: (id: string, rect: Rect) => void;
   setTitle: (id: string, title: string) => void;
@@ -59,6 +61,10 @@ export interface WindowStore {
   moveWindowToDesktop: (windowId: string, desktopId: string) => void;
 
   setDisplayBounds: (displayId: string, bounds: Rect) => void;
+  /** Replace the display set (monitor plugged/unplugged). Orphaned windows move to the primary. */
+  setDisplays: (displays: Display[]) => void;
+  /** Close everything and return to a single empty desktop. */
+  resetSession: () => void;
 
   setGroupTarget: (id: string | null) => void;
   /** Drop `sourceId` onto `targetId`'s frame as a new tab. */
@@ -115,7 +121,13 @@ function displayOf(s: Pick<WindowStore, 'displays'>, id: string) {
   return s.displays.find((d) => d.id === id) ?? s.displays[0];
 }
 
-export const useWindowStore = create<WindowStore>()((set, get) => ({
+/**
+ * Session restore: windows, z-order, desktops and tab groups persist across reloads.
+ * Displays are re-detected at startup (useDisplaySync), which re-flows every window.
+ */
+export const useWindowStore = create<WindowStore>()(
+  persist(
+  (set, get) => ({
   windows: {},
   order: [],
   focusedId: null,
@@ -161,12 +173,16 @@ export const useWindowStore = create<WindowStore>()((set, get) => ({
     );
 
     const id = uid(appId);
+    // Compact displays (phones, small tablets) get full-screen windows.
+    const compact = display.bounds.w < COMPACT_W;
     const win: WindowState = {
       id,
       appId,
       title: app.name,
-      rect,
-      mode: 'normal',
+      rect: compact ? zoneRect('maximize', display) : rect,
+      restoreRect: compact ? rect : undefined,
+      snap: compact ? 'maximize' : undefined,
+      mode: compact ? 'maximized' : 'normal',
       minimized: false,
       desktopId,
       displayId: display.id,
@@ -253,11 +269,11 @@ export const useWindowStore = create<WindowStore>()((set, get) => ({
     }
   },
 
-  snapWindow(id, zone) {
+  snapWindow(id, zone, displayId) {
     set((s) => {
       const win = s.windows[id];
       if (!win) return s;
-      const display = displayOf(s, win.displayId);
+      const display = displayOf(s, displayId ?? win.displayId);
       return {
         windows: {
           ...s.windows,
@@ -268,6 +284,7 @@ export const useWindowStore = create<WindowStore>()((set, get) => ({
             rect: zoneRect(zone, display),
             // Only remember a free-form rect; snapping snapped→snapped keeps the original.
             restoreRect: win.mode === 'normal' ? win.rect : win.restoreRect,
+            displayId: display.id,
             minimized: false,
           },
         },
@@ -279,11 +296,12 @@ export const useWindowStore = create<WindowStore>()((set, get) => ({
     set((s) => {
       const win = s.windows[id];
       if (!win) return s;
-      const display = displayOf(s, win.displayId);
+      // A window dropped mostly on another monitor now belongs to it.
+      const display = displayForRect(s.displays, rect);
       return {
         windows: {
           ...s.windows,
-          [id]: { ...win, rect: clampToDisplay(rect, display), mode: 'normal', snap: undefined, restoreRect: undefined },
+          [id]: { ...win, rect: clampToDisplay(rect, display), displayId: display.id, mode: 'normal', snap: undefined, restoreRect: undefined },
         },
       };
     });
@@ -446,6 +464,25 @@ export const useWindowStore = create<WindowStore>()((set, get) => ({
     });
   },
 
+  resetSession() {
+    set({ windows: {}, order: [], focusedId: null, groups: {}, desktops: [firstDesktop], activeDesktopId: firstDesktop.id });
+  },
+
+  setDisplays(displays) {
+    set((s) => {
+      const primary = displays.find((d) => d.primary) ?? displays[0];
+      const byId = new Map(displays.map((d) => [d.id, d]));
+      const windows = Object.fromEntries(
+        Object.entries(s.windows).map(([id, w]) => {
+          const display = byId.get(w.displayId) ?? primary;
+          const rect = w.snap ? zoneRect(w.snap, display) : clampToDisplay(w.rect, display);
+          return [id, { ...w, displayId: display.id, rect }];
+        }),
+      );
+      return { displays, windows };
+    });
+  },
+
   setDisplayBounds(displayId, bounds) {
     set((s) => {
       const displays = s.displays.map((d) => (d.id === displayId ? { ...d, bounds } : d));
@@ -461,7 +498,14 @@ export const useWindowStore = create<WindowStore>()((set, get) => ({
       return { displays, windows };
     });
   },
-}));
+  }),
+    {
+      name: 'aurora.session',
+      version: 1,
+      partialize: (s) => ({ windows: s.windows, order: s.order, focusedId: s.focusedId, desktops: s.desktops, activeDesktopId: s.activeDesktopId, groups: s.groups }),
+    },
+  ),
+);
 
 /** Selector helpers kept here so components share memo-friendly selectors. */
 export const selectFocusedApp = (s: WindowStore) => (s.focusedId ? s.windows[s.focusedId]?.appId ?? null : null);

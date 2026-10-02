@@ -9,14 +9,14 @@ import { AuroraOrb } from './AuroraOrb';
 export function AssistantPanel() {
   const close = useShellStore((s) => s.closePanel);
   return (
-    <motion.aside
+    <motion.div
       role="dialog"
       aria-label="Aurora AI"
       initial={{ opacity: 0, x: 70, scale: 0.98 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 60, transition: { duration: 0.18 } }}
       transition={springs.panel}
-      className="absolute bottom-[100px] right-2.5 top-11 z-[1300] w-[min(400px,calc(100vw-20px))]"
+      className="pointer-events-auto absolute bottom-[100px] right-2.5 top-11 z-[1300] w-[min(400px,calc(100vw-20px))]"
     >
       {/* Rim light: a rotating conic gradient peeking out 1px around the sheet. */}
       <div aria-hidden className="absolute -inset-px overflow-hidden rounded-[calc(var(--radius-panel)+1px)] opacity-80">
@@ -40,6 +40,6 @@ export function AssistantPanel() {
           <AssistantChat />
         </div>
       </div>
-    </motion.aside>
+    </motion.div>
   );
 }

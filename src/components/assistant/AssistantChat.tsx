@@ -127,7 +127,7 @@ export function AssistantChat({ autoFocus = true }: { autoFocus?: boolean }) {
             <Mic className="size-4" />
           </button>
         )}
-        <motion.button whileTap={{ scale: 0.9 }} transition={springs.snappy} type="submit" aria-label="Send" disabled={!text.trim()} className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent text-white disabled:opacity-35">
+        <motion.button whileTap={{ scale: 0.9 }} transition={springs.snappy} type="submit" aria-label="Send" disabled={!text.trim()} className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent-fill text-white disabled:opacity-35">
           <ArrowUp className="size-4" />
         </motion.button>
       </form>

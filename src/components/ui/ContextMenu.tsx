@@ -78,7 +78,7 @@ export function ContextMenu({ x, y, items, onClose }: { x: number; y: number; it
               }}
               className={clsx(
                 'flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] disabled:opacity-40',
-                active === i && !it.disabled && (it.danger ? 'bg-[oklch(0.62_0.2_25)] text-white' : 'bg-accent text-white'),
+                active === i && !it.disabled && (it.danger ? 'bg-[oklch(0.62_0.2_25)] text-white' : 'bg-accent-fill text-white'),
                 it.danger && active !== i && 'text-[oklch(0.62_0.2_25)]',
               )}
             >

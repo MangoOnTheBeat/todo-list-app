@@ -32,7 +32,7 @@ export function VoiceOverlay() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
           transition={springs.elastic}
-          className="glass acrylic glass-sheen absolute bottom-[104px] left-1/2 z-[1400] w-[min(440px,calc(100vw-32px))] -translate-x-1/2 rounded-[28px] p-5 text-center"
+          className="pointer-events-auto glass acrylic glass-sheen absolute bottom-[104px] left-1/2 z-[1400] w-[min(440px,calc(100vw-32px))] -translate-x-1/2 rounded-[28px] p-5 text-center"
           style={{ boxShadow: 'inset 0 1px 0 var(--glass-highlight), var(--shadow-window), 0 0 80px -20px var(--color-accent)' }}
         >
           <button aria-label="Cancel" onClick={() => voice.cancel()} className="absolute right-3 top-3 grid size-7 place-items-center rounded-full text-fg-muted hover:bg-[color-mix(in_oklab,var(--text-1)_10%,transparent)]">
@@ -47,7 +47,7 @@ export function VoiceOverlay() {
               <p className="mt-1 text-xs text-fg-subtle">Try the voice pipeline with a sample phrase instead:</p>
               <div className="mt-3 flex flex-wrap justify-center gap-1.5">
                 {SAMPLE_PHRASES.map((p) => (
-                  <button key={p} onClick={() => voice.simulate(p)} className="rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent hover:bg-accent hover:text-white">
+                  <button key={p} onClick={() => voice.simulate(p)} className="rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent hover:bg-accent-fill hover:text-white">
                     “{p}”
                   </button>
                 ))}

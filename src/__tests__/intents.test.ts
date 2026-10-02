@@ -112,6 +112,17 @@ describe('execution', () => {
   });
 });
 
+describe('search ranking', () => {
+  it('ranks apps above name-alike files and answers structured file questions', async () => {
+    const { search } = await import('@/services/search');
+    expect(search('Task Manager').top?.title).toBe('Task Manager');
+    expect(search('System Monitor').top?.title).toBe('System Monitor');
+    const pdfs = search('pdfs from this month');
+    expect(pdfs.flat.some((r) => r.kind === 'ai' && /\.pdf$/i.test(r.title))).toBe(true);
+    expect(search('12*7').top?.title).toBe('= 84');
+  });
+});
+
 describe('parsers', () => {
   const now = new Date(2026, 9, 2, 10, 0); // Fri 2 Oct 2026, 10:00
   it('parses relative days and times', () => {

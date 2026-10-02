@@ -25,7 +25,7 @@ export function QuickSettings() {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -10, scale: 0.97, transition: { duration: 0.15 } }}
       transition={springs.panel}
-      className="glass acrylic glass-sheen absolute right-2.5 top-11 z-[1300] max-h-[calc(100vh-150px)] w-[min(360px,calc(100vw-20px))] origin-top-right space-y-3 overflow-y-auto rounded-[var(--radius-panel)] p-4"
+      className="pointer-events-auto glass acrylic glass-sheen absolute right-2.5 top-11 z-[1300] max-h-[calc(100vh-150px)] w-[min(360px,calc(100vw-20px))] origin-top-right space-y-3 overflow-y-auto rounded-[var(--radius-panel)] p-4"
       style={{ boxShadow: 'inset 0 1px 0 var(--glass-highlight), var(--shadow-window)' }}
     >
       <div className="grid grid-cols-2 gap-2">

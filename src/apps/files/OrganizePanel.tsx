@@ -102,7 +102,7 @@ export function OrganizePanel({ folderId, onClose }: { folderId: string; onClose
               const moved = chosen.reduce((a, g) => a + g.files.length, 0);
               useNotificationStore.getState().post({ appId: 'files', title: `Organized ${folderName}`, body: `Moved ${moved} files into ${chosen.length} folders.`, priority: 'low', silent: true });
             }}
-            className="h-9 w-full rounded-lg bg-accent text-sm font-medium text-white disabled:opacity-40"
+            className="h-9 w-full rounded-lg bg-accent-fill text-sm font-medium text-white disabled:opacity-40"
           >
             Move {chosen.reduce((a, g) => a + g.files.length, 0)} files
           </button>

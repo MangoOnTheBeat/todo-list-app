@@ -37,7 +37,7 @@ export function SearchOverlay() {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -10, scale: 0.98, transition: { duration: 0.14 } }}
       transition={springs.panel}
-      className="glass acrylic glass-sheen absolute left-1/2 top-[14vh] z-[1300] flex max-h-[min(560px,72vh)] w-[min(640px,calc(100vw-32px))] -translate-x-1/2 flex-col overflow-hidden rounded-[var(--radius-panel)]"
+      className="pointer-events-auto glass acrylic glass-sheen absolute left-1/2 top-[14vh] z-[1300] flex max-h-[min(560px,72vh)] w-[min(640px,calc(100vw-32px))] -translate-x-1/2 flex-col overflow-hidden rounded-[var(--radius-panel)]"
       style={{ boxShadow: 'inset 0 1px 0 var(--glass-highlight), var(--shadow-window)' }}
     >
       <div className="flex items-center gap-3 border-b hairline px-4">

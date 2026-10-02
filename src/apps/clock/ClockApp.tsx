@@ -29,7 +29,7 @@ function partsIn(date: Date, tz?: string) {
 export default function ClockApp(_: AppProps) {
   const [tab, setTab] = useState<Tab>('world');
   return (
-    <div className="@container flex h-full flex-col" style={{ background: 'color-mix(in oklab, var(--glass-tint) 35%, transparent)' }}>
+    <div className="@container flex h-full flex-col" style={{ background: 'var(--app-surface)' }}>
       <div className="flex justify-center border-b hairline py-2.5">
         <Segmented
           label="Clock mode"
@@ -235,7 +235,7 @@ function Countdown({ kind }: { kind: 'timer' | 'focus' }) {
       </div>
       <div className="flex flex-wrap justify-center gap-1.5">
         {presets.map((m) => (
-          <button key={m} onClick={() => choose(m)} className={clsx('rounded-full px-3 py-1 text-xs font-medium', total === m * 60_000 ? 'bg-accent text-white' : 'glass-well text-fg-muted')}>
+          <button key={m} onClick={() => choose(m)} className={clsx('rounded-full px-3 py-1 text-xs font-medium', total === m * 60_000 ? 'bg-accent-fill text-white' : 'glass-well text-fg-muted')}>
             {m} min
           </button>
         ))}
@@ -309,7 +309,7 @@ function RoundButton({ label, onClick, primary, children }: { label: string; onC
       whileTap={{ scale: 0.9 }}
       whileHover={{ scale: 1.05 }}
       transition={springs.elastic}
-      className={clsx('grid size-16 place-items-center rounded-full', primary ? 'bg-accent text-white shadow-[0_8px_24px_-8px_var(--color-accent)]' : 'glass-well text-fg')}
+      className={clsx('grid size-16 place-items-center rounded-full', primary ? 'bg-accent-fill text-white shadow-[0_8px_24px_-8px_var(--color-accent)]' : 'glass-well text-fg')}
     >
       {children}
     </motion.button>

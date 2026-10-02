@@ -139,7 +139,7 @@ export default function MusicApp({ windowId }: AppProps) {
 
 function Btn({ label, onClick, big, children }: { label: string; onClick: () => void; big?: boolean; children: React.ReactNode }) {
   return (
-    <motion.button aria-label={label} onClick={onClick} whileTap={{ scale: 0.86 }} transition={springs.elastic} className={clsx('grid place-items-center rounded-full', big ? 'size-10 bg-accent text-white shadow-[0_6px_18px_-6px_var(--color-accent)]' : 'size-8 text-fg')}>
+    <motion.button aria-label={label} onClick={onClick} whileTap={{ scale: 0.86 }} transition={springs.elastic} className={clsx('grid place-items-center rounded-full', big ? 'size-10 bg-accent-fill text-white shadow-[0_6px_18px_-6px_var(--color-accent)]' : 'size-8 text-fg')}>
       {children}
     </motion.button>
   );

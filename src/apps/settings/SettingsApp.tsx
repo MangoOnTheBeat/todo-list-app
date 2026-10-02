@@ -43,7 +43,7 @@ export default function SettingsApp({ windowId, args }: AppProps) {
       {/* Narrow windows: sections become a scrolling chip row. */}
       <nav aria-label="Settings sections" className="flex shrink-0 gap-1 overflow-x-auto border-b hairline px-3 py-2 @[560px]:hidden">
         {SECTIONS.map((s) => (
-          <button key={s.id} onClick={() => setSection(s.id)} className={clsx('shrink-0 rounded-full px-3 py-1 text-xs font-medium', section === s.id ? 'bg-accent text-white' : 'glass-well text-fg-muted')}>
+          <button key={s.id} onClick={() => setSection(s.id)} className={clsx('shrink-0 rounded-full px-3 py-1 text-xs font-medium', section === s.id ? 'bg-accent-fill text-white' : 'glass-well text-fg-muted')}>
             {s.label}
           </button>
         ))}
@@ -212,6 +212,13 @@ function DesktopSection() {
     <>
       <Group title="Dock">
         <PrefToggle k="dockMagnification" label="Magnify icons on hover" />
+      </Group>
+      <Group title="Session" footer="Aurora restores your windows, desktops and tab groups when you come back.">
+        <Row label="Start fresh" detail="Close every window and remove extra desktops">
+          <button onClick={() => useWindowStore.getState().resetSession()} className="rounded-lg bg-[color-mix(in_oklab,var(--text-1)_9%,transparent)] px-3 py-1.5 text-xs font-medium hover:bg-[color-mix(in_oklab,var(--text-1)_15%,transparent)]">
+            Reset desktop
+          </button>
+        </Row>
       </Group>
       <Group title="Virtual desktops" footer="Ctrl + Alt + ← / → switches desktops. Add Shift to take the focused window with you.">
         {desktops.map((d) => (

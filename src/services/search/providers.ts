@@ -243,8 +243,10 @@ const aiProvider: SearchProvider = {
         },
       });
     }
+    // Only structured questions ("pdfs from last week") get AI file answers; plain names are
+    // already covered by the Files provider and shouldn't outrank apps ("task manager").
     const files = fileQuery(q);
-    if (files && files.files.length) {
+    if (files?.structured && files.files.length) {
       files.files.slice(0, 4).forEach((f, i) =>
         out.push({
           id: `ai:file:${f.id}`,

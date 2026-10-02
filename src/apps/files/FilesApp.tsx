@@ -258,8 +258,8 @@ export default function FilesApp({ windowId, args }: AppProps) {
           value={view}
           onChange={setView}
           options={[
-            { value: 'grid', label: '', icon: LayoutGrid },
-            { value: 'list', label: '', icon: List },
+            { value: 'grid', label: '', ariaLabel: 'Icons', icon: LayoutGrid },
+            { value: 'list', label: '', ariaLabel: 'List', icon: List },
           ]}
         />
         {loc.type === 'trash' ? (
@@ -272,7 +272,7 @@ export default function FilesApp({ windowId, args }: AppProps) {
             <button
               onClick={() => setOrganizing((v) => !v)}
               aria-pressed={organizing}
-              className={clsx('flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium', organizing ? 'bg-accent text-white' : 'bg-accent-soft text-accent hover:brightness-110')}
+              className={clsx('flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium', organizing ? 'bg-accent-fill text-white' : 'bg-accent-soft text-accent hover:brightness-110')}
             >
               <svg aria-hidden viewBox="0 0 24 24" className="size-3.5 fill-current">
                 <path d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z" />
@@ -286,9 +286,9 @@ export default function FilesApp({ windowId, args }: AppProps) {
       <div className="relative flex min-h-0 flex-1">
         <div
           ref={gridRef}
-          role="grid"
+          role={view === 'grid' ? 'listbox' : 'region'}
           aria-label={title}
-          aria-multiselectable
+          aria-multiselectable={view === 'grid' ? true : undefined}
           tabIndex={0}
           onKeyDown={onKeyDown}
           onClick={(e) => e.target === e.currentTarget && setSelected(new Set())}
@@ -317,7 +317,7 @@ export default function FilesApp({ windowId, args }: AppProps) {
                     exit={{ opacity: 0, scale: 0.8 }}
                     transition={springs.snappy}
                     id={`file-${windowId}-${n.id}`}
-                    role="gridcell"
+                    role="option"
                     aria-selected={selected.has(n.id)}
                     aria-label={`${n.name}, ${KIND_LABEL[n.kind]}`}
                     tabIndex={-1}

@@ -29,8 +29,18 @@ export default function CalendarApp({ windowId }: AppProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
+  // Narrow windows (phones, side-by-side tiling) show three days instead of seven.
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setCompact(e.contentRect.width < 620));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const weekStart = startOfWeek(anchor);
-  const days = Array.from({ length: 7 }, (_, i) => new Date(weekStart.getTime() + i * DAY_MS));
+  const firstDay = compact ? new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate()) : weekStart;
+  const days = Array.from({ length: compact ? 3 : 7 }, (_, i) => new Date(firstDay.getTime() + i * DAY_MS));
   const visible = useMemo(() => events.filter((e) => !hidden.has(e.calendar)), [events, hidden]);
 
   // Open the week view scrolled to 8 AM.
@@ -40,14 +50,14 @@ export default function CalendarApp({ windowId }: AppProps) {
 
   const shift = (dir: number) => {
     const d = new Date(anchor);
-    if (view === 'week') d.setDate(d.getDate() + dir * 7);
+    if (view === 'week') d.setDate(d.getDate() + dir * (compact ? 3 : 7));
     else d.setMonth(d.getMonth() + dir);
     setAnchor(d);
   };
 
   const heading =
     view === 'week'
-      ? `${days[0].toLocaleDateString(undefined, { month: 'long', day: 'numeric' })} – ${days[6].toLocaleDateString(undefined, { month: days[0].getMonth() === days[6].getMonth() ? undefined : 'short', day: 'numeric', year: 'numeric' })}`
+      ? `${days[0].toLocaleDateString(undefined, { month: compact ? 'short' : 'long', day: 'numeric' })} – ${days[days.length - 1].toLocaleDateString(undefined, { month: days[0].getMonth() === days[days.length - 1].getMonth() ? undefined : 'short', day: 'numeric', year: compact ? undefined : 'numeric' })}`
       : anchor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
   const relPos = (e: React.MouseEvent) => {
@@ -140,7 +150,7 @@ export default function CalendarApp({ windowId }: AppProps) {
                       add({ title: 'Focus time', start: s.start, end: s.end, calendar: 'focus' });
                       setFocusSuggestions(focusSuggestions.filter((x) => x !== s));
                     }}
-                    className="rounded-full bg-[var(--glass-tint)] px-2.5 py-1 font-medium hover:bg-accent hover:text-white"
+                    className="rounded-full bg-[var(--glass-tint)] px-2.5 py-1 font-medium hover:bg-accent-fill hover:text-white"
                   >
                     + {new Date(s.start).toLocaleDateString(undefined, { weekday: 'short' })} {fmtTime(s.start)}–{fmtTime(s.end)}
                   </button>
@@ -155,20 +165,20 @@ export default function CalendarApp({ windowId }: AppProps) {
 
         {view === 'week' ? (
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="grid shrink-0 grid-cols-[52px_repeat(7,1fr)] border-b hairline">
+            <div className="grid shrink-0 border-b hairline" style={{ gridTemplateColumns: `52px repeat(${days.length}, 1fr)` }}>
               <span />
               {days.map((d) => {
                 const today = sameDay(d, now);
                 return (
                   <div key={d.toISOString()} className="py-2 text-center">
                     <span className="block text-[11px] uppercase tracking-wider text-fg-subtle">{d.toLocaleDateString(undefined, { weekday: 'short' })}</span>
-                    <span className={clsx('mx-auto mt-0.5 grid size-7 place-items-center rounded-full text-sm font-semibold tabular-nums', today && 'bg-accent text-white shadow-[0_0_14px_-3px_var(--color-accent)]')}>{d.getDate()}</span>
+                    <span className={clsx('mx-auto mt-0.5 grid size-7 place-items-center rounded-full text-sm font-semibold tabular-nums', today && 'bg-accent-fill text-white shadow-[0_0_14px_-3px_var(--color-accent)]')}>{d.getDate()}</span>
                   </div>
                 );
               })}
             </div>
             <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-y-auto">
-              <div className="relative grid grid-cols-[52px_repeat(7,1fr)]" style={{ height: HOUR_PX * 24 }}>
+              <div className="relative grid" style={{ height: HOUR_PX * 24, gridTemplateColumns: `52px repeat(${days.length}, 1fr)` }}>
                 <div className="relative">
                   {Array.from({ length: 23 }, (_, h) => (
                     <span key={h} className="absolute right-2 -translate-y-1/2 text-[10px] tabular-nums text-fg-subtle" style={{ top: (h + 1) * HOUR_PX }}>
@@ -318,7 +328,7 @@ function QuickCreate({ draft, onClose, onSave, windowId }: { draft: Draft; onClo
             </button>
           ))}
         </div>
-        <button type="submit" className="mt-3 h-8 w-full rounded-lg bg-accent text-xs font-semibold text-white">
+        <button type="submit" className="mt-3 h-8 w-full rounded-lg bg-accent-fill text-xs font-semibold text-white">
           Add event
         </button>
       </form>
@@ -352,7 +362,7 @@ function MiniMonth({ anchor, now, onPick, events }: { anchor: Date; now: Date; o
               onClick={() => onPick(d)}
               className={clsx(
                 'relative mx-auto grid size-6 place-items-center rounded-full tabular-nums',
-                sameDay(d, now) ? 'bg-accent font-semibold text-white' : sameDay(d, anchor) ? 'bg-accent-soft font-semibold' : 'hover:bg-[color-mix(in_oklab,var(--text-1)_8%,transparent)]',
+                sameDay(d, now) ? 'bg-accent-fill font-semibold text-white' : sameDay(d, anchor) ? 'bg-accent-soft font-semibold' : 'hover:bg-[color-mix(in_oklab,var(--text-1)_8%,transparent)]',
               )}
             >
               {d.getDate()}
@@ -383,7 +393,7 @@ function MonthGrid({ anchor, now, events, onPickDay }: { anchor: Date; now: Date
         const inMonth = d.getMonth() === anchor.getMonth();
         return (
           <button key={d.toISOString()} onClick={() => onPickDay(d)} className={clsx('min-h-0 overflow-hidden border-b border-r hairline p-1 text-left hover:bg-[color-mix(in_oklab,var(--text-1)_4%,transparent)]', !inMonth && 'opacity-45')}>
-            <span className={clsx('grid size-6 place-items-center rounded-full text-xs font-medium tabular-nums', sameDay(d, now) && 'bg-accent text-white')}>{d.getDate()}</span>
+            <span className={clsx('grid size-6 place-items-center rounded-full text-xs font-medium tabular-nums', sameDay(d, now) && 'bg-accent-fill text-white')}>{d.getDate()}</span>
             <span className="mt-0.5 block space-y-0.5">
               {evs.slice(0, 3).map((e) => (
                 <span key={e.id} className="flex items-center gap-1 truncate text-[10px]">

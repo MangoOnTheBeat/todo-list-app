@@ -36,14 +36,14 @@ export function ContextNudge() {
           role="status"
           initial={{ opacity: 0, y: -16, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+          exit={{ opacity: 0, y: -10, scale: 0.95, transition: { duration: 0.15 } }}
           transition={springs.elastic}
-          className="glass acrylic absolute left-1/2 top-12 z-[1100] flex -translate-x-1/2 items-center gap-2.5 rounded-full py-1.5 pl-2 pr-1.5 text-[13px]"
+          className="pointer-events-auto glass acrylic absolute left-1/2 top-12 z-[1100] flex -translate-x-1/2 items-center gap-2.5 rounded-full py-1.5 pl-2 pr-1.5 text-[13px]"
           style={{ boxShadow: 'inset 0 1px 0 var(--glass-highlight), var(--shadow-window), 0 0 40px -14px var(--color-accent)' }}
         >
           <AuroraOrb size={20} />
           <span>{loose.length} windows are overlapping.</span>
-          <button onClick={commands.tileWindows} className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-white">
+          <button onClick={commands.tileWindows} className="rounded-full bg-accent-fill px-3 py-1 text-xs font-semibold text-white">
             Tile them
           </button>
           <button aria-label="Dismiss suggestion" onClick={() => setDismissedAt(loose.length)} className="grid size-6 place-items-center rounded-full text-fg-muted hover:bg-[color-mix(in_oklab,var(--text-1)_10%,transparent)]">

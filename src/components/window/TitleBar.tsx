@@ -37,7 +37,7 @@ export const TitleBar = memo(function TitleBar({ id, title, appId, mode, focused
   return (
     <div
       data-titlebar-for={id}
-      className="relative z-10 flex h-11 shrink-0 items-center gap-2.5 pl-3.5 pr-2"
+      className="relative z-10 flex h-11 shrink-0 touch-none items-center gap-2.5 pl-3.5 pr-2"
       onPointerDown={onPointerDown}
       onDoubleClick={(e) => !(e.target as HTMLElement).closest('[data-no-drag]') && toggleMaximize(id)}
     >

@@ -9,6 +9,8 @@
 
   --color-accent: oklch(var(--accent-l) 0.16 var(--accent-h));
   --color-accent-soft: oklch(var(--accent-l) 0.16 var(--accent-h) / 0.18);
+  /* Filled controls that carry white text use a fixed, darker step in both themes (≥ 4.5:1). */
+  --color-accent-fill: oklch(0.52 0.17 var(--accent-h));
   --color-fg: var(--text-1);
   --color-fg-muted: var(--text-2);
   --color-fg-subtle: var(--text-3);
@@ -34,6 +36,9 @@
   --glass-border: oklch(1 0 0 / 0.55);
   --glass-highlight: oklch(1 0 0 / 0.75);
   --glass-inner: oklch(1 0 0 / 0.45);
+  /* App content sits on a denser layer than window chrome so text stays legible even
+     when another window lines up exactly behind it. */
+  --app-surface: color-mix(in oklab, var(--glass-tint) 62%, transparent);
 
   --text-1: oklch(0.2 0.02 270);
   --text-2: oklch(0.38 0.02 270);
@@ -231,6 +236,18 @@ textarea,
 }
 [data-dragging="true"] > * > .window-surface {
   --glass-alpha: calc(var(--glass-alpha-user, 62%) - 20%);
+}
+
+/* Touch: fatter resize targets that straddle the window edge. */
+@media (pointer: coarse) {
+  [data-resize-handle="n"], [data-resize-handle="s"] { height: 22px !important; }
+  [data-resize-handle="n"] { top: -11px !important; }
+  [data-resize-handle="s"] { bottom: -11px !important; }
+  [data-resize-handle="e"], [data-resize-handle="w"] { width: 22px !important; }
+  [data-resize-handle="e"] { right: -11px !important; }
+  [data-resize-handle="w"] { left: -11px !important; }
+  [data-resize-handle$="e"][data-resize-handle^="n"], [data-resize-handle$="w"][data-resize-handle^="n"],
+  [data-resize-handle$="e"][data-resize-handle^="s"], [data-resize-handle$="w"][data-resize-handle^="s"] { width: 28px !important; height: 28px !important; }
 }
 
 @property --glass-alpha {

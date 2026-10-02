@@ -78,7 +78,7 @@ export default function NotesApp({ windowId, args }: AppProps) {
   return (
     <AppLayout sidebar={sidebar} sidebarWidth={240}>
       {!note && !isFile ? (
-        <EmptyState icon={StickyNote} title="No note selected" body="Pick a note or start a new one." action={<button onClick={newNote} className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white">New note</button>} />
+        <EmptyState icon={StickyNote} title="No note selected" body="Pick a note or start a new one." action={<button onClick={newNote} className="rounded-lg bg-accent-fill px-3 py-1.5 text-xs font-medium text-white">New note</button>} />
       ) : (
         <>
           <Toolbar>

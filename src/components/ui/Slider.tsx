@@ -25,7 +25,7 @@ export function Slider({ label, value, onChange, icon: Icon, min = 0, max = 1, s
       <div className="glass-well relative h-9 flex-1 overflow-hidden rounded-full">
         <div
           aria-hidden
-          className="absolute inset-y-0 left-0 rounded-full bg-accent shadow-[0_0_18px_-4px_var(--color-accent)] transition-[width] duration-75"
+          className="absolute inset-y-0 left-0 rounded-full bg-accent-fill shadow-[0_0_18px_-4px_var(--color-accent)] transition-[width] duration-75"
           style={{ width: `max(36px, ${pct}%)` }}
         />
         <Icon aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-white" />

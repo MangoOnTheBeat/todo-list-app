@@ -13,14 +13,16 @@ export function AppLayout({ sidebar, children, sidebarWidth = 208, className }: 
   return (
     <div className={clsx('@container flex h-full min-h-0', className)}>
       {sidebar && (
-        <aside
+        // A plain container, not <aside>: several windows open at once would otherwise
+        // produce indistinguishable complementary landmarks.
+        <div
           className="hidden shrink-0 flex-col overflow-y-auto border-r hairline px-2.5 pb-3 @[560px]:flex"
           style={{ width: sidebarWidth, background: 'color-mix(in oklab, var(--text-1) 3%, transparent)' }}
         >
           {sidebar}
-        </aside>
+        </div>
       )}
-      <div className="flex min-w-0 flex-1 flex-col" style={{ background: 'color-mix(in oklab, var(--glass-tint) 35%, transparent)' }}>
+      <div className="flex min-w-0 flex-1 flex-col" style={{ background: 'var(--app-surface)' }}>
         {children}
       </div>
     </div>
@@ -96,7 +98,7 @@ export function ToolButton({ icon: Icon, label, onClick, active, disabled, class
   );
 }
 
-export function Segmented<T extends string>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: { value: T; label: string; icon?: LucideIcon }[]; label: string }) {
+export function Segmented<T extends string>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: { value: T; label: string; ariaLabel?: string; icon?: LucideIcon }[]; label: string }) {
   const group = useId();
   return (
     <div role="radiogroup" aria-label={label} className="glass-well flex shrink-0 gap-0.5 rounded-lg p-0.5">
@@ -108,6 +110,8 @@ export function Segmented<T extends string>({ value, onChange, options, label }:
             key={o.value}
             role="radio"
             aria-checked={on}
+            aria-label={o.ariaLabel}
+            title={o.ariaLabel}
             onClick={() => onChange(o.value)}
             className={clsx('relative flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium', on ? 'text-fg' : 'text-fg-muted hover:text-fg')}
           >

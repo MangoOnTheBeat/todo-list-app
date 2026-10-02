@@ -11,7 +11,7 @@ export function useSearchController(query: string, onRun: (r: SearchResult) => v
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     const n = response.flat.length;
-    if (!n) return;
+    if (!n && e.key !== 'Enter') return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setActive((a) => (a + 1) % n);
@@ -20,7 +20,9 @@ export function useSearchController(query: string, onRun: (r: SearchResult) => v
       setActive((a) => (a - 1 + n) % n);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      const r = response.flat[active];
+      // Results render from a deferred query; if typing outpaced them, rank the live
+      // query now so Enter never runs a stale result.
+      const r = query === deferred ? response.flat[active] : search(query).flat[0];
       if (r) onRun(r);
     }
   };

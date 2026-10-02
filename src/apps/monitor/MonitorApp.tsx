@@ -21,7 +21,7 @@ export default function MonitorApp(_: AppProps) {
   const uptime = `${Math.floor(m.uptime / 3600)}h ${Math.floor((m.uptime % 3600) / 60)}m`;
 
   return (
-    <div className="@container h-full overflow-y-auto p-4" style={{ background: 'color-mix(in oklab, var(--glass-tint) 35%, transparent)' }}>
+    <div className="@container h-full overflow-y-auto p-4" style={{ background: 'var(--app-surface)' }}>
       <div className="grid grid-cols-2 gap-2.5 @[640px]:grid-cols-4">
         <Stat icon={Cpu} label="CPU" value={pct(cpu)} detail={`${CORES} cores · up ${uptime}`} level={cpu} />
         <Stat icon={MemoryStick} label="Memory" value={gb(mem)} detail={`of ${TOTAL_MEM_GB} GB · ${pct((mem / TOTAL_MEM_GB) * 100)} used`} level={(mem / TOTAL_MEM_GB) * 100} />

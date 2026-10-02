@@ -87,6 +87,7 @@ export const Window = memo(function Window({ id, depth, zIndex, overview }: Prop
     const wasTiled = win.mode !== 'normal';
     let moved = false;
     let zone: ReturnType<typeof detectZone> = null;
+    let zoneDisplay = win.displayId;
 
     const onMove = (ev: PointerEvent) => {
       const dx = ev.clientX - start.px;
@@ -114,8 +115,9 @@ export const Window = memo(function Window({ id, depth, zIndex, overview }: Prop
       y.set(Math.max(wa.y - 6, start.y + dy));
 
       const next = detectZone(ev.clientX, ev.clientY, display);
-      if (next !== zone) {
+      if (next !== zone || display.id !== zoneDisplay) {
         zone = next;
+        zoneDisplay = display.id;
         setSnapPreview(next ? { zone: next, rect: zoneRect(next, display) } : null);
       }
 
@@ -142,7 +144,7 @@ export const Window = memo(function Window({ id, depth, zIndex, overview }: Prop
       setSnapPreview(null);
       const target = useWindowStore.getState().groupTarget;
       if (target) groupWindows(id, target);
-      else if (zone) snapWindow(id, zone);
+      else if (zone) snapWindow(id, zone, zoneDisplay);
       else commitRect(id, { x: x.get(), y: y.get(), w: start.w, h: start.h });
       setGroupTarget(null);
     };

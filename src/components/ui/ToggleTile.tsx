@@ -29,7 +29,7 @@ export function ToggleTile({ label, detail, icon: Icon, on, onToggle }: Props) {
       <span
         className={clsx(
           'grid size-8 shrink-0 place-items-center rounded-full transition-all',
-          on ? 'bg-accent text-white shadow-[0_0_16px_-3px_var(--color-accent)]' : 'bg-[color-mix(in_oklab,var(--text-1)_10%,transparent)] text-fg-muted',
+          on ? 'bg-accent-fill text-white shadow-[0_0_16px_-3px_var(--color-accent)]' : 'bg-[color-mix(in_oklab,var(--text-1)_10%,transparent)] text-fg-muted',
         )}
       >
         <Icon className="size-4" />

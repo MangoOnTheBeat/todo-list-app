@@ -44,7 +44,7 @@ export function TopBar() {
         >
           <img src={auroraMark} alt="" className="size-5 rounded-md" />
         </motion.button>
-        <span className="max-w-[28vw] truncate px-1 font-semibold tracking-tight">{focusedApp ? getApp(focusedApp).name : 'Desktop'}</span>
+        <span className="hidden max-w-[28vw] truncate px-1 font-semibold tracking-tight sm:inline">{focusedApp ? getApp(focusedApp).name : 'Desktop'}</span>
         <button aria-label="Search" aria-expanded={panel === 'search'} onClick={() => togglePanel('search')} className={clsx(pillButton, 'grid size-6 shrink-0 place-items-center rounded-full text-fg-muted')}>
           <Search className="size-3.5" />
         </button>
@@ -55,7 +55,7 @@ export function TopBar() {
           aria-label="Overview"
           aria-pressed={overview}
           onClick={() => setOverview(!overview)}
-          className={clsx('glass grid size-7 place-items-center rounded-full', pillButton, overview ? 'text-accent' : 'text-fg-muted')}
+          className={clsx('glass hidden size-7 place-items-center rounded-full sm:grid', pillButton, overview ? 'text-accent' : 'text-fg-muted')}
         >
           <LayoutGrid className="size-3.5" />
         </button>
@@ -73,7 +73,7 @@ export function TopBar() {
         >
           {playing && <EqBars playing />}
           {online ? <Wifi className="size-3.5" aria-label="Wi-Fi connected" /> : <WifiOff className="size-3.5" aria-label="Offline" />}
-          {volume === 0 ? <VolumeX className="size-3.5" /> : <Volume2 className="size-3.5" />}
+          <span className="hidden sm:inline">{volume === 0 ? <VolumeX className="size-3.5" /> : <Volume2 className="size-3.5" />}</span>
           <span className="flex items-center gap-1">
             <BatteryMedium className="size-4" />
             <span className="hidden tabular-nums sm:inline">82%</span>
@@ -85,7 +85,7 @@ export function TopBar() {
           onClick={() => togglePanel('notifications')}
           className={clsx(pillButton, 'relative flex h-full items-center rounded-full pl-2 pr-3.5')}
         >
-          <time className="font-medium tabular-nums text-fg" dateTime={now.toISOString()}>
+          <time className="whitespace-nowrap font-medium tabular-nums text-fg" dateTime={now.toISOString()}>
             <span className="hidden sm:inline">
               {now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
               <span className="mx-1.5 text-fg-subtle">·</span>
@@ -148,7 +148,7 @@ function DesktopSwitcher() {
               aria-label={`${d.name}, ${count} windows${desktops.length > 1 ? '. Middle-click to remove' : ''}`}
               className={clsx('relative h-5 rounded-full px-2.5 text-[11px] font-medium transition-colors', active ? 'text-white' : 'text-fg-muted hover:text-fg')}
             >
-              {active && <motion.span layoutId="desktop-pill" transition={springs.snappy} className="absolute inset-0 rounded-full bg-accent shadow-[0_0_14px_-2px_var(--color-accent)]" />}
+              {active && <motion.span layoutId="desktop-pill" transition={springs.snappy} className="absolute inset-0 rounded-full bg-accent-fill shadow-[0_0_14px_-2px_var(--color-accent)]" />}
               <span className="relative tabular-nums">{i + 1}</span>
             </button>
           );

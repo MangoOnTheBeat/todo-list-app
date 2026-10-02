@@ -19,6 +19,7 @@ export function ResizeHandles({ onStart }: { onStart: (edge: Edge, e: React.Poin
         <div
           key={h.edge}
           aria-hidden
+          data-resize-handle={h.edge}
           className={`absolute z-20 touch-none ${h.className}`}
           style={{ cursor: h.cursor }}
           onPointerDown={(e) => onStart(h.edge, e)}

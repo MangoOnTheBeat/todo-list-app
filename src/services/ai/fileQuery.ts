@@ -24,6 +24,8 @@ const FILLER = new Set('find show me my all the a an any search for files file f
 export interface FileQueryResult {
   files: VNode[];
   description: string;
+  /** True when the query had a kind, date, size or tag constraint (not just name words). */
+  structured: boolean;
 }
 
 export function fileQuery(text: string): FileQueryResult | null {
@@ -86,5 +88,5 @@ export function fileQuery(text: string): FileQueryResult | null {
   );
   if (!structured && files.length === 0) return null;
   if (words.length) parts.unshift(`matching “${words.join(' ')}”`);
-  return { files: files.sort((a, b) => b.modified - a.modified), description: parts.join(' ') || 'files' };
+  return { files: files.sort((a, b) => b.modified - a.modified), description: parts.join(' ') || 'files', structured: !!structured };
 }

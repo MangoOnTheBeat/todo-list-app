@@ -148,7 +148,7 @@ function GetButton({ app }: { app: StoreApp }) {
         if (!status) set(app.id, 'installing');
       }}
       disabled={status === 'installed'}
-      className={clsx('h-7 min-w-16 rounded-full px-3 text-xs font-semibold', status === 'installed' ? 'text-fg-subtle' : 'bg-accent-soft text-accent hover:bg-accent hover:text-white')}
+      className={clsx('h-7 min-w-16 rounded-full px-3 text-xs font-semibold', status === 'installed' ? 'text-fg-subtle' : 'bg-accent-soft text-accent hover:bg-accent-fill hover:text-white')}
     >
       {status === 'installed' ? 'Installed' : app.price === 'Free' ? 'Get' : app.price}
     </motion.button>

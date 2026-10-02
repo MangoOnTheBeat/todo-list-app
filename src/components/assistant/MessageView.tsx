@@ -37,7 +37,7 @@ export function MessageView({ m, latest }: { m: AiMessage; latest: boolean }) {
   if (m.role === 'user') {
     return (
       <motion.div initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={springs.snappy} className="flex justify-end">
-        <p className="max-w-[85%] rounded-2xl rounded-br-md bg-accent px-3.5 py-2 text-[13px] leading-relaxed text-white shadow-[0_6px_18px_-8px_var(--color-accent)]">
+        <p className="max-w-[85%] rounded-2xl rounded-br-md bg-accent-fill px-3.5 py-2 text-[13px] leading-relaxed text-white shadow-[0_6px_18px_-8px_var(--color-accent)]">
           {m.via === 'voice' && <Mic aria-label="Spoken" className="mr-1 inline size-3 -translate-y-px opacity-80" />}
           {m.via === 'search' && <Search aria-label="From search" className="mr-1 inline size-3 -translate-y-px opacity-80" />}
           {m.text}
@@ -74,7 +74,7 @@ function ActionButton({ label, primary, run }: { label: string; primary?: boolea
         setUsed(true);
         run();
       }}
-      className={clsx('rounded-full px-3 py-1 text-xs font-medium transition-opacity disabled:opacity-45', primary ? 'bg-accent text-white' : 'bg-[color-mix(in_oklab,var(--text-1)_9%,transparent)] hover:bg-[color-mix(in_oklab,var(--text-1)_15%,transparent)]')}
+      className={clsx('rounded-full px-3 py-1 text-xs font-medium transition-opacity disabled:opacity-45', primary ? 'bg-accent-fill text-white' : 'bg-[color-mix(in_oklab,var(--text-1)_9%,transparent)] hover:bg-[color-mix(in_oklab,var(--text-1)_15%,transparent)]')}
     >
       {label}
     </motion.button>
@@ -159,7 +159,7 @@ export function Tips({ tips }: { tips: Extract<AiCard, { type: 'tips' }>['tips']
           <p className="text-[13px] font-semibold">{t.title}</p>
           <p className="mt-0.5 text-xs leading-relaxed text-fg-muted">{t.body}</p>
           {t.action && (
-            <button onClick={() => runCommand(t.action!.command)} className="mt-2 rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent hover:bg-accent hover:text-white">
+            <button onClick={() => runCommand(t.action!.command)} className="mt-2 rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent hover:bg-accent-fill hover:text-white">
               {t.action.label}
             </button>
           )}

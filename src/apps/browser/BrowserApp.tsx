@@ -228,7 +228,7 @@ function Page({ url, navigate, reader }: { url: string; navigate: (u: string) =>
           </span>
           <p className="mt-3 text-lg font-semibold tracking-tight">{host}</p>
           <p className="mt-1 text-sm leading-relaxed text-fg-muted">Horizon is a concept browser, so it shows Aurora's own pages rather than loading live websites inside the desktop.</p>
-          <a href={url} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white">
+          <a href={url} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-accent-fill px-4 py-2 text-sm font-medium text-white">
             Open {host} in a new tab <ExternalLink className="size-3.5" />
           </a>
         </div>
