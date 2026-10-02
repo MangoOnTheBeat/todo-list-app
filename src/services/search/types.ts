@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import type { AppId } from '@/system/types';
 
-export type ResultKind = 'app' | 'window' | 'action' | 'file' | 'setting' | 'calc';
+export type ResultKind = 'ai' | 'app' | 'window' | 'action' | 'file' | 'setting' | 'calc';
 
 export interface SearchResult {
   id: string;

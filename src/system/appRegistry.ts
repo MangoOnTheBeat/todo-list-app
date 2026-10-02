@@ -17,7 +17,6 @@ import type { AppId, AppManifest } from './types';
 
 // Apps are code-split: an app's bundle loads the first time a window for it opens.
 const Welcome = lazy(() => import('@/apps/welcome/WelcomeApp'));
-const Placeholder = lazy(() => import('@/apps/placeholder/PlaceholderApp'));
 const FilesApp = lazy(() => import('@/apps/files/FilesApp'));
 const NotesApp = lazy(() => import('@/apps/notes/NotesApp'));
 const SettingsApp = lazy(() => import('@/apps/settings/SettingsApp'));
@@ -28,6 +27,7 @@ const TasksApp = lazy(() => import('@/apps/tasks/TasksApp'));
 const BrowserApp = lazy(() => import('@/apps/browser/BrowserApp'));
 const StoreApp = lazy(() => import('@/apps/store/StoreApp'));
 const MusicApp = lazy(() => import('@/apps/music/MusicApp'));
+const AssistantApp = lazy(() => import('@/apps/assistant/AssistantApp'));
 
 const manifests: AppManifest[] = [
   {
@@ -78,7 +78,7 @@ const manifests: AppManifest[] = [
     singleton: true,
     pinned: true,
     phase: 4,
-    component: Placeholder,
+    component: AssistantApp,
   },
   {
     id: 'calendar',

@@ -1,5 +1,6 @@
 import { AnimatePresence } from 'framer-motion';
 import { useShellStore } from '@/system/store/shellStore';
+import { AssistantPanel } from '@/components/assistant/AssistantPanel';
 import { Launcher } from './Launcher';
 import { NotificationCenter } from './NotificationCenter';
 import { QuickSettings } from './QuickSettings';
@@ -24,6 +25,7 @@ export function ShellPanels() {
         {panel === 'search' && <SearchOverlay key="search" />}
         {panel === 'notifications' && <NotificationCenter key="notifications" />}
         {panel === 'quick' && <QuickSettings key="quick" />}
+        {panel === 'assistant' && <AssistantPanel key="assistant" />}
       </AnimatePresence>
     </>
   );

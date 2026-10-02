@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ShellPanel = 'launcher' | 'search' | 'notifications' | 'quick' | null;
+export type ShellPanel = 'launcher' | 'search' | 'notifications' | 'quick' | 'assistant' | null;
 
 /**
  * Transient shell UI state: which system surface is open, overview, lock.
@@ -14,6 +14,7 @@ interface ShellStore {
   searchSeed: string;
 
   togglePanel: (p: Exclude<ShellPanel, null>) => void;
+  openPanel: (p: Exclude<ShellPanel, null>) => void;
   openSearch: (seed?: string) => void;
   closePanel: () => void;
   setOverview: (on: boolean) => void;
@@ -28,6 +29,7 @@ export const useShellStore = create<ShellStore>()((set) => ({
   searchSeed: '',
 
   togglePanel: (p) => set((s) => ({ panel: s.panel === p ? null : p, overview: false })),
+  openPanel: (panel) => set({ panel, overview: false }),
   openSearch: (seed = '') => set({ panel: 'search', searchSeed: seed, overview: false }),
   closePanel: () => set({ panel: null }),
   setOverview: (overview) => set({ overview, panel: null }),

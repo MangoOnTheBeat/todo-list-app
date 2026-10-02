@@ -63,7 +63,7 @@ export function SearchOverlay() {
       <footer className="flex items-center gap-4 border-t hairline px-4 py-2 text-[11px] text-fg-subtle">
         <span>↑↓ to move</span>
         <span>↵ to open</span>
-        <span className="ml-auto">Natural-language answers arrive with Aurora AI</span>
+        <span className="ml-auto">Try “schedule lunch friday at 1” or “pdfs from last week”</span>
       </footer>
     </motion.div>
   );

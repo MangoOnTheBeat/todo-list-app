@@ -27,7 +27,10 @@ import {
   Presentation,
   type LucideIcon,
 } from 'lucide-react';
+import { fileQuery } from '@/services/ai/fileQuery';
+import { interpret, respond } from '@/services/ai/intents';
 import { allApps, getApp } from '@/system/appRegistry';
+import { useShellStore } from '@/system/store/shellStore';
 import { ACCENT_PRESETS, useSystemStore } from '@/system/store/systemStore';
 import { isHiddenTab, useWindowStore } from '@/system/store/windowStore';
 import { commands } from '../commands';
@@ -213,4 +216,49 @@ const calcProvider: SearchProvider = {
   },
 };
 
-export const providers: SearchProvider[] = [calcProvider, appsProvider, windowsProvider, actionsProvider, settingsProvider, filesProvider];
+/**
+ * Natural-language layer. A sentence that resolves to an assistant intent becomes a
+ * single "do it" result; a structured file question ("pdfs from last week") returns the
+ * matching files directly.
+ */
+const aiProvider: SearchProvider = {
+  id: 'ai',
+  label: 'Aurora AI',
+  search: (q) => {
+    if (!useSystemStore.getState().aiEnabled || q.trim().split(/\s+/).length < 2) return [];
+    const out: SearchResult[] = [];
+    const hit = interpret(q);
+    // File questions are answered inline below rather than as a command.
+    if (hit && hit.intent.id !== 'find-files') {
+      out.push({
+        id: 'ai:intent',
+        kind: 'ai',
+        title: hit.intent.describe(hit.params),
+        subtitle: 'Aurora AI · Enter to do it',
+        icon: Sparkles,
+        score: 160,
+        run: () => {
+          useShellStore.getState().openPanel('assistant');
+          respond(q, 'search');
+        },
+      });
+    }
+    const files = fileQuery(q);
+    if (files && files.files.length) {
+      files.files.slice(0, 4).forEach((f, i) =>
+        out.push({
+          id: `ai:file:${f.id}`,
+          kind: 'ai',
+          title: f.name,
+          subtitle: i === 0 ? `${files.files.length} ${files.description}` : relativeTime(f.modified),
+          icon: fileIcon[f.kind],
+          score: 150 - i,
+          run: () => open(f.kind === 'folder' ? 'files' : appForFile(f.kind), f.kind === 'folder' ? { folderId: f.id } : { fileId: f.id }),
+        }),
+      );
+    }
+    return out;
+  },
+};
+
+export const providers: SearchProvider[] = [aiProvider, calcProvider, appsProvider, windowsProvider, actionsProvider, settingsProvider, filesProvider];

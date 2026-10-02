@@ -1,8 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { BellOff, X } from 'lucide-react';
+import { BellOff, ChevronDown, X } from 'lucide-react';
+import { AuroraOrb } from '@/components/assistant/AuroraOrb';
+import { digest } from '@/services/ai/notifications';
+import { useSystemStore } from '@/system/store/systemStore';
 import clsx from 'clsx';
 import { useClock } from '@/hooks/useClock';
+import { AppIcon } from '@/components/ui/AppIcon';
 import { getApp } from '@/system/appRegistry';
 import { springs } from '@/system/motion';
 import { useNotificationStore, type AuroraNotification } from '@/system/store/notificationStore';
@@ -13,13 +17,20 @@ import { NotificationCard } from './NotificationCard';
 export function NotificationCenter() {
   const { items, dnd, setDnd, clearAll, clearApp, dismiss, markAllRead } = useNotificationStore();
   const now = useClock();
+  const smart = useSystemStore((s) => s.aiEnabled && s.aiSmartNotifications);
+  const [bundleOpen, setBundleOpen] = useState(false);
+  // Read-state snapshot from when the center opened, so the digest describes what was new.
+  const [unreadAtOpen] = useState(() => items.filter((n) => !n.read).length);
 
   useEffect(() => {
     markAllRead();
   }, [markAllRead, items.length]);
 
+  const bundled = smart ? items.filter((n) => n.bundled) : [];
+  const main = smart ? [...items.filter((n) => !n.bundled)].sort((a, b) => Number(b.priority === 'high') - Number(a.priority === 'high')) : items;
   const groups = new Map<AppId, AuroraNotification[]>();
-  for (const n of items) groups.set(n.appId, [...(groups.get(n.appId) ?? []), n]);
+  for (const n of main) groups.set(n.appId, [...(groups.get(n.appId) ?? []), n]);
+  const summary = smart && items.length >= 2 ? digest(items, (id) => getApp(id).name) : [];
 
   return (
     <motion.aside
@@ -56,6 +67,18 @@ export function NotificationCenter() {
       </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
+        {summary.length > 0 && (
+          <section aria-label="Summary" className="rounded-2xl border border-[color-mix(in_oklab,var(--color-accent)_35%,transparent)] bg-accent-soft p-3.5">
+            <p className="flex items-center gap-2 text-xs font-semibold">
+              <AuroraOrb size={16} /> Summary{unreadAtOpen ? ` · ${unreadAtOpen} new` : ''}
+            </p>
+            <ul className="mt-1.5 space-y-1 text-[12px] leading-relaxed text-fg-muted">
+              {summary.map((l) => (
+                <li key={l}>{l}</li>
+              ))}
+            </ul>
+          </section>
+        )}
         {items.length === 0 && (
           <div className="grid h-full place-items-center text-center">
             <div>
@@ -84,9 +107,38 @@ export function NotificationCenter() {
             </motion.section>
           ))}
         </AnimatePresence>
+
+        {bundled.length > 0 && (
+          <section aria-label="Low priority">
+            <button onClick={() => setBundleOpen((v) => !v)} aria-expanded={bundleOpen} className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-xs font-semibold text-fg-muted hover:bg-[color-mix(in_oklab,var(--text-1)_5%,transparent)]">
+              <span className="flex -space-x-1.5">
+                {[...new Set(bundled.map((n) => n.appId))].slice(0, 3).map((a) => (
+                  <span key={a} className="rounded-md ring-2 ring-[var(--glass-tint)]">
+                    <AppIconSmall appId={a} />
+                  </span>
+                ))}
+              </span>
+              Low priority · {bundled.length}
+              <ChevronDown className={clsx('ml-auto size-3.5 transition-transform', bundleOpen && 'rotate-180')} />
+            </button>
+            <AnimatePresence initial={false}>
+              {bundleOpen && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-2 overflow-hidden pt-2">
+                  {bundled.map((n) => (
+                    <NotificationCard key={n.id} n={n} variant="list" onClose={() => dismiss(n.id)} />
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
+        )}
       </div>
     </motion.aside>
   );
+}
+
+function AppIconSmall({ appId }: { appId: AppId }) {
+  return <AppIcon appId={appId} size={16} />;
 }
 
 function MiniCalendar({ now }: { now: Date }) {

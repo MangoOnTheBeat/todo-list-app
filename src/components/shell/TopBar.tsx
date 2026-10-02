@@ -1,6 +1,7 @@
 import { motion, LayoutGroup } from 'framer-motion';
 import { BatteryMedium, LayoutGrid, Plus, Search, Volume2, VolumeX, Wifi, WifiOff } from 'lucide-react';
 import clsx from 'clsx';
+import { AuroraOrb } from '@/components/assistant/AuroraOrb';
 import { EqBars } from '@/components/ui/CoverArt';
 import { getApp } from '@/system/appRegistry';
 import { TOPBAR_H } from '@/system/layout';
@@ -61,6 +62,8 @@ export function TopBar() {
         <DesktopSwitcher />
       </div>
 
+      <div className="flex items-center gap-1.5">
+      <AssistantButton open={panel === 'assistant'} onClick={() => togglePanel('assistant')} />
       <div className="glass pointer-events-auto flex h-7 items-center rounded-full text-[13px] text-fg-muted">
         <button
           aria-label="Quick settings"
@@ -99,7 +102,28 @@ export function TopBar() {
           )}
         </button>
       </div>
+      </div>
     </header>
+  );
+}
+
+function AssistantButton({ open, onClick }: { open: boolean; onClick: () => void }) {
+  const enabled = useSystemStore((s) => s.aiEnabled);
+  if (!enabled) return null;
+  return (
+    <motion.button
+      whileHover={{ scale: 1.06 }}
+      whileTap={{ scale: 0.92 }}
+      transition={springs.snappy}
+      aria-label="Aurora AI"
+      aria-expanded={open}
+      onClick={onClick}
+      className={clsx('glass pointer-events-auto flex h-7 items-center gap-1.5 rounded-full pl-1 pr-2.5 text-[12px] font-medium', open ? 'text-fg' : 'text-fg-muted')}
+      style={open ? { boxShadow: '0 0 0 1px var(--color-accent), 0 0 18px -4px var(--color-accent)' } : undefined}
+    >
+      <AuroraOrb size={20} active={open} />
+      <span className="hidden md:inline">Ask Aurora</span>
+    </motion.button>
   );
 }
 

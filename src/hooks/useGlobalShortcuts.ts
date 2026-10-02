@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { voice } from '@/services/ai/voice';
 import { commands } from '@/services/commands';
 import { useShellStore } from '@/system/store/shellStore';
 import { useWindowStore } from '@/system/store/windowStore';
@@ -20,6 +21,8 @@ function isEditable(t: EventTarget | null) {
  */
 export const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: 'Ctrl K', action: 'Search' },
+  { keys: 'Ctrl J', action: 'Aurora AI' },
+  { keys: 'Ctrl Alt V', action: 'Voice command' },
   { keys: 'Ctrl Alt A', action: 'Launcher' },
   { keys: 'Ctrl Alt ↑', action: 'Overview' },
   { keys: 'Ctrl Alt N', action: 'Notifications' },
@@ -49,6 +52,16 @@ export function useGlobalShortcuts() {
       if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         shell.togglePanel('search');
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        shell.togglePanel('assistant');
+        return;
+      }
+      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        voice.toggle();
         return;
       }
       if (e.key === 'MediaPlayPause') {

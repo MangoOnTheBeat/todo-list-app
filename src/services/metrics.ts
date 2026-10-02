@@ -137,6 +137,13 @@ function sample() {
   });
 }
 
+/** One-off reading for callers that aren't subscribed (e.g. the assistant). */
+export function snapshot() {
+  if (useMetrics.getState().procs.length === 0) for (let i = 0; i < 20; i++) sample();
+  else sample();
+  return useMetrics.getState();
+}
+
 let consumers = 0;
 let timer: ReturnType<typeof setInterval> | undefined;
 

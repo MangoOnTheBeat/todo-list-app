@@ -55,7 +55,7 @@ export function NotificationCard({ n, variant, onClose }: Props) {
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <span className="truncate text-[11px] font-medium uppercase tracking-wider text-fg-subtle">{app.name}</span>
-            {n.priority === 'high' && <span className="rounded-full bg-accent-soft px-1.5 text-[10px] font-semibold text-accent">Time-sensitive</span>}
+            {n.priority === 'high' && <span className="rounded-full bg-accent-soft px-1.5 text-[10px] font-semibold text-accent">{n.reason ?? 'Time-sensitive'}</span>}
             <span className="ml-auto shrink-0 text-[11px] text-fg-subtle">{relativeTime(n.time)}</span>
           </div>
           <p className="mt-0.5 text-[13px] font-semibold leading-snug">{n.title}</p>

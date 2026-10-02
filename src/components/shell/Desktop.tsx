@@ -1,3 +1,5 @@
+import { ContextNudge } from '@/components/assistant/ContextNudge';
+import { VoiceOverlay } from '@/components/assistant/VoiceOverlay';
 import { DisplayFilters } from './DisplayFilters';
 import { Dock } from './Dock';
 import { DesktopHUD } from './DesktopHUD';
@@ -23,8 +25,10 @@ export function Desktop() {
       <OverviewChrome slots={slots} />
       <TopBar />
       <Dock />
+      <ContextNudge />
       <Toasts />
       <ShellPanels />
+      <VoiceOverlay />
       <DesktopHUD />
       <LockScreen />
       <DisplayFilters />

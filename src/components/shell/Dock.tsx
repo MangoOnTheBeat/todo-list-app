@@ -109,6 +109,11 @@ function DockIcon({ appId, mouseX, running, activeDesk }: { appId: AppId; mouseX
   const onClick = () => {
     setPreviews(false);
     clearTimeout(previewTimer.current);
+    // Aurora AI lives in a system panel; its dock icon toggles that panel.
+    if (appId === 'assistant') {
+      useShellStore.getState().togglePanel('assistant');
+      return;
+    }
     useShellStore.getState().closePanel();
     const s = useWindowStore.getState();
     const mine = s.order.map((id) => s.windows[id]).filter((w) => w.appId === appId);

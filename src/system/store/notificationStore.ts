@@ -1,5 +1,7 @@
 import { create } from 'zustand';
+import { triage } from '@/services/ai/notifications';
 import { uid } from '../ids';
+import { useSystemStore } from './systemStore';
 import type { AppId } from '../types';
 
 export type Priority = 'low' | 'normal' | 'high';
@@ -20,6 +22,10 @@ export interface AuroraNotification {
   priority: Priority;
   read: boolean;
   actions?: NotificationAction[];
+  /** Set by smart triage: lives in the collapsed low-priority bundle. */
+  bundled?: boolean;
+  /** Why triage changed its priority (shown as a small label). */
+  reason?: string;
 }
 
 type NewNotification = Omit<AuroraNotification, 'id' | 'time' | 'read' | 'priority'> & {
@@ -51,11 +57,16 @@ export const useNotificationStore = create<NotificationStore>()((set, get) => ({
   toasts: [],
   dnd: false,
 
-  post({ silent, priority = 'normal', time, ...n }) {
+  post({ silent, priority: requested = 'normal', time, ...n }) {
     const id = uid('n');
-    const item: AuroraNotification = { ...n, id, priority, time: time ?? Date.now(), read: false };
+    const sys = useSystemStore.getState();
+    const smart = sys.aiEnabled && sys.aiSmartNotifications;
+    const t = smart ? triage({ ...n, priority: requested }) : { priority: requested, bundle: false, reason: undefined };
+    const priority = t.priority;
+    const item: AuroraNotification = { ...n, id, priority, time: time ?? Date.now(), read: false, bundled: t.bundle, reason: smart && priority !== requested ? t.reason : undefined };
     // Do Not Disturb holds banners back, except for high-priority items (they break through).
-    const banner = !silent && (!get().dnd || priority === 'high');
+    // Bundled (low-value) items never interrupt.
+    const banner = !silent && !t.bundle && (!get().dnd || priority === 'high');
     set((s) => ({
       items: [item, ...s.items],
       toasts: banner ? [...s.toasts, id].slice(-MAX_TOASTS) : s.toasts,
