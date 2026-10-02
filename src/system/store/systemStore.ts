@@ -12,6 +12,14 @@ export interface SystemStore {
   /** 0–1: how see-through glass surfaces are (user-tunable "dynamic transparency"). */
   glassIntensity: number;
   dockMagnification: boolean;
+  /** Simulated device controls surfaced in Quick Settings. */
+  brightness: number;
+  volume: number;
+  nightLight: boolean;
+  wifi: boolean;
+  bluetooth: boolean;
+  airplane: boolean;
+  focusMode: boolean;
 
   setTheme: (t: ThemePref) => void;
   setAccentHue: (h: number) => void;
@@ -38,6 +46,13 @@ export const useSystemStore = create<SystemStore>()(
       reduceMotion: false,
       glassIntensity: 0.5,
       dockMagnification: true,
+      brightness: 1,
+      volume: 0.6,
+      nightLight: false,
+      wifi: true,
+      bluetooth: true,
+      airplane: false,
+      focusMode: false,
 
       setTheme: (theme) => set({ theme }),
       setAccentHue: (accentHue) => set({ accentHue }),

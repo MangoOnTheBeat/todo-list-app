@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { commands } from '@/services/commands';
+import { useShellStore } from '@/system/store/shellStore';
 import { useWindowStore } from '@/system/store/windowStore';
 
 function isEditable(t: EventTarget | null) {
@@ -17,6 +19,12 @@ function isEditable(t: EventTarget | null) {
  *   Ctrl+Shift+X        close focused window
  */
 export const SHORTCUTS: { keys: string; action: string }[] = [
+  { keys: 'Ctrl K', action: 'Search' },
+  { keys: 'Ctrl Alt A', action: 'Launcher' },
+  { keys: 'Ctrl Alt ↑', action: 'Overview' },
+  { keys: 'Ctrl Alt N', action: 'Notifications' },
+  { keys: 'Ctrl Alt Q', action: 'Quick settings' },
+  { keys: 'Ctrl Alt L', action: 'Lock' },
   { keys: 'Ctrl Alt ← →', action: 'Switch desktop' },
   { keys: 'Ctrl Alt Shift ← →', action: 'Move window to desktop' },
   { keys: 'Ctrl Shift ← →', action: 'Snap left / right' },
@@ -29,6 +37,41 @@ export const SHORTCUTS: { keys: string; action: string }[] = [
 export function useGlobalShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const shell = useShellStore.getState();
+      if (shell.locked) return; // LockScreen owns the keyboard.
+
+      if (e.key === 'Escape' && (shell.panel || shell.overview)) {
+        e.preventDefault();
+        if (shell.panel) shell.closePanel();
+        else shell.setOverview(false);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        shell.togglePanel('search');
+        return;
+      }
+      if (e.key === 'MediaPlayPause') {
+        commands.playPause();
+        return;
+      }
+      if (e.ctrlKey && e.altKey && !e.shiftKey) {
+        const map: Record<string, () => void> = {
+          a: () => shell.togglePanel('launcher'),
+          n: () => shell.togglePanel('notifications'),
+          q: () => shell.togglePanel('quick'),
+          l: () => shell.lock(),
+          ArrowUp: () => shell.setOverview(true),
+          ArrowDown: () => shell.setOverview(false),
+        };
+        const fn = map[e.key.length === 1 ? e.key.toLowerCase() : e.key];
+        if (fn) {
+          e.preventDefault();
+          fn();
+          return;
+        }
+      }
+
       const s = useWindowStore.getState();
       const id = s.focusedId;
       const win = id ? s.windows[id] : undefined;

@@ -5,7 +5,9 @@ import { dockRegistry } from '@/system/dockRegistry';
 import { displayAt, workArea } from '@/system/layout';
 import { instant, springs } from '@/system/motion';
 import { detectZone, zoneRect } from '@/system/snap';
-import { useWindowStore } from '@/system/store/windowStore';
+import { isHiddenTab, useWindowStore } from '@/system/store/windowStore';
+import { useShellStore } from '@/system/store/shellStore';
+import type { OverviewSlot } from '@/system/overview';
 import { useSystemStore } from '@/system/store/systemStore';
 import type { Rect } from '@/system/types';
 import { ResizeHandles, type Edge } from './ResizeHandles';
@@ -16,6 +18,8 @@ interface Props {
   /** Visual depth in the z-stack of the current desktop (0 = top). */
   depth: number;
   zIndex: number;
+  /** Set while Overview is open: where this window's live preview sits. */
+  overview?: OverviewSlot;
 }
 
 /**
@@ -26,10 +30,11 @@ interface Props {
  * to the store. When the store's rect changes from elsewhere (snap, maximize, display resize)
  * the motion values spring to it — that single path gives every geometry change the same physics.
  */
-export const Window = memo(function Window({ id, depth, zIndex }: Props) {
+export const Window = memo(function Window({ id, depth, zIndex, overview }: Props) {
   const win = useWindowStore((s) => s.windows[id]);
   const focused = useWindowStore((s) => s.focusedId === id);
-  const { focusWindow, commitRect, snapWindow, setSnapPreview } = useWindowStore.getState();
+  const hiddenTab = useWindowStore((s) => isHiddenTab(s, s.windows[id]));
+  const { focusWindow, commitRect, snapWindow, setSnapPreview, setGroupTarget, groupWindows } = useWindowStore.getState();
   const reduceMotion = useSystemStore((s) => s.reduceMotion);
   const app = getApp(win.appId);
   const AppComponent = app.component;
@@ -113,6 +118,17 @@ export const Window = memo(function Window({ id, depth, zIndex }: Props) {
         zone = next;
         setSnapPreview(next ? { zone: next, rect: zoneRect(next, display) } : null);
       }
+
+      // Hovering another window's title bar offers to merge into it as a tab. Only the
+      // top-most window under the pointer counts, so obscured title bars can't be targeted.
+      const under = next
+        ? undefined
+        : document.elementsFromPoint(ev.clientX, ev.clientY).find((el) => {
+            const owner = el.closest<HTMLElement>('[data-window-id]');
+            return owner && owner.dataset.windowId !== id;
+          });
+      const hit = under?.closest<HTMLElement>('[data-titlebar-for]') ?? undefined;
+      setGroupTarget(hit?.dataset.titlebarFor ?? null);
     };
 
     const onUp = () => {
@@ -124,8 +140,11 @@ export const Window = memo(function Window({ id, depth, zIndex }: Props) {
       leaning.current = false;
       setDragging(false);
       setSnapPreview(null);
-      if (zone) snapWindow(id, zone);
+      const target = useWindowStore.getState().groupTarget;
+      if (target) groupWindows(id, target);
+      else if (zone) snapWindow(id, zone);
       else commitRect(id, { x: x.get(), y: y.get(), w: start.w, h: start.h });
+      setGroupTarget(null);
     };
 
     window.addEventListener('pointermove', onMove);
@@ -191,9 +210,10 @@ export const Window = memo(function Window({ id, depth, zIndex }: Props) {
       role="dialog"
       aria-modal={false}
       aria-labelledby={`${id}-title`}
-      aria-hidden={win.minimized}
-      inert={win.minimized}
+      aria-hidden={win.minimized || hiddenTab}
+      inert={win.minimized || hiddenTab}
       tabIndex={-1}
+      data-window-id={id}
       data-focused={focused}
       data-dragging={dragging}
       onPointerDownCapture={() => !focused && focusWindow(id)}
@@ -205,18 +225,23 @@ export const Window = memo(function Window({ id, depth, zIndex }: Props) {
         height: h,
         zIndex,
         rotate: tilt,
-        pointerEvents: win.minimized ? 'none' : 'auto',
+        pointerEvents: win.minimized || hiddenTab ? 'none' : 'auto',
+        visibility: hiddenTab ? 'hidden' : undefined,
       }}
     >
       <motion.div
         className="h-full w-full"
-        style={{ transformOrigin: origin }}
+        style={{ transformOrigin: overview ? '0% 0%' : origin }}
         initial={{ opacity: 0, scale: 0.9, filter: 'blur(10px)' }}
         animate={
-          win.minimized
+          overview
+            ? { opacity: 1, x: overview.dx, y: overview.dy, scale: overview.scale, filter: 'blur(0px)', transition: springs.window, transitionEnd: { filter: 'none' } }
+            : win.minimized
             ? { opacity: 0, scale: 0.08, filter: 'blur(6px)', transition: { ...springs.panel, opacity: { duration: 0.25, delay: 0.08 } } }
             : {
                 opacity: 1,
+                x: 0,
+                y: 0,
                 // Depth stacking: windows further back sit very slightly smaller.
                 scale: focused ? 1 : Math.max(0.985, 1 - depth * 0.004),
                 filter: 'blur(0px)',
@@ -241,6 +266,7 @@ export const Window = memo(function Window({ id, depth, zIndex }: Props) {
             appId={win.appId}
             mode={win.mode}
             focused={focused}
+            groupId={win.groupId}
             onPointerDown={onTitlePointerDown}
           />
           <div className="relative min-h-0 flex-1">
@@ -248,7 +274,18 @@ export const Window = memo(function Window({ id, depth, zIndex }: Props) {
               <AppComponent windowId={id} args={win.args} />
             </Suspense>
           </div>
-          {!tiled && <ResizeHandles onStart={onResizeStart} />}
+          {!tiled && !overview && <ResizeHandles onStart={onResizeStart} />}
+          {overview && (
+            // In Overview the window is a live preview: one click target that picks it.
+            <button
+              aria-label={`Show ${win.title}`}
+              className="absolute inset-0 z-40 cursor-pointer rounded-[inherit] outline-none ring-accent transition-shadow hover:ring-[6px] focus-visible:ring-[6px]"
+              onClick={() => {
+                focusWindow(id);
+                useShellStore.getState().setOverview(false);
+              }}
+            />
+          )}
         </div>
       </motion.div>
     </motion.div>

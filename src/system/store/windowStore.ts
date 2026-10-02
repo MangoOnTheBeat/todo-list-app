@@ -17,6 +17,13 @@ interface OpenOptions {
   rect?: Partial<Rect>;
 }
 
+export interface WindowGroup {
+  id: string;
+  /** Tab order. */
+  ids: string[];
+  activeId: string;
+}
+
 export interface WindowStore {
   windows: Record<string, WindowState>;
   /** Z-order, bottom → top. A window's stacking depth is its distance from the end. */
@@ -28,6 +35,9 @@ export interface WindowStore {
   switchDirection: number;
   displays: Display[];
   snapPreview: SnapPreview | null;
+  groups: Record<string, WindowGroup>;
+  /** Window whose title bar a dragged window is hovering (drop → group as tabs). */
+  groupTarget: string | null;
 
   openApp: (appId: AppId, opts?: OpenOptions) => string;
   closeWindow: (id: string) => void;
@@ -49,6 +59,12 @@ export interface WindowStore {
   moveWindowToDesktop: (windowId: string, desktopId: string) => void;
 
   setDisplayBounds: (displayId: string, bounds: Rect) => void;
+
+  setGroupTarget: (id: string | null) => void;
+  /** Drop `sourceId` onto `targetId`'s frame as a new tab. */
+  groupWindows: (sourceId: string, targetId: string) => void;
+  /** Pull a tab out of its group into its own window at `rect`. */
+  detachFromGroup: (id: string, rect?: Partial<Rect>) => void;
 }
 
 const PRIMARY = 'display-primary';
@@ -63,13 +79,36 @@ const initialDisplay: Display = {
 
 const firstDesktop: VirtualDesktop = { id: 'desk-1', name: 'Desktop 1' };
 
-/** Top-most non-minimized window on a desktop, for focus hand-off. */
-function topVisible(s: Pick<WindowStore, 'order' | 'windows'>, desktopId: string, exclude?: string) {
+type GroupsSlice = Pick<WindowStore, 'groups'>;
+
+/** A grouped window that is not the selected tab: mounted (keeps state) but not shown. */
+export function isHiddenTab(s: GroupsSlice, w: WindowState) {
+  return !!w.groupId && s.groups[w.groupId]?.activeId !== w.id;
+}
+
+/** Top-most visible window on a desktop, for focus hand-off. */
+function topVisible(s: Pick<WindowStore, 'order' | 'windows'> & Partial<GroupsSlice>, desktopId: string, exclude?: string) {
+  const groups = s.groups ?? {};
   for (let i = s.order.length - 1; i >= 0; i--) {
     const w = s.windows[s.order[i]];
-    if (w && w.id !== exclude && w.desktopId === desktopId && !w.minimized) return w.id;
+    if (w && w.id !== exclude && w.desktopId === desktopId && !w.minimized && !isHiddenTab({ groups }, w)) return w.id;
   }
   return null;
+}
+
+/** Make `id` the visible tab of its group; it inherits the frame of the previous tab. */
+function activateTab(s: Pick<WindowStore, 'windows' | 'groups'>, id: string) {
+  const win = s.windows[id];
+  const group = win?.groupId ? s.groups[win.groupId] : undefined;
+  if (!group || group.activeId === id) return null;
+  const prev = s.windows[group.activeId];
+  return {
+    windows: {
+      ...s.windows,
+      [id]: { ...win, rect: prev.rect, mode: prev.mode, snap: prev.snap, restoreRect: prev.restoreRect, minimized: false, desktopId: prev.desktopId },
+    },
+    groups: { ...s.groups, [group.id]: { ...group, activeId: id } },
+  };
 }
 
 function displayOf(s: Pick<WindowStore, 'displays'>, id: string) {
@@ -85,6 +124,8 @@ export const useWindowStore = create<WindowStore>()((set, get) => ({
   switchDirection: 1,
   displays: [initialDisplay],
   snapPreview: null,
+  groups: {},
+  groupTarget: null,
 
   openApp(appId, opts = {}) {
     const s = get();
@@ -140,10 +181,32 @@ export const useWindowStore = create<WindowStore>()((set, get) => ({
     set((s) => {
       const win = s.windows[id];
       if (!win) return s;
-      const { [id]: _removed, ...windows } = s.windows;
-      const order = s.order.filter((x) => x !== id);
-      const focusedId = s.focusedId === id ? topVisible({ order, windows }, win.desktopId) : s.focusedId;
-      return { windows, order, focusedId };
+      let { [id]: _removed, ...windows } = s.windows;
+      let groups = s.groups;
+      let order = s.order.filter((x) => x !== id);
+      let focusedId = s.focusedId;
+
+      const group = win.groupId ? s.groups[win.groupId] : undefined;
+      if (group) {
+        const ids = group.ids.filter((x) => x !== id);
+        const idx = group.ids.indexOf(id);
+        const nextActive = group.activeId === id ? ids[Math.min(idx, ids.length - 1)] : group.activeId;
+        // The neighbouring tab takes over the frame.
+        if (group.activeId === id) {
+          windows = { ...windows, [nextActive]: { ...windows[nextActive], rect: win.rect, mode: win.mode, snap: win.snap, restoreRect: win.restoreRect, minimized: win.minimized } };
+          order = [...order.filter((x) => x !== nextActive), nextActive];
+          if (s.focusedId === id) focusedId = nextActive;
+        }
+        if (ids.length === 1) {
+          const { [group.id]: _g, ...rest } = s.groups;
+          groups = rest;
+          windows = { ...windows, [ids[0]]: { ...windows[ids[0]], groupId: undefined } };
+        } else {
+          groups = { ...s.groups, [group.id]: { ...group, ids, activeId: nextActive } };
+        }
+      }
+      if (focusedId === id) focusedId = topVisible({ order, windows, groups }, win.desktopId);
+      return { windows, order, focusedId, groups };
     });
   },
 
@@ -151,11 +214,14 @@ export const useWindowStore = create<WindowStore>()((set, get) => ({
     set((s) => {
       const win = s.windows[id];
       if (!win) return s;
+      const tab = activateTab(s, id);
+      const windows = tab?.windows ?? s.windows;
       const alreadyTop = s.order[s.order.length - 1] === id;
       return {
         focusedId: id,
         order: alreadyTop ? s.order : [...s.order.filter((x) => x !== id), id],
-        windows: win.minimized ? { ...s.windows, [id]: { ...win, minimized: false } } : s.windows,
+        windows: windows[id].minimized ? { ...windows, [id]: { ...windows[id], minimized: false } } : windows,
+        groups: tab?.groups ?? s.groups,
       };
     });
   },
@@ -165,7 +231,7 @@ export const useWindowStore = create<WindowStore>()((set, get) => ({
       const win = s.windows[id];
       if (!win) return s;
       const windows = { ...s.windows, [id]: { ...win, minimized: true } };
-      return { windows, focusedId: s.focusedId === id ? topVisible({ order: s.order, windows }, win.desktopId) : s.focusedId };
+      return { windows, focusedId: s.focusedId === id ? topVisible({ order: s.order, windows, groups: s.groups }, win.desktopId) : s.focusedId };
     });
   },
 
@@ -233,7 +299,7 @@ export const useWindowStore = create<WindowStore>()((set, get) => ({
 
   cycleFocus(dir) {
     const s = get();
-    const candidates = s.order.filter((id) => s.windows[id].desktopId === s.activeDesktopId);
+    const candidates = s.order.filter((id) => s.windows[id].desktopId === s.activeDesktopId && !isHiddenTab(s, s.windows[id]));
     if (candidates.length < 2) return;
     // Cycle through the z-stack: +1 brings the bottom-most up, -1 sends the top to the back.
     if (dir === 1) {
@@ -242,7 +308,7 @@ export const useWindowStore = create<WindowStore>()((set, get) => ({
       const top = candidates[candidates.length - 1];
       const order = [top, ...s.order.filter((x) => x !== top)];
       set({ order });
-      const next = topVisible({ order, windows: s.windows }, s.activeDesktopId);
+      const next = topVisible({ order, windows: s.windows, groups: s.groups }, s.activeDesktopId);
       if (next) get().focusWindow(next);
     }
   },
@@ -295,11 +361,88 @@ export const useWindowStore = create<WindowStore>()((set, get) => ({
     set((s) => {
       const win = s.windows[windowId];
       if (!win) return s;
-      const windows = { ...s.windows, [windowId]: { ...win, desktopId } };
+      // A tab group travels together.
+      const ids = win.groupId ? s.groups[win.groupId].ids : [windowId];
+      const windows = { ...s.windows };
+      for (const id of ids) windows[id] = { ...windows[id], desktopId };
       return {
         windows,
-        focusedId: s.focusedId === windowId ? topVisible({ order: s.order, windows }, s.activeDesktopId) : s.focusedId,
+        focusedId: ids.includes(s.focusedId ?? '') ? topVisible({ order: s.order, windows, groups: s.groups }, s.activeDesktopId) : s.focusedId,
       };
+    });
+  },
+
+  setGroupTarget(groupTarget) {
+    if (get().groupTarget !== groupTarget) set({ groupTarget });
+  },
+
+  groupWindows(sourceId, targetId) {
+    set((s) => {
+      const source = s.windows[sourceId];
+      const target = s.windows[targetId];
+      if (!source || !target || sourceId === targetId) return s;
+      let groups = { ...s.groups };
+      let windows = { ...s.windows };
+
+      // If the dragged window was itself grouped, it leaves that group first.
+      if (source.groupId && groups[source.groupId]) {
+        const old = groups[source.groupId];
+        const rest = old.ids.filter((x) => x !== sourceId);
+        if (rest.length === 1) {
+          delete groups[old.id];
+          windows[rest[0]] = { ...windows[rest[0]], groupId: undefined };
+        } else groups[old.id] = { ...old, ids: rest, activeId: old.activeId === sourceId ? rest[0] : old.activeId };
+      }
+
+      const groupId = target.groupId ?? uid('group');
+      const existing = groups[groupId];
+      const ids = existing ? [...existing.ids, sourceId] : [targetId, sourceId];
+      groups[groupId] = { id: groupId, ids, activeId: sourceId };
+      windows[targetId] = { ...windows[targetId], groupId };
+      windows[sourceId] = {
+        ...source,
+        groupId,
+        rect: target.rect,
+        mode: target.mode,
+        snap: target.snap,
+        restoreRect: target.restoreRect,
+        desktopId: target.desktopId,
+        displayId: target.displayId,
+        minimized: false,
+      };
+      return { groups, windows, groupTarget: null, focusedId: sourceId, order: [...s.order.filter((x) => x !== sourceId), sourceId] };
+    });
+  },
+
+  detachFromGroup(id, rect) {
+    set((s) => {
+      const win = s.windows[id];
+      const group = win?.groupId ? s.groups[win.groupId] : undefined;
+      if (!win || !group) return s;
+      const ids = group.ids.filter((x) => x !== id);
+      let groups = { ...s.groups };
+      const windows = { ...s.windows };
+      const base = win.mode === 'normal' ? win.rect : (win.restoreRect ?? win.rect);
+      const display = displayOf(s, win.displayId);
+      windows[id] = {
+        ...win,
+        groupId: undefined,
+        mode: 'normal',
+        snap: undefined,
+        restoreRect: undefined,
+        rect: clampToDisplay({ ...base, x: base.x + 36, y: base.y + 36, ...rect }, display),
+      };
+      if (group.activeId === id) {
+        // Remaining tab takes the original frame.
+        windows[ids[0]] = { ...windows[ids[0]], rect: win.rect, mode: win.mode, snap: win.snap, restoreRect: win.restoreRect };
+      }
+      if (ids.length === 1) {
+        delete groups[group.id];
+        windows[ids[0]] = { ...windows[ids[0]], groupId: undefined };
+      } else {
+        groups[group.id] = { ...group, ids, activeId: group.activeId === id ? ids[0] : group.activeId };
+      }
+      return { windows, groups, focusedId: id, order: [...s.order.filter((x) => x !== id), id] };
     });
   },
 

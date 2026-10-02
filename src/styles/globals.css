@@ -7,8 +7,8 @@
   --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  --color-accent: oklch(0.7 0.16 var(--accent-h));
-  --color-accent-soft: oklch(0.7 0.16 var(--accent-h) / 0.18);
+  --color-accent: oklch(var(--accent-l) 0.16 var(--accent-h));
+  --color-accent-soft: oklch(var(--accent-l) 0.16 var(--accent-h) / 0.18);
   --color-fg: var(--text-1);
   --color-fg-muted: var(--text-2);
   --color-fg-subtle: var(--text-3);
@@ -23,6 +23,8 @@
 
 :root {
   --accent-h: 275;
+  /* Darker accent in light mode keeps white-on-accent text above 4.5:1. */
+  --accent-l: 0.56;
 
   /* Glass material — the alpha/blur are overridden per surface. */
   --glass-tint: oklch(0.99 0.004 var(--accent-h));
@@ -57,6 +59,7 @@
 }
 
 [data-theme="dark"] {
+  --accent-l: 0.7;
   --glass-tint: oklch(0.24 0.025 var(--accent-h));
   --glass-alpha: 52%;
   --glass-border: oklch(1 0 0 / 0.12);

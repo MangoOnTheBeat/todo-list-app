@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { DockPreviews } from './DockPreviews';
+import { useShellStore } from '@/system/store/shellStore';
 import { AnimatePresence, motion, useAnimationControls, useMotionValue, useSpring, useTransform, type MotionValue } from 'framer-motion';
 import clsx from 'clsx';
 import { AppIcon } from '@/components/ui/AppIcon';
@@ -74,7 +76,25 @@ function DockIcon({ appId, mouseX, running, activeDesk }: { appId: AppId; mouseX
   const focusedApp = useWindowStore((s) => (s.focusedId ? s.windows[s.focusedId]?.appId : null));
   const controls = useAnimationControls();
   const [hover, setHover] = useState(false);
+  const [previews, setPreviews] = useState(false);
+  const previewTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const app = getApp(appId);
+
+  // Lingering on a running app reveals its window previews; leaving hides them after a grace period.
+  const enter = () => {
+    setHover(true);
+    clearTimeout(previewTimer.current);
+    if (running) previewTimer.current = setTimeout(() => setPreviews(true), 420);
+  };
+  const leave = () => {
+    setHover(false);
+    clearTimeout(previewTimer.current);
+    previewTimer.current = setTimeout(() => setPreviews(false), 260);
+  };
+  useEffect(() => {
+    if (!running) setPreviews(false);
+  }, [running]);
+  useEffect(() => () => clearTimeout(previewTimer.current), []);
 
   const distance = useTransform(mouseX, (mx) => {
     const r = ref.current?.getBoundingClientRect();
@@ -87,6 +107,9 @@ function DockIcon({ appId, mouseX, running, activeDesk }: { appId: AppId; mouseX
   useEffect(() => dockRegistry.register(appId, () => ref.current?.getBoundingClientRect()), [appId]);
 
   const onClick = () => {
+    setPreviews(false);
+    clearTimeout(previewTimer.current);
+    useShellStore.getState().closePanel();
     const s = useWindowStore.getState();
     const mine = s.order.map((id) => s.windows[id]).filter((w) => w.appId === appId);
     const here = mine.filter((w) => w.desktopId === activeDesk);
@@ -105,9 +128,10 @@ function DockIcon({ appId, mouseX, running, activeDesk }: { appId: AppId; mouseX
   const isFocused = focusedApp === appId;
 
   return (
-    <motion.div className="relative flex flex-col items-center" style={{ y: lift }} animate={controls}>
+    <motion.div className="relative flex flex-col items-center" style={{ y: lift }} animate={controls} onMouseEnter={enter} onMouseLeave={leave}>
+      <AnimatePresence>{previews && <DockPreviews key="previews" appId={appId} />}</AnimatePresence>
       <AnimatePresence>
-        {hover && (
+        {hover && !previews && (
           <motion.span
             role="tooltip"
             initial={{ opacity: 0, y: 6, scale: 0.9 }}
@@ -123,8 +147,6 @@ function DockIcon({ appId, mouseX, running, activeDesk }: { appId: AppId; mouseX
       <motion.button
         ref={ref}
         onClick={onClick}
-        onHoverStart={() => setHover(true)}
-        onHoverEnd={() => setHover(false)}
         onFocus={() => setHover(true)}
         onBlur={() => setHover(false)}
         whileTap={{ scale: 0.86 }}

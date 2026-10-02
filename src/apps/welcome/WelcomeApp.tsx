@@ -20,7 +20,7 @@ export default function WelcomeApp(_: AppProps) {
   return (
     <motion.div variants={stagger} initial="initial" animate="animate" className="h-full overflow-y-auto px-8 pb-8 pt-2">
       <motion.header variants={item} className="mb-7">
-        <p className="text-xs font-medium uppercase tracking-[0.2em] text-accent">Phase 1 · Foundation</p>
+        <p className="text-xs font-medium uppercase tracking-[0.2em] text-accent">Phase 2 · Shell</p>
         <h1
           className="mt-2 bg-clip-text text-4xl font-semibold tracking-tight text-transparent"
           style={{ backgroundImage: 'linear-gradient(100deg, var(--text-1) 30%, var(--color-accent) 70%, oklch(0.8 0.15 200))' }}
@@ -28,8 +28,8 @@ export default function WelcomeApp(_: AppProps) {
           Welcome to Aurora
         </h1>
         <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-fg-muted">
-          A spatial, glass-first desktop. Windows are physical objects: grab one and fling it toward an edge to snap it,
-          drag it off again to tear it free, or spread work across virtual desktops.
+          A spatial, glass-first desktop. Snap windows by flinging them at an edge, drop one onto another's title bar
+          to merge them as tabs, and press the grid button up top for a live overview of everything you have open.
         </p>
       </motion.header>
 
@@ -105,8 +105,8 @@ export default function WelcomeApp(_: AppProps) {
         </motion.section>
 
         <motion.section variants={item} className="glass-well p-5" aria-labelledby="w-keys">
-          <h2 id="w-keys" className="text-sm font-semibold">Window shortcuts</h2>
-          <dl className="mt-3 space-y-2">
+          <h2 id="w-keys" className="text-sm font-semibold">Keyboard shortcuts</h2>
+          <dl className="mt-3 max-h-[220px] space-y-2 overflow-y-auto pr-1">
             {SHORTCUTS.map((s) => (
               <div key={s.keys} className="flex items-center justify-between gap-3 text-[13px]">
                 <dt className="text-fg-muted">{s.action}</dt>

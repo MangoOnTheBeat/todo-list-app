@@ -1,15 +1,19 @@
+import { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { OverviewBackdrop } from './Overview';
 import { Window } from '@/components/window/Window';
 import { SnapPreview } from '@/components/window/SnapPreview';
 import { springs } from '@/system/motion';
-import { useWindowStore } from '@/system/store/windowStore';
+import { overviewLayout, type OverviewSlot } from '@/system/overview';
+import { useShellStore } from '@/system/store/shellStore';
+import { isHiddenTab, useWindowStore } from '@/system/store/windowStore';
 
 /**
  * One layer per virtual desktop, laid out side by side. Switching desktops slides the
  * strip and recedes the outgoing layer in depth. Inactive layers stay mounted (apps keep
  * their state) but are hidden and `inert` once off-screen.
  */
-export function WindowLayers() {
+export function WindowLayers({ slots }: { slots: Map<string, OverviewSlot> }) {
   const desktops = useWindowStore((s) => s.desktops);
   const activeId = useWindowStore((s) => s.activeDesktopId);
   const order = useWindowStore((s) => s.order);
@@ -37,13 +41,30 @@ export function WindowLayers() {
           >
             <AnimatePresence>
               {ids.map((id, idx) => (
-                <Window key={id} id={id} depth={ids.length - 1 - idx} zIndex={10 + idx * 2} />
+                <Window key={id} id={id} depth={ids.length - 1 - idx} zIndex={10 + idx * 2} overview={active ? slots.get(id) : undefined} />
               ))}
             </AnimatePresence>
             {active && <SnapPreview zIndex={10 + (ids.length - 1) * 2 - 1} />}
+            {active && <OverviewBackdrop />}
           </motion.div>
         );
       })}
     </>
   );
+}
+
+/** Live-preview grid targets for the active desktop while Overview is open. */
+export function useOverviewSlots() {
+  const on = useShellStore((s) => s.overview);
+  const windows = useWindowStore((s) => s.windows);
+  const groups = useWindowStore((s) => s.groups);
+  const activeId = useWindowStore((s) => s.activeDesktopId);
+  const display = useWindowStore((s) => s.displays[0]);
+  return useMemo(() => {
+    if (!on) return new Map<string, OverviewSlot>();
+    const visible = Object.values(windows)
+      .filter((w) => w.desktopId === activeId && !w.minimized && !isHiddenTab({ groups }, w))
+      .sort((a, b) => a.createdAt - b.createdAt);
+    return overviewLayout(visible, display.bounds);
+  }, [on, windows, groups, activeId, display]);
 }

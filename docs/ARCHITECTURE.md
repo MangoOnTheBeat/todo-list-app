@@ -21,7 +21,11 @@ src/
 │  └─ ui/                     Primitives: AppIcon, GlassButton (more in Phase 2)
 ├─ apps/                      One folder per app; default export receives AppProps
 ├─ hooks/                     useThemeSync, useDisplaySync, useGlobalShortcuts, useClock
-├─ services/                  (Phase 2+) notification bus, search index, AI engine, media session
+├─ services/
+│  ├─ commands.ts             System verbs (tile, lock, toggle DND…) shared by search, panels, AI
+│  ├─ search/                 Provider-based search: fuzzy ranking, top hit, grouped sections
+│  ├─ vfs.ts                  In-memory file tree (search, recents; Files app in Phase 3)
+│  └─ notificationSimulator.ts  Seeds a backlog and drips live notifications
 ├─ styles/globals.css         Tokens, materials, wallpaper keyframes
 └─ assets/
 ```
@@ -53,8 +57,9 @@ pure functions. That keeps the window manager testable without a DOM and lets an
 | --- | --- | --- |
 | `windowStore` | windows, z-order, focus, desktops, displays, snap preview | Phase 5 (session restore) |
 | `systemStore` | theme, accent, transparency, motion, glass clarity, dock prefs | ✅ localStorage |
-| `notificationStore` (P2) | notifications, DND, focus modes | ✅ |
-| `mediaStore` (P2) | now-playing, queue, volume | — |
+| `shellStore` | open panel, overview, lock | — |
+| `notificationStore` | notifications, banner queue, Do Not Disturb | — |
+| `mediaStore` | simulated media session: track, position, likes | — |
 | `aiStore` (P4) | conversation, suggestions, context snapshot | partial |
 
 Rules:
@@ -115,3 +120,34 @@ shown in the Welcome app.
 - Desktop switches are announced via a polite live region.
 - Honors `prefers-reduced-motion` and `prefers-reduced-transparency` (and in-app overrides);
   reduced motion swaps springs for instant transitions and freezes the wallpaper.
+
+## Phase 2 — shell surfaces
+
+| Surface | Entry points | Notes |
+| --- | --- | --- |
+| Launcher | Aurora mark, `Ctrl Alt A` | Rises from the dock; typing switches the grid to search results |
+| Search | Magnifier, `Ctrl K` | Combobox with grouped results and a single top hit; inline calculator |
+| Notification center | Clock, `Ctrl Alt N` | Month view, notifications grouped by app, DND toggle, swipe to dismiss |
+| Banners | — | Max three, auto-retire after 6 s (paused on hover); DND holds all but time-sensitive |
+| Quick settings | Status icons, `Ctrl Alt Q` | Toggles, brightness/volume, now-playing card |
+| Overview | Grid button, `Ctrl Alt ↑` | The real windows animate into a grid, so previews are live; desktop strip on top |
+| Dock previews | Hover a running app | Mini frames at each window's aspect ratio; click to jump, × to close |
+| Tab groups | Drag a window onto another's title bar | Tabs share one frame; drag a tab downward to detach |
+| Lock screen | Launcher/Quick settings, `Ctrl Alt L` | Clock, unread count, media controls; any key or click unlocks |
+
+**One panel at a time.** `shellStore.panel` is a single value, so opening one surface closes
+the other; a transparent catcher behind the panel closes it on outside click, and Escape is
+handled centrally.
+
+**Overview without duplication.** Rather than rendering thumbnails, `useOverviewSlots`
+computes a grid (choosing the column count that maximises average scale) and each `Window`
+animates its inner layer to `{dx, dy, scale}`. Previews are therefore live, and apps don't
+mount twice.
+
+**Tab groups keep app state.** Every member stays mounted; non-selected tabs are
+`visibility: hidden` and `inert`. Switching tabs hands the frame geometry to the new tab.
+Grouping only targets the top-most window under the pointer.
+
+**Search providers** (`services/search/providers.ts`) each return scored results; the engine
+merges them, promotes the best as the top hit and caps each section at five. The AI phase
+adds a natural-language provider without changing the UI.
