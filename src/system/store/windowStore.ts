@@ -109,8 +109,9 @@ export const useWindowStore = create<WindowStore>()((set, get) => ({
     const offset = (siblings % 6) * 28;
     const rect = clampToDisplay(
       {
-        x: wa.x + (wa.w - w) / 2 + offset - 70,
-        y: wa.y + Math.max(0, (wa.h - h) / 2 - 30) + offset,
+        // Keep the whole window inside the work area, even on narrow screens.
+        x: Math.min(Math.max(wa.x, wa.x + (wa.w - w) / 2 + offset - 70), wa.x + wa.w - w),
+        y: Math.min(wa.y + Math.max(0, (wa.h - h) / 2 - 30) + offset, wa.y + wa.h - h),
         w,
         h,
         ...opts.rect,

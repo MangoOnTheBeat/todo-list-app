@@ -6,7 +6,7 @@ import { TOPBAR_H } from '@/system/layout';
 import { springs } from '@/system/motion';
 import { selectFocusedApp, useWindowStore } from '@/system/store/windowStore';
 import { useClock } from '@/hooks/useClock';
-import auroraMark from '@/assets/aurora-mark.svg';
+import auroraMark from '@/assets/aurora-mark.svg?inline';
 
 /**
  * Slim system bar. Three floating groups rather than one slab, so the wallpaper shows
@@ -32,7 +32,7 @@ export function TopBar() {
         >
           <img src={auroraMark} alt="" className="size-5 rounded-md" />
         </motion.button>
-        <span className="font-semibold tracking-tight">{focusedApp ? getApp(focusedApp).name : 'Desktop'}</span>
+        <span className="max-w-[28vw] truncate font-semibold tracking-tight">{focusedApp ? getApp(focusedApp).name : 'Desktop'}</span>
       </div>
 
       <DesktopSwitcher />
@@ -42,11 +42,13 @@ export function TopBar() {
         <Volume2 className="size-3.5" aria-label="Volume" />
         <span className="flex items-center gap-1" aria-label="Battery 82 percent">
           <BatteryMedium className="size-4" />
-          <span className="tabular-nums">82%</span>
+          <span className="hidden tabular-nums sm:inline">82%</span>
         </span>
         <time className="font-medium tabular-nums text-fg" dateTime={now.toISOString()}>
-          {now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-          <span className="mx-1.5 text-fg-subtle">·</span>
+          <span className="hidden sm:inline">
+            {now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+            <span className="mx-1.5 text-fg-subtle">·</span>
+          </span>
           {now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
         </time>
       </div>

@@ -27,7 +27,7 @@ export function Dock() {
   const extra = [...running].filter((id) => !pinnedIds.includes(id));
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[1000] flex justify-center">
+    <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[1000] flex origin-bottom justify-center max-[560px]:scale-[0.76]">
       <motion.nav
         aria-label="Dock"
         onMouseMove={(e) => mouseX.set(e.clientX)}
