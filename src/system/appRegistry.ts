@@ -18,6 +18,16 @@ import type { AppId, AppManifest } from './types';
 // Apps are code-split: an app's bundle loads the first time a window for it opens.
 const Welcome = lazy(() => import('@/apps/welcome/WelcomeApp'));
 const Placeholder = lazy(() => import('@/apps/placeholder/PlaceholderApp'));
+const FilesApp = lazy(() => import('@/apps/files/FilesApp'));
+const NotesApp = lazy(() => import('@/apps/notes/NotesApp'));
+const SettingsApp = lazy(() => import('@/apps/settings/SettingsApp'));
+const CalendarApp = lazy(() => import('@/apps/calendar/CalendarApp'));
+const ClockApp = lazy(() => import('@/apps/clock/ClockApp'));
+const MonitorApp = lazy(() => import('@/apps/monitor/MonitorApp'));
+const TasksApp = lazy(() => import('@/apps/tasks/TasksApp'));
+const BrowserApp = lazy(() => import('@/apps/browser/BrowserApp'));
+const StoreApp = lazy(() => import('@/apps/store/StoreApp'));
+const MusicApp = lazy(() => import('@/apps/music/MusicApp'));
 
 const manifests: AppManifest[] = [
   {
@@ -43,7 +53,7 @@ const manifests: AppManifest[] = [
     minSize: { w: 480, h: 320 },
     pinned: true,
     phase: 3,
-    component: Placeholder,
+    component: FilesApp,
   },
   {
     id: 'browser',
@@ -55,7 +65,7 @@ const manifests: AppManifest[] = [
     minSize: { w: 480, h: 320 },
     pinned: true,
     phase: 3,
-    component: Placeholder,
+    component: BrowserApp,
   },
   {
     id: 'assistant',
@@ -81,7 +91,7 @@ const manifests: AppManifest[] = [
     singleton: true,
     pinned: true,
     phase: 3,
-    component: Placeholder,
+    component: CalendarApp,
   },
   {
     id: 'notes',
@@ -93,7 +103,7 @@ const manifests: AppManifest[] = [
     minSize: { w: 320, h: 260 },
     pinned: true,
     phase: 3,
-    component: Placeholder,
+    component: NotesApp,
   },
   {
     id: 'music',
@@ -106,7 +116,7 @@ const manifests: AppManifest[] = [
     singleton: true,
     pinned: true,
     phase: 2,
-    component: Placeholder,
+    component: MusicApp,
   },
   {
     id: 'clock',
@@ -118,7 +128,7 @@ const manifests: AppManifest[] = [
     minSize: { w: 360, h: 320 },
     singleton: true,
     phase: 3,
-    component: Placeholder,
+    component: ClockApp,
   },
   {
     id: 'monitor',
@@ -130,7 +140,7 @@ const manifests: AppManifest[] = [
     minSize: { w: 480, h: 360 },
     singleton: true,
     phase: 3,
-    component: Placeholder,
+    component: MonitorApp,
   },
   {
     id: 'tasks',
@@ -142,7 +152,7 @@ const manifests: AppManifest[] = [
     minSize: { w: 480, h: 360 },
     singleton: true,
     phase: 3,
-    component: Placeholder,
+    component: TasksApp,
   },
   {
     id: 'store',
@@ -155,7 +165,7 @@ const manifests: AppManifest[] = [
     singleton: true,
     pinned: true,
     phase: 3,
-    component: Placeholder,
+    component: StoreApp,
   },
   {
     id: 'settings',
@@ -168,7 +178,7 @@ const manifests: AppManifest[] = [
     singleton: true,
     pinned: true,
     phase: 3,
-    component: Placeholder,
+    component: SettingsApp,
   },
 ];
 

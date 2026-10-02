@@ -1,8 +1,8 @@
 import type { AppId } from '@/system/types';
 
 /**
- * A small in-memory virtual file system. Search uses it now; the Files app and the
- * AI file organiser build on it in later phases.
+ * Virtual file system model + helpers. The live, mutable tree lives in
+ * `system/store/fileStore.ts`; this module defines the shape, the seed data and pure helpers.
  */
 export type FileKind = 'folder' | 'document' | 'image' | 'audio' | 'video' | 'code' | 'archive' | 'spreadsheet' | 'presentation' | 'pdf';
 
@@ -10,66 +10,83 @@ export interface VNode {
   id: string;
   name: string;
   kind: FileKind;
-  path: string;
+  parentId: string | null;
   size?: number; // bytes
   modified: number;
   tags?: string[];
-  children?: VNode[];
+  trashed?: boolean;
+  /** Text content for documents/code (Notes can open these). */
+  content?: string;
+  /** Derived, filled in by selectors. */
+  path?: string;
 }
 
 const DAY = 86_400_000;
-const now = Date.now();
 let seq = 0;
 
-function f(name: string, kind: FileKind, size: number, daysAgo: number, tags?: string[]): Omit<VNode, 'path'> {
-  return { id: `f${seq++}`, name, kind, size, modified: now - daysAgo * DAY, tags };
-}
-function d(name: string, children: Omit<VNode, 'path'>[], daysAgo = 1): Omit<VNode, 'path'> {
-  return { id: `f${seq++}`, name, kind: 'folder', modified: now - daysAgo * DAY, children: children as VNode[] };
-}
+type Seed = { name: string; kind: FileKind; size?: number; daysAgo: number; tags?: string[]; content?: string; children?: Seed[] };
+const f = (name: string, kind: FileKind, size: number, daysAgo: number, tags?: string[], content?: string): Seed => ({ name, kind, size, daysAgo, tags, content });
+const d = (name: string, children: Seed[], daysAgo = 1): Seed => ({ name, kind: 'folder', daysAgo, children });
 
-const raw = d('Home', [
+const seed: Seed[] = [
   d('Documents', [
-    f('Q4 Roadmap.aurdoc', 'document', 48_200, 0.1, ['work', 'planning']),
-    f('Design Principles.aurdoc', 'document', 22_900, 3, ['design']),
+    f('Q4 Roadmap.aurdoc', 'document', 48_200, 0.1, ['work', 'planning'], 'Q4 Roadmap\n\n1. Ship the glass window manager\n2. Launch Aurora AI beta to 5% of users\n3. Cut cold-start time by 30%'),
+    f('Design Principles.aurdoc', 'document', 22_900, 3, ['design'], 'Light passes through. Depth is information. One physics. Calm by default.'),
     f('Lease Agreement 2026.pdf', 'pdf', 1_240_000, 40, ['personal']),
     f('Budget FY27.sheet', 'spreadsheet', 96_000, 1.5, ['work', 'finance']),
-    f('Offsite Agenda.aurdoc', 'document', 9_800, 0.4, ['work']),
+    f('Offsite Agenda.aurdoc', 'document', 9_800, 0.4, ['work'], 'Day 1: strategy\nDay 2: workshops\nDinner at 7pm, Harbour Room'),
   ]),
   d('Projects', [
-    d('aurora-shell', [f('README.md', 'code', 4_100, 0.2), f('window-manager.ts', 'code', 18_400, 0.2), f('tokens.css', 'code', 6_300, 0.6)]),
-    d('brand-refresh', [f('Moodboard.png', 'image', 6_400_000, 5, ['design']), f('Pitch.deck', 'presentation', 12_800_000, 2, ['work'])]),
+    d('aurora-shell', [f('README.md', 'code', 4_100, 0.2), f('window-manager.ts', 'code', 18_400, 0.2), f('tokens.css', 'code', 6_300, 0.6)], 0.2),
+    d('brand-refresh', [f('Moodboard.png', 'image', 6_400_000, 5, ['design']), f('Pitch.deck', 'presentation', 12_800_000, 2, ['work'])], 2),
   ]),
-  d('Downloads', [
-    f('glass-shaders.zip', 'archive', 88_000_000, 0.05),
-    f('IMG_2041.heic', 'image', 3_100_000, 0.3),
-    f('Invoice-0412.pdf', 'pdf', 210_000, 6, ['finance']),
-    f('podcast-ep-88.mp3', 'audio', 54_000_000, 9),
-  ]),
+  d(
+    'Downloads',
+    [
+      f('glass-shaders.zip', 'archive', 88_000_000, 0.05),
+      f('IMG_2041.heic', 'image', 3_100_000, 0.3),
+      f('Invoice-0412.pdf', 'pdf', 210_000, 6, ['finance']),
+      f('podcast-ep-88.mp3', 'audio', 54_000_000, 9),
+      f('Screenshot 2026-09-30 at 14.02.png', 'image', 1_800_000, 2),
+      f('Tax Return 2025.pdf', 'pdf', 640_000, 20, ['finance']),
+      f('quarterly-metrics.sheet', 'spreadsheet', 210_000, 3, ['work']),
+      f('setup-notes.txt', 'document', 2_100, 12, [], 'Router password is on the fridge.'),
+    ],
+    0.05,
+  ),
   d('Pictures', [
     f('Aurora Borealis, Tromsø.jpg', 'image', 7_800_000, 120, ['travel']),
     f('Studio Desk.jpg', 'image', 4_200_000, 14),
     f('Screen Recording 09-28.mov', 'video', 140_000_000, 4),
-  ]),
-  d('Music', [f('Refraction (Lumen Arcade)', 'folder', 0, 30)]),
-], 0);
+  ], 4),
+  d('Music', [f('Glasshouse Weather.flac', 'audio', 32_000_000, 30), f('Northern Static.flac', 'audio', 35_000_000, 30)], 30),
+];
 
-function withPaths(node: Omit<VNode, 'path'>, parent: string): VNode {
-  const path = parent ? `${parent}/${node.name}` : node.name;
-  return { ...node, path, children: node.children?.map((c) => withPaths(c, path)) };
+export const ROOT_ID = 'root';
+
+export function buildSeed(now = Date.now()): Record<string, VNode> {
+  const nodes: Record<string, VNode> = {
+    [ROOT_ID]: { id: ROOT_ID, name: 'Home', kind: 'folder', parentId: null, modified: now },
+  };
+  const walk = (items: Seed[], parentId: string) => {
+    for (const s of items) {
+      const id = `f${seq++}`;
+      nodes[id] = { id, name: s.name, kind: s.kind, parentId, size: s.size, modified: now - s.daysAgo * DAY, tags: s.tags, content: s.content };
+      if (s.children) walk(s.children, id);
+    }
+  };
+  walk(seed, ROOT_ID);
+  return nodes;
 }
 
-export const fileTree: VNode = withPaths(raw, '');
-
-export function allFiles(node: VNode = fileTree): VNode[] {
-  return [node, ...(node.children ?? []).flatMap(allFiles)].filter((n) => n !== fileTree);
-}
-
-export function recentFiles(limit = 6) {
-  return allFiles()
-    .filter((n) => n.kind !== 'folder')
-    .sort((a, b) => b.modified - a.modified)
-    .slice(0, limit);
+export function pathOf(nodes: Record<string, VNode>, id: string): string {
+  const parts: string[] = [];
+  let cur: VNode | undefined = nodes[id];
+  while (cur) {
+    parts.unshift(cur.name);
+    cur = cur.parentId ? nodes[cur.parentId] : undefined;
+  }
+  return parts.join('/');
 }
 
 export function formatBytes(b = 0) {
@@ -102,3 +119,16 @@ export function appForFile(kind: FileKind): AppId {
   if (kind === 'document' || kind === 'code') return 'notes';
   return 'files';
 }
+
+export const KIND_LABEL: Record<FileKind, string> = {
+  folder: 'Folder',
+  document: 'Document',
+  image: 'Image',
+  audio: 'Audio',
+  video: 'Video',
+  code: 'Source code',
+  archive: 'Archive',
+  spreadsheet: 'Spreadsheet',
+  presentation: 'Presentation',
+  pdf: 'PDF',
+};

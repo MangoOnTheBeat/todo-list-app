@@ -6,7 +6,8 @@ import { SearchResults } from '@/components/ui/SearchResults';
 import { useSearchController } from '@/hooks/useSearchController';
 import type { SearchResult } from '@/services/search';
 import { fileIcon } from '@/services/search/providers';
-import { appForFile, recentFiles, relativeTime } from '@/services/vfs';
+import { appForFile, relativeTime } from '@/services/vfs';
+import { recentFiles } from '@/system/store/fileStore';
 import { allApps } from '@/system/appRegistry';
 import { springs } from '@/system/motion';
 import { useShellStore } from '@/system/store/shellStore';
@@ -91,7 +92,7 @@ export function Launcher() {
                 return (
                   <li key={f.id}>
                     <button
-                      onClick={() => launch(() => openApp(appForFile(f.kind), { args: { path: f.path } }))}
+                      onClick={() => launch(() => openApp(appForFile(f.kind), { args: { fileId: f.id } }))}
                       className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-[color-mix(in_oklab,var(--text-1)_6%,transparent)]"
                     >
                       <span className="glass-well grid size-9 shrink-0 place-items-center rounded-lg text-accent">

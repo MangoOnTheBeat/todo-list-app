@@ -14,7 +14,7 @@ function useMediaQuery(query: string) {
 
 /** Projects system preferences onto <html> as data-attributes and CSS variables. */
 export function useThemeSync() {
-  const { theme, accentHue, reduceTransparency, reduceMotion, glassIntensity } = useSystemStore();
+  const { theme, accentHue, reduceTransparency, reduceMotion, glassIntensity, wallpaper } = useSystemStore();
   const prefersDark = useMediaQuery('(prefers-color-scheme: dark)');
   const prefersLessTransparency = useMediaQuery('(prefers-reduced-transparency: reduce)');
   const prefersLessMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
@@ -24,12 +24,13 @@ export function useThemeSync() {
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.theme = resolved;
+    root.dataset.wallpaper = wallpaper;
     root.dataset.transparency = reduceTransparency || prefersLessTransparency ? 'reduced' : 'full';
     root.dataset.motion = reduceMotion || prefersLessMotion ? 'reduced' : 'full';
     root.style.setProperty('--accent-h', String(accentHue));
     // glassIntensity 0 → frosted/opaque, 1 → very clear.
     root.style.setProperty('--glass-alpha-user', `${Math.round(86 - glassIntensity * 44)}%`);
-  }, [resolved, accentHue, reduceTransparency, prefersLessTransparency, reduceMotion, prefersLessMotion, glassIntensity]);
+  }, [resolved, accentHue, reduceTransparency, prefersLessTransparency, reduceMotion, prefersLessMotion, glassIntensity, wallpaper]);
 
   return { resolvedTheme: resolved, reducedMotion: reduceMotion || prefersLessMotion };
 }

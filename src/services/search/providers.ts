@@ -31,7 +31,8 @@ import { allApps, getApp } from '@/system/appRegistry';
 import { ACCENT_PRESETS, useSystemStore } from '@/system/store/systemStore';
 import { isHiddenTab, useWindowStore } from '@/system/store/windowStore';
 import { commands } from '../commands';
-import { allFiles, appForFile, recentFiles, relativeTime, type FileKind } from '../vfs';
+import { allFiles, recentFiles } from '@/system/store/fileStore';
+import { appForFile, relativeTime, type FileKind } from '../vfs';
 import { bestScore } from './fuzzy';
 import type { SearchProvider, SearchResult } from './types';
 
@@ -166,10 +167,10 @@ const filesProvider: SearchProvider = {
         id: `file:${f.id}`,
         kind: 'file' as const,
         title: f.name,
-        subtitle: `${f.path.replace(/\/[^/]+$/, '')} · ${relativeTime(f.modified)}`,
+        subtitle: `${(f.path ?? '').replace(/\/[^/]+$/, '')} · ${relativeTime(f.modified)}`,
         icon: fileIcon[f.kind],
         score: Math.max(bestScore(q, f.name), ...(f.tags ?? []).map((t) => bestScore(q, t) * 0.6)) * 0.85,
-        run: () => open(f.kind === 'folder' ? 'files' : appForFile(f.kind), { path: f.path }),
+        run: () => open(f.kind === 'folder' ? 'files' : appForFile(f.kind), f.kind === 'folder' ? { folderId: f.id } : { fileId: f.id }),
       }))
       .filter((r) => r.score > 0),
   suggest: () =>
@@ -180,7 +181,7 @@ const filesProvider: SearchProvider = {
       subtitle: relativeTime(f.modified),
       icon: fileIcon[f.kind],
       score: 0,
-      run: () => open(appForFile(f.kind), { path: f.path }),
+      run: () => open(appForFile(f.kind), { fileId: f.id }),
     })),
 };
 
