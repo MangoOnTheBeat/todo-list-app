@@ -2,13 +2,16 @@
 
 A browser JDM drift game set across a stylised Japan. Open `index.html` in any modern browser — no build step, no install, no login.
 
-## Map
-One 4 km closed loop through three regions:
-- **首都高 Shuto Loop** — walled city expressway between lit towers and vertical neon signs.
-- **箱根 Hakone Pass** — climbing cedar forest, guardrails, chevrons, tight hairpins (16 m radius), a summit torii gate and paper lanterns.
-- **湘南 Shonan Coast** — sakura-lined descent beside the sea with Mt. Fuji on the horizon.
+## Map — real Hakone terrain at 1:1 scale
+The world is built from real elevation data for Hakone, Japan, at true scale:
+- **Near area (4 × 4 km, ~8 m detail)** around the north end of **Lake Ashi (芦ノ湖)** at Kojiri, including the real lake outline and the Hakone caldera hills.
+- **Far area (72 × 72 km, 150 m detail)** with the real **Mt. Fuji** about 27 km to the west-north-west, Sagami Bay, Suruga Bay, and the lowland towns (Odawara, Gotemba, Mishima) shown as night lights.
 
-Two times of day: golden hour and midnight.
+The 5.3 km course was placed on that land by an automated search for the position with the least earthworks and gentlest grades. The road follows the real ground, smoothed and held to 10 % grade. It has three sections: **湖尻 Kojiri village**, the **箱根 Hakone hills** hairpins (about 140 m of climb) and the **芦ノ湖 Lake Ashi shore**. As in real life, Fuji's summit just clears the western caldera rim from the upper hills and is hidden from the lakeshore.
+
+**What is real and what isn't:** the terrain, lake and mountains are real data. The road layout, buildings, trees and signs are the game's own design placed on that land; they are not a survey of real roads. The terrain data is public-domain-derived; see Credits.
+
+Default time is **midnight**: a painted sky with ~9,000 stars and the Milky Way, twinkling bright stars, a textured moon low over the lake, moonlight on Fuji's snow cap, and the glow of distant towns on the horizon. A sunset option remains in Settings.
 
 ## Controls
 | | Keyboard | Touch | Gamepad |
@@ -53,3 +56,6 @@ A web page cannot read a hardware ID (HWID); browsers block that on purpose, and
 
 ## Graphics
 three.js r160: ACES tone mapping, physical sky with image-based reflections, clear-coat car paint, soft shadows, bloom, instanced forests and city, tyre smoke and skid marks. Quality tiers (Low / Medium / High) are picked automatically per device and drop a step if the frame rate falls below ~38 fps.
+
+## Credits
+Elevation: Terrain Tiles on AWS (Mapzen / Linux Foundation), derived from NASA SRTM, USGS GMTED2010 and NOAA ETOPO1.
