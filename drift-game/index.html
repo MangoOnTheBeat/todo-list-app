@@ -1292,37 +1292,117 @@ function gaugeTex(max, red, label, step) {
   });
 }
 
+
+const wellMat = new THREE.MeshStandardMaterial({ color: 0x050506, roughness: 1, side: THREE.DoubleSide });
+// fine metallic-flake normal map for the paint's base layer (the clear coat stays smooth)
+const flakeTex = canvasTex(256, 256, (g, w, h) => {
+  const img = g.createImageData(w, h), r = mulberry32(5);
+  for (let i = 0; i < w * h; i++) { img.data[i * 4] = 128 + (r() - 0.5) * 70; img.data[i * 4 + 1] = 128 + (r() - 0.5) * 70; img.data[i * 4 + 2] = 255; img.data[i * 4 + 3] = 255; }
+  g.putImageData(img, 0, 0);
+}, false);
+flakeTex.wrapS = flakeTex.wrapT = THREE.RepeatWrapping; flakeTex.repeat.set(30, 30);
+
+// Car body as a loft: ~96 cross-sections from tail to nose. Each section runs from the
+// floor up a gently bulging flank, over a rounded shoulder, up the inward-leaning
+// greenhouse and across the crowned roof. Wheel arches are cut from the lower edge and
+// faces in the window areas are assigned to glass, with black seals and pillars.
+function loftBody(b, st, paint, L, W, H, fz, rz, rb) {
+  const hw = W / 2, NZ = 96, R = 0.43, RING = 50;
+  const wbz = st.wb, rfz = st.rf, rrz = st.rr, rbz = rb, zB = lerp(rb, st.wb, b.style === 'hatch' ? 0.42 : 0.38);
+  const topY = z => {
+    if (z > wbz) return lerp(st.belt + 0.01, st.nose + 0.03, Math.pow((z - wbz) / (L - wbz), 1.7));
+    if (z >= rbz) return st.belt + 0.02 * (wbz - z) / Math.max(0.01, wbz - rbz);
+    const t = (rbz - z) / Math.max(0.01, rbz + L);
+    let y = lerp(st.belt + 0.02, st.deck, smooth(0, 0.35, t));
+    if (t > 0.72) y = lerp(y, st.tail, Math.pow((t - 0.72) / 0.28, 2));
+    return y;
+  };
+  const roofY = z => {
+    if (z <= rbz || z >= wbz) return null;
+    if (z >= rfz) return lerp(H, st.belt + 0.01, Math.pow((z - rfz) / (wbz - rfz), 1.12));
+    if (z >= rrz) return H + 0.025 * Math.sin(Math.PI * (z - rrz) / (rfz - rrz));
+    return lerp(st.belt + 0.02, H, Math.pow((z - rbz) / (rrz - rbz), b.style === 'notch' ? 0.85 : 0.7));
+  };
+  const halfW = z => {
+    const e = Math.max(0, Math.abs(z) - (L - 0.32));
+    let a = hw - 0.32 + Math.sqrt(Math.max(0, 0.32 * 0.32 - e * e));
+    for (const az of [fz, rz]) a += 0.022 * Math.exp(-Math.pow((z - az) / 0.45, 2)); // fender flares
+    return a;
+  };
+  const ybot = z => 0.27 + 0.05 * smooth(L - 0.65, L, Math.abs(z));
+  const archY = z => { let y = -1; for (const az of [fz, rz]) { const d = z - az; if (Math.abs(d) < R) y = Math.max(y, RW + Math.sqrt(R * R - d * d)); } return y; };
+  const section = z => {
+    const a = halfW(z), yb = ybot(z), top = topY(z), ry = roofY(z);
+    const gh = ry === null ? 0 : clamp((ry - top) / 0.06, 0, 1);
+    const g = a * 0.885, c = a * 0.7;
+    const tcY = gh > 0 ? Math.max(ry, top + 0.05) : top + 0.05;
+    const edgeX = lerp(a * 0.5, c, gh), edgeY = gh > 0 ? Math.max(tcY - 0.05, top + 0.04) : top + 0.042;
+    const p = [[0, yb], [0.3 * a, yb], [0.6 * a, yb], [0.84 * a, yb + 0.006]];
+    for (let k = 0; k < 8; k++) { const t = k / 7; p.push([a * (0.935 + 0.065 * Math.sin(Math.PI * (0.12 + 0.76 * t))), lerp(yb + 0.035, top - 0.01, t)]); }
+    p.push([a * 0.955, top + 0.012], [a * 0.92, top + 0.022]);
+    for (let k = 0; k < 6; k++) { const t = k / 5; p.push([lerp(g, edgeX, t), lerp(top + 0.027, edgeY, t)]); }
+    for (let k = 1; k <= 6; k++) { const t = k / 6; p.push([edgeX * (1 - t), edgeY + (tcY - edgeY) * Math.sin(t * Math.PI / 2)]); }
+    const ay = archY(z);
+    if (ay > 0) for (let k = 1; k < 12; k++) if (p[k][0] > a - 0.34 && p[k][1] < ay) p[k][1] = ay;
+    return p;
+  };
+  const pos = [], uv = [], zs = [];
+  for (let i = 0; i <= NZ; i++) zs.push(-L + 2 * L * i / NZ);
+  for (const z of zs) {
+    const sct = section(z), full = [...sct, ...sct.slice(1, 25).reverse().map(([x, y]) => [-x, y])];
+    full.forEach(([x, y], j) => { pos.push(x, y, z); uv.push((z + L) / 0.5, j / 6); });
+  }
+  const groups = [[], [], []]; // paint, glass, trim
+  const winA = lerp(rbz, rrz, b.style === 'hatch' ? 0.25 : 0.45), winB = lerp(rfz, wbz, 0.55);
+  for (let i = 0; i < NZ; i++) {
+    const zm = (zs[i] + zs[i + 1]) / 2, cabin = roofY(zm) !== null && roofY(zm) - topY(zm) > 0.08;
+    for (let j = 0; j < RING; j++) {
+      const q = j <= 24 ? j : 49 - j;
+      let m = 0;
+      if (cabin) {
+        if (q >= 14 && q <= 18 && zm > winA && zm < winB) m = Math.abs(zm - zB) < 0.045 ? 2 : (q === 14 || q === 18 ? 2 : 1);
+        else if (q >= 19 && q <= 24 && zm > rfz + 0.03 && zm < wbz - 0.03) m = q === 19 ? 2 : 1;
+        else if (q >= 19 && q <= 24 && zm > rbz + 0.03 && zm < rrz - 0.03) m = q === 19 ? 2 : 1;
+      }
+      const a0 = i * RING + j, b0 = i * RING + (j + 1) % RING, c0 = (i + 1) * RING + j, d0 = (i + 1) * RING + (j + 1) % RING;
+      groups[m].push(a0, c0, b0, b0, c0, d0);
+    }
+  }
+  // flat end caps (front fascia and tail panel)
+  for (const [i, flip] of [[0, true], [NZ, false]]) {
+    const c = pos.length / 3; let cx = 0, cy = 0;
+    for (let j = 0; j < RING; j++) { cy += pos[(i * RING + j) * 3 + 1]; }
+    pos.push(cx, cy / RING, zs[i]); uv.push(0, 0);
+    for (let j = 0; j < RING; j++) { const a0 = i * RING + j, b0 = i * RING + (j + 1) % RING; groups[0].push(...(flip ? [c, b0, a0] : [c, a0, b0])); }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  const idx = [...groups[0], ...groups[1], ...groups[2]]; geo.setIndex(idx);
+  geo.addGroup(0, groups[0].length, 0); geo.addGroup(groups[0].length, groups[1].length, 1); geo.addGroup(groups[0].length + groups[1].length, groups[2].length, 2);
+  geo.computeVertexNormals();
+  // make sure faces point outward (check a flank vertex mid-car)
+  const nIdx = (NZ >> 1) * RING + 8;
+  if (geo.attributes.normal.getX(nIdx) * pos[nIdx * 3] < 0) { const ix = geo.index.array; for (let k = 0; k < ix.length; k += 3) { const t = ix[k + 1]; ix[k + 1] = ix[k + 2]; ix[k + 2] = t; } geo.computeVertexNormals(); }
+  return { mesh: new THREE.Mesh(geo, [paint, MAT.glass, MAT.trim]), topY };
+}
+
 function makeCar(def, color, castShadow = true, cockpit = false) {
   const b = def.b, st = STYLES[b.style], L = b.len / 2, W = b.wid, H = b.h;
   const fz = b.wb / 2 - 0.1, rz = -b.wb / 2 - 0.1, ar = 0.44, rb = -L + st.rbO;
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
-  const paint = new THREE.MeshPhysicalMaterial({ color, metalness: 0.25, roughness: 0.34, clearcoat: 0.8, clearcoatRoughness: 0.1, envMapIntensity: 0.75 });
+  const paint = new THREE.MeshPhysicalMaterial({ color, metalness: 0.45, roughness: 0.38, normalMap: flakeTex, normalScale: new THREE.Vector2(0.08, 0.08), clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 0.9 });
   const tailMat = new THREE.MeshStandardMaterial({ color: 0x3a0505, emissive: 0xff1a1a, emissiveIntensity: 1.4 });
   const P = new PartBuilder();
 
-  // --- body shell: side profile with wheel arches, crowned hood, rounded tail ---
-  const s = new THREE.Shape();
-  s.moveTo(L, 0.34); s.lineTo(fz + ar, 0.3); s.absarc(fz, RW, ar, -0.06, Math.PI + 0.06, false);
-  s.lineTo(rz + ar, 0.3); s.absarc(rz, RW, ar, -0.06, Math.PI + 0.06, false);
-  s.lineTo(-L, 0.38); s.quadraticCurveTo(-L - 0.04, (0.38 + st.tail) / 2, -L + 0.01, st.tail);
-  s.quadraticCurveTo(-L + 0.04, st.deck, -L + 0.3, st.deck); s.lineTo(rb, st.belt);
-  s.lineTo(st.wb, st.belt + 0.01); s.quadraticCurveTo((st.wb + L) / 2, st.hood + 0.07, L - 0.12, st.hood);
-  s.quadraticCurveTo(L + 0.03, st.hood - 0.02, L, st.nose); s.lineTo(L, 0.34);
-  P.add(sculpt(extrude(s, W, 0.16, 5), L, W, H, st.belt, 0), paint);
-  // cabin (painted pillars and roof) and glass
-  const cab = new THREE.Shape(); cab.moveTo(rb, st.belt - 0.03); cab.lineTo(st.rr, H); cab.quadraticCurveTo((st.rr + st.rf) / 2, H + 0.035, st.rf, H); cab.lineTo(st.wb, st.belt - 0.02); cab.lineTo(rb, st.belt - 0.03);
-  P.add(sculpt(extrude(cab, W * 0.9, 0.12, 4), L, W * 0.9, H, st.belt - 0.05, 0.16), paint);
-  const gy = H - 0.075, t1 = (gy - st.belt) / (H - st.belt);
-  const gl = new THREE.Shape(); gl.moveTo(rb - 0.02, st.belt - 0.01); gl.lineTo(lerp(rb, st.rr, t1), gy); gl.lineTo(lerp(st.wb, st.rf, t1), gy); gl.lineTo(st.wb + 0.02, st.belt - 0.01); gl.lineTo(rb - 0.02, st.belt - 0.01);
-  P.add(sculpt(extrude(gl, W * 0.9 + 0.03, 0.1, 4), L, W * 0.9 + 0.03, H, st.belt - 0.05, 0.16), MAT.glass, 0, 0, 0, 0, 0, 0, 1.004, 1, 1.012);
-  // B-pillar blackout and window seals
-  for (const sx of [-1, 1]) {
-    const bz = lerp(rb, st.wb, b.style === 'hatch' ? 0.42 : 0.38);
-    P.add(new THREE.BoxGeometry(0.02, H - st.belt - 0.1, 0.09), MAT.trim, sx * (W * 0.45 * (1 - 0.08) + 0.012), (st.belt + H - 0.08) / 2, bz);
-    P.add(new THREE.BoxGeometry(0.025, 0.025, st.wb - rb - 0.1), MAT.trim, sx * (W * 0.452), st.belt + 0.005, (st.wb + rb) / 2);
+  // --- body shell: a smooth lofted surface with glass, seals and pillars ---
+  const shell = loftBody(b, st, paint, L, W, H, fz, rz, rb);
+  shell.mesh.castShadow = castShadow; body.add(shell.mesh);
+  for (const az of [fz, rz]) for (const sx of [-1, 1]) {           // dark wheel-well liners
+    const liner = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.32, 18, 1, true, 0, Math.PI).rotateZ(Math.PI / 2), MAT.rubber);
+    liner.material = wellMat; liner.position.set(sx * (W / 2 - 0.2), RW, az); body.add(liner);
   }
   // --- front end ---
-  const fw = W * 0.8; // body is narrower at the ends after sculpting
+  const fw = W - 0.62; // width of the flat nose and tail panels (body corners are rounded)
   P.add(new THREE.BoxGeometry(fw, 0.05, 0.22), MAT.trim, 0, 0.29, L - 0.08);                     // splitter lip
   P.add(new THREE.BoxGeometry(W * 0.56, 0.13, 0.05), MAT.trim, 0, 0.42, L + 0.005);              // lower intake
   for (let k = -2; k <= 2; k++) P.add(new THREE.BoxGeometry(0.012, 0.11, 0.03), MAT.rubber, k * W * 0.1, 0.42, L + 0.02); // intake slats
@@ -1339,7 +1419,7 @@ function makeCar(def, color, castShadow = true, cockpit = false) {
   const popups = [];
   if (b.popups) {
     for (const sx of [-1, 1]) {
-      const g = new THREE.Group(); g.position.set(sx * (W / 2 - 0.36), lerp(st.belt, st.hood, 0.86), L - 0.42);
+      const g = new THREE.Group(); g.position.set(sx * (W / 2 - 0.36), shell.topY(L - 0.42) - 0.035, L - 0.42);
       const pb = new PartBuilder();
       pb.add(new THREE.BoxGeometry(0.44, 0.14, 0.3), paint);
       pb.add(new THREE.BoxGeometry(0.42, 0.12, 0.02), MAT.trim, 0, 0, 0.145);
@@ -1357,7 +1437,7 @@ function makeCar(def, color, castShadow = true, cockpit = false) {
     }
   }
   // --- rear end ---
-  const tw = W * 0.76;
+  const tw = W - 0.7;
   P.add(new THREE.BoxGeometry(tw, 0.16, 0.04), tailMat, 0, st.tail - 0.11, -L - 0.004);
   P.add(new THREE.BoxGeometry(tw * 0.34, 0.162, 0.044), MAT.trim, 0, st.tail - 0.11, -L - 0.004);   // centre garnish
   for (const sx of [-1, 1]) P.add(new THREE.BoxGeometry(0.1, 0.05, 0.045), MAT.lens, sx * (tw / 2 - 0.22), st.tail - 0.11, -L - 0.006); // reverse lamps
@@ -1382,24 +1462,24 @@ function makeCar(def, color, castShadow = true, cockpit = false) {
     P.add(new THREE.BoxGeometry(0.012, st.belt - 0.42, 0.012), MAT.trim, sx * (W / 2 + 0.014), (st.belt + 0.42) / 2, dz - 0.02);      // door rear shut
     P.add(new THREE.BoxGeometry(0.02, 0.025, 0.13), MAT.trim, sx * (W / 2 + 0.018), st.belt - 0.1, dz + 0.12);                         // handle
     // mirrors
-    P.add(new THREE.BoxGeometry(0.1, 0.03, 0.04), MAT.trim, sx * (W * 0.46 + 0.04), st.belt + 0.05, st.wb - 0.16);
-    P.add(new THREE.BoxGeometry(0.1, 0.09, 0.14), paint, sx * (W * 0.46 + 0.1), st.belt + 0.08, st.wb - 0.17, 0, sx * 0.1);
-    P.add(new THREE.BoxGeometry(0.008, 0.075, 0.12), MAT.reflector, sx * (W * 0.46 + 0.1) - sx * 0.0, st.belt + 0.08, st.wb - 0.245, 0, 0, 0, 9, 1, 0.1);
+    P.add(new THREE.BoxGeometry(0.07, 0.025, 0.05), MAT.trim, sx * (W * 0.42 + 0.04), st.belt + 0.06, st.wb - 0.2);                       // mirror stalk
+    P.add(new THREE.SphereGeometry(1, 16, 10), paint, sx * (W * 0.42 + 0.1), st.belt + 0.085, st.wb - 0.2, 0, sx * 0.15, 0, 0.075, 0.05, 0.085); // housing
+    P.add(new THREE.CircleGeometry(1, 16), MAT.reflector, sx * (W * 0.42 + 0.1), st.belt + 0.085, st.wb - 0.27, 0, Math.PI + sx * 0.15, 0, 0.065, 0.042, 1); // glass
   }
   // --- interior visible through the glass ---
-  const zHead = lerp(rb, st.wb, 0.4), seatX = W * 0.22;
+  const zHead = lerp(rb, st.wb, 0.47), seatX = W * 0.22;
   for (const sx of [-1, 1]) {
     P.add(new THREE.BoxGeometry(0.46, 0.12, 0.5), MAT.seat, sx * seatX, 0.5, zHead + 0.08);
-    P.add(new THREE.BoxGeometry(0.46, 0.66, 0.12), MAT.seat, sx * seatX, 0.84, zHead - 0.2, -0.18);
-    P.add(new THREE.BoxGeometry(0.06, 0.6, 0.14), MAT.seatAccent, sx * seatX + 0.2, 0.84, zHead - 0.19, -0.18);
-    P.add(new THREE.BoxGeometry(0.06, 0.6, 0.14), MAT.seatAccent, sx * seatX - 0.2, 0.84, zHead - 0.19, -0.18);
-    P.add(new THREE.BoxGeometry(0.3, 0.16, 0.1), MAT.seat, sx * seatX, 1.23, zHead - 0.27, -0.18);
+    P.add(new THREE.BoxGeometry(0.46, 0.6, 0.12), MAT.seat, sx * seatX, 0.8, zHead - 0.2, -0.18);
+    P.add(new THREE.BoxGeometry(0.06, 0.56, 0.14), MAT.seatAccent, sx * seatX + 0.2, 0.8, zHead - 0.19, -0.18);
+    P.add(new THREE.BoxGeometry(0.06, 0.56, 0.14), MAT.seatAccent, sx * seatX - 0.2, 0.8, zHead - 0.19, -0.18);
+    P.add(new THREE.BoxGeometry(0.28, 0.15, 0.1), MAT.seat, sx * seatX, H - 0.17, zHead - 0.26, -0.18);
   }
   P.add(new THREE.BoxGeometry(W * 0.84, 0.2, 0.42), MAT.interior, 0, st.belt - 0.06, st.wb - 0.3);   // dashboard
   P.add(new THREE.BoxGeometry(0.22, 0.26, 0.7), MAT.interior, 0, 0.55, zHead + 0.32);                // centre console
   // steering wheel (right-hand drive: driver sits on the car's right, local -x)
   const drvX = -seatX;
-  const wheelPos = new THREE.Vector3(drvX, H - 0.47, zHead + 0.52);
+  const wheelPos = new THREE.Vector3(drvX, H - 0.55, zHead + 0.47);
   const steerGroup = new THREE.Group(); steerGroup.position.copy(wheelPos); steerGroup.rotation.x = 0.38; body.add(steerGroup);
   const steerInner = new THREE.Group(); steerGroup.add(steerInner);
   const sw = new PartBuilder();
@@ -1427,7 +1507,7 @@ function makeCar(def, color, castShadow = true, cockpit = false) {
     C.add(new THREE.BoxGeometry(0.2, 0.06, 0.02), MAT.trim, 0, H - 0.11, lerp(st.rf, st.wb, 0.14));       // rear-view mirror
     C.add(new THREE.BoxGeometry(0.18, 0.045, 0.005), MAT.reflector, 0, H - 0.11, lerp(st.rf, st.wb, 0.14) - 0.011);
     // gauge binnacle
-    const binZ = Math.min(st.wb - 0.32, zHead + 0.86), binY = st.belt - 0.035;
+    const binZ = st.wb - 0.47, binY = st.belt + 0.01;
     C.add(new THREE.BoxGeometry(0.46, 0.16, 0.2), MAT.interior, drvX, binY, binZ + 0.04);
     C.add(new THREE.BoxGeometry(0.48, 0.03, 0.26), MAT.interior, drvX, binY + 0.085, binZ + 0.02, -0.15);
     C.add(new THREE.BoxGeometry(W * 0.9, 0.02, st.wb - rb + 0.1), MAT.seat, 0, 0.36, (st.wb + rb) / 2);      // floor carpet
@@ -2386,6 +2466,7 @@ window.__kaido = {
   get player() { return player; }, get state() { return state; }, get S() { return S; }, get drift() { return drift; }, setState, bots, TRACK_LEN, N, track: { PX, PZ, HEAD, K, RX, RZ },
   set noWalls(v) { testNoWalls = !!v; },
   get scene() { return scene; },
+  respawn() { spawnPlayer(); },
   lookFrom(p, t) { testCam = true; camera.near = 1; camera.fov = 45; camera.updateProjectionMatrix(); camera.position.set(...p); camera.lookAt(...t); },
   sim(seconds, inp) { Object.assign(input, inp); for (let t = 0; t < seconds; t += 1 / 240) { stepPlayer(1 / 240); updateScoring(1 / 240, Math.hypot(player.vx, player.vz)); } updatePlayerVisual(1 / 60); },
 };
