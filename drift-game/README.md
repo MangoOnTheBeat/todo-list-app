@@ -16,11 +16,24 @@ Two times of day: golden hour and midnight.
 | Gas | W / ↑ | GAS | RT |
 | Brake / reverse | S / ↓ | BRAKE | LT |
 | Steer | A D / ← → | drag on the left half | left stick |
-| Hand brake | Space / Shift | HAND BRAKE | A / B / RB |
-| Camera | C | CAM | Y |
+| Hand brake | Space / Shift | HAND BRAKE | A / B |
+| Camera (chase · far · **first-person cockpit** · hood) | C or V | CAM | Y |
+| Shift up / down (manual gearbox) | E / Q | — | RB / LB |
 | Reset car | R | ↺ | X |
 | Chat | T or Enter | CHAT | — |
 | Pause | Esc / P | II | Start |
+
+## Cameras
+Four views: chase, far chase, **cockpit (first person)** and hood. The cockpit has a right-hand-drive interior with a steering wheel that turns with the front wheels, working tachometer and speedometer needles, a shift light, mirror, pillars and seats. In a slide the driver's view looks into the drift.
+
+## Physics
+- Two-axle vehicle model with a combined-slip tyre curve (grip peaks around 8° of slip, then slides at ~85 %), so throttle, brakes and steering all compete for the same tyre grip.
+- Longitudinal weight transfer: braking loads the front tyres, throttle loads the rears.
+- The driven rear axle has its own wheel speed: power oversteer, wheelspin, hand-brake lock-up and clutch-in hand-brake turns happen on their own rather than being scripted.
+- Per-car engine torque curve, rev limiter, real gear ratios and final drive; automatic or manual gearbox. 0–100 km/h ranges from 4.8 s (JZA-80) to 6.8 s (AE8).
+- Speed-sensitive steering with full lock available when countersteering; steering lock from 50° to 60°.
+- Wall hits use rigid-body impulses at the corner that touches, so clipping a rail spins the car the way it should.
+- **Countersteer assist** (Settings): High / Standard / Low steer the slide angle toward a target set by throttle and steering. **Off** is the raw simulation.
 
 ## Drifting and progression
 Kick the rear out with the hand brake (or full throttle + steering), then hold the slide with throttle and countersteer. Score = speed × angle, with a combo multiplier up to ×5 and bonuses for **TANDEM** (drifting next to an AI car), **NEAR WALL**, **ANGLE** (> 45°) and **SPEED** (> 110 km/h). Hitting a wall hard loses the unbanked drift. Every 10 points banked = 1 credit; a full lap pays 500 credits.
