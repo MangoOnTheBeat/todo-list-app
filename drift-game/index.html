@@ -422,18 +422,36 @@ const CARS = [
   { id: 'ae8', name: 'Kaze AE8 Hachi', tag: 'Featherweight · revvy 1.6 non-turbo · very agile', price: 8000, color: '#f4f4f4', rim: '#2a2b30',
     engine: 'i4', turbo: false, mass: 925, front: 0.52, torque: 155, peak: 6000, red: 8200, gears: [3.59, 2.02, 1.38, 1.00, 0.86], final: 4.78, mu: 1.04, lock: 52, CdA: 0.64, engI: 0.09,
     b: { len: 4.2, wid: 1.63, wb: 2.4, h: 1.33, style: 'hatch', popups: true, wing: false, duck: true, exhaust: 1 } },
+  { id: 'na5', name: 'Akagi NA-5 Roadster', tag: 'Tiny roadster · 960 kg · pop-up lamps', price: 12000, color: '#c81e2c', rim: '#c3c6cc',
+    engine: 'i4', turbo: false, mass: 960, front: 0.5, torque: 150, peak: 5500, red: 7200, gears: [3.14, 1.89, 1.33, 1.00, 0.81], final: 4.3, mu: 1.03, lock: 50, CdA: 0.6, engI: 0.08,
+    b: { len: 3.97, wid: 1.68, wb: 2.27, h: 1.22, style: 'roadster', popups: true, wing: false, duck: false, exhaust: 1 } },
+  { id: 'c33', name: 'Hoshi C-33 Laurelin', tag: 'Four-door turbo six sedan · long wheelbase', price: 15000, color: '#2e3b4f', rim: '#b8b8b8',
+    engine: 'i6', turbo: true, mass: 1340, front: 0.54, torque: 270, peak: 4000, red: 7000, gears: [3.32, 1.90, 1.31, 1.00, 0.76], final: 4.11, mu: 1.04, lock: 50, CdA: 0.72, engI: 0.13,
+    b: { len: 4.69, wid: 1.69, wb: 2.67, h: 1.39, style: 'sedan', popups: false, wing: false, duck: false, exhaust: 1 } },
   { id: 'r32', name: 'Hoshi R-32 Raijin', tag: 'Twin-turbo six · big boost, heavy nose', price: 20000, color: '#2b303b', rim: '#b8b8b8',
     engine: 'i6', turbo: true, mass: 1430, front: 0.56, torque: 410, peak: 4600, red: 7800, gears: [3.21, 1.93, 1.30, 1.00, 0.75], final: 4.11, mu: 1.08, lock: 50, CdA: 0.7, engI: 0.14,
     b: { len: 4.55, wid: 1.76, wb: 2.62, h: 1.34, style: 'notch', popups: false, wing: true, duck: false, exhaust: 1 } },
+  { id: 'fc3', name: 'Akagi FC-3 Rotor', tag: 'First-gen turbo rotary · pop-up lamps', price: 25000, color: '#f2f0ea', rim: '#2a2b30',
+    engine: 'rotary', turbo: true, mass: 1220, front: 0.51, torque: 270, peak: 5000, red: 8000, gears: [3.48, 2.02, 1.39, 1.00, 0.76], final: 4.1, mu: 1.06, lock: 52, CdA: 0.62, engI: 0.08,
+    b: { len: 4.33, wid: 1.69, wb: 2.43, h: 1.27, style: 'fast', popups: true, wing: false, duck: true, exhaust: 2 } },
+  { id: 'zn6', name: 'Kaze ZN-6 Hachi-R', tag: 'Modern non-turbo coupe · revs to 7,500', price: 30000, color: '#ff5a1f', rim: '#2a2b30',
+    engine: 'i4', turbo: false, mass: 1240, front: 0.53, torque: 210, peak: 6400, red: 7500, gears: [3.63, 2.19, 1.54, 1.21, 1.00, 0.77], final: 4.1, mu: 1.08, lock: 53, CdA: 0.62, engI: 0.1,
+    b: { len: 4.24, wid: 1.78, wb: 2.57, h: 1.29, style: 'fast', popups: false, wing: false, duck: true, exhaust: 2 } },
   { id: 'fd7', name: 'Akagi FD-7 Rotor', tag: 'Twin-rotor · light, sharp, screams to 9,000', price: 35000, color: '#ffcc00', rim: '#c9a227',
     engine: 'rotary', turbo: true, mass: 1250, front: 0.5, torque: 340, peak: 6000, red: 9000, gears: [3.48, 2.02, 1.39, 1.00, 0.72], final: 4.1, mu: 1.1, lock: 54, CdA: 0.6, engI: 0.08,
     b: { len: 4.3, wid: 1.76, wb: 2.43, h: 1.23, style: 'fast', popups: true, wing: true, duck: false, exhaust: 2 } },
+  { id: 'jzx', name: 'Kaze JZX-100 Marque', tag: 'Turbo six drift sedan · big angle', price: 45000, color: '#e9e6df', rim: '#c9a227',
+    engine: 'i6', turbo: true, mass: 1450, front: 0.55, torque: 450, peak: 4000, red: 7200, gears: [3.25, 1.96, 1.31, 1.00, 0.75], final: 3.9, mu: 1.1, lock: 56, CdA: 0.7, engI: 0.14,
+    b: { len: 4.76, wid: 1.76, wb: 2.73, h: 1.4, style: 'sedan', popups: false, wing: false, duck: true, exhaust: 2 } },
   { id: 'z33', name: 'Hoshi Z-33 Zenith', tag: 'Big non-turbo V6 · instant torque, long slides', price: 55000, color: '#b3121f', rim: '#2a2b30',
     engine: 'v6', turbo: false, mass: 1450, front: 0.53, torque: 400, peak: 4800, red: 7200, gears: [3.79, 2.32, 1.62, 1.27, 1.00, 0.79], final: 3.7, mu: 1.12, lock: 54, CdA: 0.66, engI: 0.14,
     b: { len: 4.32, wid: 1.82, wb: 2.65, h: 1.3, style: 'fast', popups: false, wing: false, duck: true, exhaust: 2 } },
   { id: 'jza', name: 'Kaze JZA-80 Apex', tag: 'Built twin-turbo six · fastest car here', price: 80000, color: '#ff6a00', rim: '#c3c6cc',
     engine: 'i6', turbo: true, mass: 1490, front: 0.54, torque: 620, peak: 4500, red: 7400, gears: [3.83, 2.36, 1.69, 1.31, 1.00, 0.79], final: 3.5, mu: 1.14, lock: 55, CdA: 0.64, engI: 0.15,
     b: { len: 4.52, wid: 1.81, wb: 2.55, h: 1.27, style: 'fast', popups: false, wing: true, duck: false, exhaust: 2 } },
+  { id: 'r34', name: 'Hoshi R-34 Raijin-GT', tag: 'Twin-turbo six · 6-speed · flagship', price: 95000, color: '#2a54c8', rim: '#c3c6cc',
+    engine: 'i6', turbo: true, mass: 1520, front: 0.55, torque: 520, peak: 4400, red: 8000, gears: [3.83, 2.36, 1.69, 1.31, 1.00, 0.79], final: 3.7, mu: 1.14, lock: 54, CdA: 0.66, engI: 0.14,
+    b: { len: 4.6, wid: 1.78, wb: 2.67, h: 1.36, style: 'notch', popups: false, wing: true, duck: false, exhaust: 2 } },
   { id: 'ps15', name: 'Hoshi PS15 Spirit-R', tag: 'Pro drift build · 62° lock, sticky tyres', price: 120000, color: '#3a6cf4', rim: '#d8d8d8',
     engine: 'i4', turbo: true, mass: 1220, front: 0.53, torque: 470, peak: 5000, red: 8000, gears: [3.32, 2.08, 1.48, 1.17, 1.00, 0.81], final: 4.1, mu: 1.18, lock: 62, CdA: 0.64, engI: 0.11,
     b: { len: 4.45, wid: 1.69, wb: 2.52, h: 1.28, style: 'notch', popups: false, wing: true, duck: false, exhaust: 1 } },
@@ -623,10 +641,15 @@ const HEAD = new Float32Array(N), K = new Float32Array(N), SLOPE = new Float32Ar
   const ws = w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < N; i++) { let s = 0; for (let k = -3 * sig; k <= 3 * sig; k++) s += raw[(i + k + N) % N] * w[k + 3 * sig]; PY[i] = Math.max(s / ws, LAKE_Y + 1.4); }
   const g = 0.12 * DS;
-  for (let pass = 0; pass < 8; pass++) {
-    for (let i = 1; i < N + 1; i++) { const a = PY[(i - 1) % N], j = i % N; PY[j] = clamp(PY[j], a - g, a + g); }
-    for (let i = N - 2; i >= -1; i--) { const a = PY[(i + 1 + N) % N], j = (i + N) % N; PY[j] = clamp(PY[j], a - g, a + g); }
+  // limit the grade everywhere, including across the start/finish seam. Lower envelope L = the highest
+  // profile under the ground that never climbs faster than g; upper envelope U likewise from above.
+  // Both are exactly grade-limited (two laps around the loop make it circular), and so is their average.
+  const L = Float64Array.from(PY), U = Float64Array.from(PY);
+  for (let rep = 0; rep < 2; rep++) {
+    for (let k = 1; k <= N; k++) { const i = k % N, h = (k - 1) % N; L[i] = Math.min(L[i], L[h] + g); U[i] = Math.max(U[i], U[h] - g); }
+    for (let k = N - 1; k >= 0; k--) { const i = k, h = (k + 1) % N; L[i] = Math.min(L[i], L[h] + g); U[i] = Math.max(U[i], U[h] - g); }
   }
+  for (let i = 0; i < N; i++) PY[i] = (L[i] + U[i]) / 2;
   for (let i = 0; i < N; i++) {
     const a = (i - 1 + N) % N, b = (i + 1) % N;
     let tx = PX[b] - PX[a], tz = PZ[b] - PZ[a]; const l = Math.hypot(tx, tz); tx /= l; tz /= l;
@@ -674,7 +697,28 @@ function roadAt(x, z, i) {
 }
 const townMask = (ri) => ri.i >= 0 && ZONE[ri.i] === 0 ? smooth(140, 50, ri.d) : 0;
 // ground = real terrain, graded into the road over a 12–55 m shoulder
-function groundH(x, z, ri = roadInfo(x, z)) { const h = realH(x, z); return ri.i < 0 ? h : lerp(ri.y - 0.35, h, smooth(17, 70, ri.d)); }
+// height of the road surface under/next to (x, z): exact near the road, blended average further out
+function roadSurfY(x, z, ri) {
+  if (ri.i < 0) return ri.y;
+  const i = nearestIdx(x, z, ri.i), exact = PY[i] + SLOPE[i] * ((x - PX[i]) * TX[i] + (z - PZ[i]) * TZ[i]);
+  return lerp(exact, ri.y, smooth(22, 45, ri.d));
+}
+function groundH(x, z, ri = roadInfo(x, z), corridor = 0) {
+  const h = realH(x, z); if (ri.i < 0) return h;
+  const ry = roadSurfY(x, z, ri);
+  let g = lerp(ry - 0.35, h, smooth(17, 70, ri.d));
+  if (ri.d < corridor) {
+    // the ground may never rise through the road or its shoulders: stay under every road piece within reach
+    // (on a hairpin both legs are close together at different heights)
+    g = Math.min(g, ry - 0.4);
+    const cx = Math.floor(x / HCELL), cz = Math.floor(z / HCELL), r2 = (corridor + 2) * (corridor + 2);
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const list = HASH.get(hkey(cx + dx, cz + dz)); if (!list) continue;
+      for (const j of list) { const ax = PX[j] - x, az = PZ[j] - z; if (ax * ax + az * az < r2) g = Math.min(g, PY[j] - 0.4); }
+    }
+  }
+  return g;
+}
 
 /* =====================================================================
    Scene construction
@@ -1129,7 +1173,7 @@ function buildTerrain() {
   const meta = new Float32Array(pos.count * 2);
   for (let v = 0; v < pos.count; v++) {
     const x = pos.getX(v), z = pos.getZ(v), ri = roadInfo(x, z);
-    const h = groundH(x, z, ri);
+    const h = groundH(x, z, ri, HW + 3 + 1.6 * (size / seg));
     pos.setY(v, h); gridH[v] = h; meta[v * 2] = ri.d; meta[v * 2 + 1] = townMask(ri);
   }
   geo.computeVertexNormals();
@@ -1507,6 +1551,8 @@ const STYLES = {
   notch: { tail: 0.86, deck: 0.93, rbO: 1.02, belt: 0.94, rr: -0.5, rf: 0.38, wb: 1.08, hood: 0.76, nose: 0.6 },
   hatch: { tail: 0.88, deck: 0.92, rbO: 0.18, belt: 0.94, rr: -0.72, rf: 0.32, wb: 1.0, hood: 0.78, nose: 0.62 },
   fast: { tail: 0.84, deck: 0.88, rbO: 0.42, belt: 0.9, rr: -0.32, rf: 0.28, wb: 0.98, hood: 0.72, nose: 0.55 },
+  sedan: { tail: 0.9, deck: 0.95, rbO: 0.82, belt: 0.95, rr: -0.82, rf: 0.48, wb: 1.22, hood: 0.8, nose: 0.62 },
+  roadster: { tail: 0.82, deck: 0.86, rbO: 1.02, belt: 0.86, rr: -0.72, rf: -0.22, wb: 0.55, hood: 0.7, nose: 0.55 },
 };
 
 // Wheel geometry, cached per side (+1 = car's left, -1 = right)
@@ -2237,9 +2283,9 @@ const BOT_DEFS = [
   { name: 'drift_mika', car: 'ps13', color: '#ff7eb6', skill: 0.9, lane: 2.2 },
   { name: 'NightRunnerJZ', car: 'jza', color: '#111318', skill: 1.0, lane: 0 },
   { name: 'yuki_s15', car: 'ps15', color: '#ffcc00', skill: 0.97, lane: -1.2 },
-  { name: 'ShutoSam', car: 'r32', color: '#7b8794', skill: 0.92, lane: 3 },
+  { name: 'ShutoSam', car: 'jzx', color: '#7b8794', skill: 0.92, lane: 3 },
   { name: 'Rotary_Rin', car: 'fd7', color: '#d8262e', skill: 0.96, lane: 1 },
-  { name: 'hakone_hiro', car: 'z33', color: '#2f9e44', skill: 0.93, lane: -3 },
+  { name: 'hakone_hiro', car: 'fc3', color: '#2f9e44', skill: 0.93, lane: -3 },
 ];
 const bots = [], aiBots = [];
 let mode = 'ai';
@@ -2969,7 +3015,7 @@ if ('serviceWorker' in navigator && defaultServer() && !/localhost|127\.0\.0\.1/
 }
 window.__kaido = {
   bootTimes, net: Net, assists: ASSISTS,
-  get player() { return player; }, get state() { return state; }, get S() { return S; }, get drift() { return drift; }, setState, bots, TRACK_LEN, N, track: { PX, PZ, HEAD, K, RX, RZ },
+  get player() { return player; }, get state() { return state; }, get S() { return S; }, get drift() { return drift; }, setState, bots, TRACK_LEN, N, track: { PX, PY, PZ, HEAD, K, RX, RZ }, zone: ZONE,
   set noWalls(v) { testNoWalls = !!v; },
   get scene() { return scene; },
   respawn() { spawnPlayer(); },

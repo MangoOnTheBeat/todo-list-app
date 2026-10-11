@@ -10,7 +10,7 @@ const { WebSocketServer } = require('ws');
 const PORT = Number(process.env.PORT) || 8080;
 const ROOM_SIZE = Number(process.env.ROOM_SIZE) || 16;
 const DIST = path.join(__dirname, '..', 'dist');
-const CARS = ['ps13', 'ae8', 'r32', 'fd7', 'z33', 'jza', 'ps15'];
+const CARS = ['ps13', 'ae8', 'na5', 'c33', 'r32', 'fc3', 'zn6', 'fd7', 'jzx', 'z33', 'jza', 'r34', 'ps15'];
 
 // ---------- chat safety ----------
 // A short blocklist; extend BLOCKED_WORDS (comma separated) through the environment.
