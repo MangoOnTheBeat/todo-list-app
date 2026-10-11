@@ -18,6 +18,7 @@ let html = src
   .replace(mod[0], () => `<script type="module" data-kaido>${js}</script>`)
   .replace('<meta name="theme-color" content="#0c0d16">', '<meta name="theme-color" content="#0c0d16">\n<link rel="manifest" href="manifest.webmanifest">\n<link rel="icon" href="icon.svg">\n<link rel="apple-touch-icon" href="icon.svg">\n<meta name="apple-mobile-web-app-capable" content="yes">');
 fs.writeFileSync('dist/kaido-drift.html', html);
+fs.writeFileSync('dist/index.html', html); // same game, for hosts that serve index.html
 
 fs.writeFileSync('dist/icon.svg', `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="96" fill="#0c0d16"/><text x="256" y="330" font-family="sans-serif" font-size="260" font-weight="900" text-anchor="middle" fill="#ff7eb6">峠</text><rect x="96" y="392" width="320" height="18" rx="9" fill="#59e3ff"/></svg>`);
 fs.writeFileSync('dist/manifest.webmanifest', JSON.stringify({
@@ -27,7 +28,7 @@ fs.writeFileSync('dist/manifest.webmanifest', JSON.stringify({
 const version = Date.now().toString(36);
 fs.writeFileSync('dist/sw.js', `// Caches the game so Solo mode works with no connection.
 const CACHE = 'kaido-drift-${version}';
-const FILES = ['./', './kaido-drift.html', './manifest.webmanifest', './icon.svg'];
+const FILES = ['./', './index.html', './kaido-drift.html', './manifest.webmanifest', './icon.svg'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

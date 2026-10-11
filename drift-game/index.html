@@ -187,6 +187,13 @@ body.touch #toast{font-size:16px}
   body.touch #chat{top:calc(env(safe-area-inset-top,0px) + 66px);width:min(340px,42vw)}
   body.touch #chatLog{max-height:20vh}
 }
+/* install */
+.install-cta{display:block;width:100%;margin:0 0 12px;padding:14px 16px;border:2px solid var(--neon)!important;background:linear-gradient(90deg,rgba(89,227,255,.22),rgba(255,126,182,.22))!important;font-size:17px;font-weight:700;text-align:left;animation:ctaGlow 2.4s ease-in-out infinite}
+.install-cta small{display:block;font-weight:500;opacity:.85}
+@keyframes ctaGlow{0%,100%{box-shadow:0 0 0 rgba(89,227,255,0)}50%{box-shadow:0 0 18px rgba(89,227,255,.55)}}
+.install-os{border:1px solid var(--line);border-radius:6px;padding:10px 14px;margin:10px 0}
+.install-os h3{margin:0 0 4px;font-size:15px;letter-spacing:.06em}
+.install-video{display:inline-block;text-decoration:none;margin-top:4px}
 /* consent */
 #consent{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:40;width:min(560px,calc(100% - 32px));background:var(--panel-solid);border:1px solid var(--line);border-radius:6px;padding:16px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;box-sizing:border-box}
 #consent p{margin:0;flex:1 1 260px;line-height:1.5;font-size:13px;color:var(--dim)}
@@ -218,7 +225,7 @@ body.touch #toast{font-size:16px}
   #steerZone{height:70%}
   #tGas{height:120px}#tBrake,#tHand{height:55px}
 }
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}.install-cta{animation:none}}
 </style>
 </head>
 <body>
@@ -271,13 +278,13 @@ body.touch #toast{font-size:16px}
       <div><b id="tCars">1/7</b><span>Cars</span></div>
     </div>
     <div class="field"><label for="nameInput">Driver name</label><input id="nameInput" maxlength="16" spellcheck="false"></div>
+    <button class="btn install-cta" id="mInstall" type="button">📲 Add to Home Screen / Download <small>Plays full screen like an app · no browser bars</small></button>
     <div class="menu">
       <button class="btn primary" id="mSolo" type="button">Solo <small>Just you · plays offline</small></button>
       <button class="btn" id="mDrive" type="button">With AI drivers <small id="mDriveCar"></small></button>
       <button class="btn" id="mOnline" type="button">Online <small>Join a server · chat with players</small></button>
       <button class="btn" id="mGarage" type="button">Garage <small>Unlock &amp; paint</small></button>
       <button class="btn" id="mSettings" type="button">Settings <small>Graphics, sound, save</small></button>
-      <button class="btn" id="mDownload" type="button">Download game <small>One file · plays offline in any browser</small></button>
       <button class="btn ghost" id="mLegal" type="button">Privacy &amp; legal</button>
     </div>
     <p class="fine" id="controlsHelp"></p>
@@ -356,6 +363,30 @@ body.touch #toast{font-size:16px}
       <button class="btn" id="oBack" type="button">Back</button>
     </div>
     <p class="fine">Be kind in chat. Messages are shared with everyone on the server. Type <b>/mute name</b> to hide a player's messages, or <b>/unmute name</b> to show them again.</p>
+  </div>
+</section>
+
+<section id="sInstall" class="screen" hidden>
+  <div class="sheet">
+    <h2 class="h">Get the game<span>インストール</span></h2>
+    <p class="fine"><b>Add Kaido Drift to your Home Screen</b> and it opens <b>full screen</b>, like a real app: no address bar, no browser buttons, just the game.</p>
+    <div class="install-os">
+      <h3>iPhone &amp; iPad</h3>
+      <p class="fine">In <b>Safari</b>, tap <b>Share</b> (the square with the arrow) → <b>Add to Home Screen</b> → <b>Add</b>.</p>
+      <a class="btn install-video" href="https://youtu.be/lKbsY8hLVaw?is=Ibm7fBCIVyUt01_X" target="_blank" rel="noopener noreferrer">▶ Watch how on iPhone</a>
+    </div>
+    <div class="install-os">
+      <h3>Android</h3>
+      <p class="fine">In <b>Chrome</b>, tap <b>⋮</b> (top right) → <b>Add to Home screen</b> or <b>Install app</b>.</p>
+      <button class="btn primary" id="installNow" type="button" hidden>Install now</button>
+      <a class="btn install-video" href="https://youtube.com/shorts/gZTEWw2dGVw?is=oRO9C_JLprz21ggk" target="_blank" rel="noopener noreferrer">▶ Watch how on Android</a>
+    </div>
+    <div class="install-os">
+      <h3>Computer</h3>
+      <p class="fine">Download the whole game as one file. Open it in any browser and it plays with no internet.</p>
+      <button class="btn" id="mDownload" type="button">⬇ Download game <small>One file · plays offline</small></button>
+    </div>
+    <div class="menu"><button class="btn" id="iBack" type="button">Back</button></div>
   </div>
 </section>
 
@@ -2847,7 +2878,7 @@ function updateHUD(dt, sp) {
 
 /* ---------- screens ---------- */
 let state = 'loading';
-const screens = { title: 'sTitle', garage: 'sGarage', settings: 'sSettings', legal: 'sLegal', pause: 'sPause', online: 'sOnline' };
+const screens = { title: 'sTitle', garage: 'sGarage', settings: 'sSettings', legal: 'sLegal', pause: 'sPause', online: 'sOnline', install: 'sInstall' };
 let returnTo = 'title', rotateShown = false;
 function setState(s) {
   if (s === 'play' && state !== 'play') { AudioSys.init(); lastT = performance.now(); }
@@ -2930,6 +2961,11 @@ function wireUI() {
   $('mSolo').onclick = () => { setMode('solo'); setState('play'); };
   $('mDrive').onclick = () => { setMode('ai'); setState('play'); };
   $('mDownload').onclick = downloadGame;
+  $('mInstall').onclick = () => setState('install');
+  $('iBack').onclick = () => setState('title');
+  // already running from the Home Screen: no need to offer it
+  if (matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone) $('mInstall').hidden = true;
+  $('installNow').onclick = async () => { if (!installPrompt) return; installPrompt.prompt(); try { await installPrompt.userChoice; } catch (e) { } installPrompt = null; $('installNow').hidden = true; };
   $('mOnline').onclick = () => { $('serverInput').value = S.settings.server || defaultServer(); $('netStatus').textContent = defaultServer() || S.settings.server ? '' : 'Enter the address of a Kaido Drift server. If you opened the game from a server, this is filled in for you.'; setState('online'); };
   $('oBack').onclick = () => setState('title');
   $('netConnect').onclick = () => {
@@ -3059,7 +3095,9 @@ function gameHtml() {
   if (!root.querySelector('meta[charset]')) { const c = document.createElement('meta'); c.setAttribute('charset', 'utf-8'); head.prepend(c); }
   return '<!doctype html>\n' + root.outerHTML;
 }
-let downloading = false;
+let downloading = false, installPrompt = null;
+// Chrome on Android offers a one-tap install when the game is hosted with its manifest
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; const b = $('installNow'); if (b) b.hidden = false; });
 async function downloadGame() {
   if (downloading) return;
   downloading = true;
