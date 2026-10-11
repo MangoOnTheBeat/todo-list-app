@@ -7,7 +7,7 @@ The world is built from real elevation data for Hakone, Japan, at true scale:
 - **Near area (4 × 4 km, ~8 m detail)** around the north end of **Lake Ashi (芦ノ湖)** at Kojiri, including the real lake outline and the Hakone caldera hills.
 - **Far area (72 × 72 km, 150 m detail)** with the real **Mt. Fuji** about 27 km to the west-north-west, Sagami Bay, Suruga Bay, and the lowland towns (Odawara, Gotemba, Mishima) shown as night lights.
 
-The 5.3 km course was placed on that land by an automated search for the position with the least earthworks and gentlest grades. The road follows the real ground, smoothed and held to 10 % grade. It has three sections: **湖尻 Kojiri village**, the **箱根 Hakone hills** hairpins (about 140 m of climb) and the **芦ノ湖 Lake Ashi shore**. As in real life, Fuji's summit just clears the western caldera rim from the upper hills and is hidden from the lakeshore.
+The 5.8 km course is placed on the real land at Kojiri. It has 62 corners: chains of S-bends through the village and along the shore, and the Hakone hairpins on the climb (about 140 m). There is no straight longer than about 60 m. The road follows the real ground, smoothed and held to 10 % grade, and is checked automatically: tightest radius 21 m, at least 110 m between separate stretches of road, never in the lake.
 
 **What is real and what isn't:** the terrain, lake and mountains are real data. The road layout, buildings, trees and signs are the game's own design placed on that land; they are not a survey of real roads. The terrain data is public-domain-derived; see Credits.
 
@@ -77,6 +77,7 @@ A web page cannot read a hardware ID (HWID); browsers block that on purpose, and
 - three.js is MIT licensed; Dela Gothic One and Chakra Petch are SIL OFL. Everything else is original and generated in the browser.
 
 ## Graphics
+Roadside detail: textured asphalt with a normal map (worn markings, cracks, patches), gravel shoulders, red/white kerbs on the inside of corners, W-beam guardrails with amber reflectors, yellow curve-warning signs before corners, utility poles with sagging wires, grass and silver-grass verges, rocks on steep banks, rounded cedar and maple trees, drifting clouds tinted by the time of day, and fine relief on the terrain.
 three.js r160: ACES tone mapping, physical sky with image-based reflections, clear-coat car paint, soft shadows, bloom, instanced forests and city, tyre smoke and skid marks. Quality tiers (Low / Medium / High) are picked automatically per device and drop a step if the frame rate falls below ~38 fps.
 
 ## Credits

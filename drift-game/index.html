@@ -588,9 +588,9 @@ const inLake = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < NEAR_HALF - 10 ? g
    Track — a closed loop fitted onto the real land at Kojiri, Lake Ashi
    (placement chosen by a search for least earthworks and gentlest grades)
    ===================================================================== */
-const CP = [[-718.3, 0, 279.1], [-688.5, 0, 20.3], [-628.0, 0, -233.0], [-534.2, 0, -427.7], [-395.7, 0, -502.3], [-275.5, 0, -434.9], [-136.2, 0, -476.3], [-47.4, 0, -605.9], [119.8, 0, -655.6], [223.7, 0, -571.3], [203.4, 0, -456.0], [294.5, 0, -374.0], [400.0, 0, -447.8], [448.1, 0, -571.3], [585.2, 0, -599.9], [669.5, 0, -479.5], [616.9, 0, -330.3], [680.1, 0, -240.0], [717.0, 0, -75.1], [661.7, 0, 14.2], [603.7, 0, 43.6], [543.5, 0, -26.5], [495.0, 0, -50.9], [445.2, 0, -30.6], [408.3, 0, 28.9], [426.8, 0, 111.4], [462.5, 0, 170.5], [439.6, 0, 225.8], [369.9, 0, 246.5], [306.3, 0, 195.7], [260.7, 0, 154.7], [207.7, 0, 178.3], [183.9, 0, 253.3], [177.9, 0, 437.1], [61.2, 0, 574.9], [-110.5, 0, 650.3], [-294.2, 0, 644.3], [-438.8, 0, 566.0], [-594.0, 0, 472.6], [-697.9, 0, 388.3]];
-const ZONE_RLE = [[0, 0], [394, 1], [1209, 2], [1554, 0]], ZONE_RLE_N = 1600;
-const N = 2000, HW = 8, LIM = HW - 0.25;
+const CP = [[-723.6,0,279.2],[-704,0,258.3],[-697.2,0,236.3],[-712.4,0,214.2],[-732.9,0,189.8],[-731.8,0,167.4],[-705.9,0,148.4],[-682.7,0,129.3],[-686.6,0,106.7],[-709.5,0,80.9],[-720.3,0,56.5],[-701.5,0,37.2],[-670.8,0,20.7],[-660.1,0,0.5],[-678,0,-25.1],[-698.6,0,-51.6],[-692.4,0,-72.9],[-661.3,0,-88.9],[-636.7,0,-105.8],[-642.3,0,-129.3],[-665.5,0,-158],[-672.3,0,-183],[-647.6,0,-199.1],[-613.5,0,-211.1],[-602.5,0,-229.9],[-619.3,0,-259],[-635.6,0,-288.4],[-623,0,-307.5],[-587.5,0,-317.4],[-561.9,0,-330],[-566.1,0,-355],[-582.6,0,-389],[-578.8,0,-414.2],[-547.2,0,-420.2],[-515.7,0,-419.8],[-501.3,0,-434.6],[-496.8,0,-463.5],[-485.2,0,-487],[-462,0,-492.9],[-436,0,-489.2],[-414.4,0,-488.6],[-395.5,0,-497.7],[-370.8,0,-504.2],[-349.1,0,-494.5],[-337.2,0,-472.6],[-327.1,0,-449.3],[-307.6,0,-436.4],[-281.8,0,-439],[-261,0,-446.9],[-240,0,-443.2],[-215.6,0,-432.5],[-191.4,0,-431.7],[-173.8,0,-449.7],[-162,0,-474.5],[-146.8,0,-487.6],[-121.4,0,-490.1],[-95.2,0,-499.8],[-85.7,0,-521.3],[-90.2,0,-548.3],[-92.3,0,-575.1],[-79.7,0,-595.5],[-54.5,0,-604.7],[-28.8,0,-604.9],[-7.2,0,-610],[9.1,0,-624.1],[24.8,0,-644.1],[42.9,0,-661.9],[65.2,0,-670.3],[88.9,0,-666.6],[111.9,0,-656.8],[130.4,0,-645.9],[149,0,-636.1],[168.6,0,-627.3],[187.9,0,-616.8],[205.2,0,-602.6],[219.6,0,-585.3],[228.2,0,-564.9],[225.8,0,-542.2],[217.4,0,-521.2],[208,0,-501.2],[200.6,0,-479.9],[200.4,0,-457.2],[210.4,0,-437.2],[224.5,0,-419.9],[240.7,0,-404.6],[258.4,0,-391.4],[277.1,0,-380.9],[297.2,0,-375.8],[318.3,0,-379.7],[338.3,0,-389.1],[357.1,0,-400.7],[374.8,0,-414.5],[390.7,0,-430.5],[403.7,0,-448.3],[411.1,0,-469.5],[413.7,0,-491.3],[415.7,0,-513.6],[421.3,0,-535.4],[431.7,0,-555.9],[448.5,0,-571.2],[468.5,0,-579.6],[488.8,0,-586.1],[509.4,0,-592.6],[529.7,0,-599.8],[551.4,0,-606.8],[575,0,-609.7],[597.3,0,-603.8],[615.8,0,-588.3],[627.9,0,-568.3],[636.1,0,-547],[644,0,-526.6],[653.4,0,-507.8],[664.5,0,-488.8],[672.2,0,-468.4],[670.1,0,-445],[660.7,0,-424.4],[647.3,0,-406],[633.6,0,-388.5],[622,0,-368.8],[614.7,0,-347.2],[616.6,0,-325],[628.3,0,-306.4],[643.6,0,-291],[659.7,0,-275.8],[671.8,0,-256.9],[676.1,0,-234.7],[678.9,0,-212.9],[688.3,0,-193.2],[705.5,0,-175.5],[724.5,0,-157.4],[732.8,0,-135.4],[725.9,0,-111.1],[711.8,0,-88.4],[702.5,0,-70.2],[699.1,0,-50.3],[695.8,0,-27.8],[686.6,0,-7],[671,0,9.1],[653.2,0,21.7],[635.3,0,34.8],[615.3,0,43.4],[594.7,0,39.3],[579.8,0,22.7],[567.6,0,4.3],[554.8,0,-13.5],[538.8,0,-28.2],[521.1,0,-40.7],[501.5,0,-50.7],[479,0,-52.2],[457.2,0,-44.6],[439.4,0,-30.4],[427.8,0,-10.7],[420.1,0,9.6],[414.1,0,29.2],[411.8,0,49.6],[413,0,71.5],[417.5,0,93.2],[425.7,0,113.8],[439.1,0,131.5],[452.8,0,148.8],[462.3,0,168.5],[460.3,0,190.1],[451.8,0,210.5],[438.4,0,227.7],[419,0,238.2],[397.8,0,243.7],[376.4,0,245.1],[356.4,0,239.2],[338.6,0,226.9],[321.8,0,212.4],[306.2,0,197],[291.7,0,180.5],[277,0,164],[258,0,154.4],[236.5,0,158.7],[217.3,0,169.5],[202,0,185.1],[195,0,205.9],[192.7,0,227.7],[190.9,0,249.4],[183.7,0,269.7],[173.3,0,292.3],[167.2,0,315],[175.3,0,336.8],[193.3,0,357.9],[206.9,0,380.7],[200.4,0,403.7],[177.5,0,423],[157.2,0,436.9],[153.4,0,457.6],[159.8,0,487.1],[155.5,0,512.7],[131.9,0,522.5],[101.4,0,523.6],[82,0,533.9],[76.1,0,560.4],[70.3,0,589],[51.1,0,601.1],[21.8,0,596.3],[-4,0,593.8],[-20,0,609.6],[-32.4,0,636.5],[-50.6,0,652.8],[-75.8,0,647.8],[-101.6,0,635.2],[-122.6,0,636.3],[-141.8,0,654.8],[-162.8,0,672.2],[-185.7,0,670.1],[-207.5,0,652.1],[-228.2,0,639.2],[-250.3,0,644.7],[-275.2,0,658.5],[-298.8,0,659.6],[-316.6,0,640.6],[-329.7,0,616.8],[-347.9,0,605.9],[-374.4,0,608.1],[-400.3,0,607.8],[-416.5,0,592.3],[-426.1,0,566.1],[-440.3,0,546.7],[-464.1,0,543.9],[-491.8,0,548.1],[-513.3,0,541.2],[-525.5,0,518.4],[-536.2,0,493.6],[-555.2,0,483],[-582.3,0,484.3],[-606.8,0,481.7],[-621.7,0,464.7],[-631.3,0,439.3],[-645,0,421.3],[-667.8,0,415.7],[-694.4,0,410.8],[-710.8,0,392.7],[-708.3,0,366.1],[-700.2,0,342.4],[-704.8,0,322.1],[-722.3,0,301.4]];
+const ZONE_RLE = [[0,0],[439,1],[1194,2],[1553,0]], ZONE_RLE_N = 1600;
+const N = 2300, HW = 8, LIM = HW - 0.25;
 const curve = new THREE.CatmullRomCurve3(CP.map(p => new THREE.Vector3(p[0], p[1], p[2])), true, 'centripetal');
 const TRACK_LEN = curve.getLength(), DS = TRACK_LEN / N;
 const PX = new Float32Array(N), PY = new Float32Array(N), PZ = new Float32Array(N);
@@ -670,7 +670,8 @@ const glowMats = [];       // light pool decals { mat, dusk, night }
 const pmrem = new THREE.PMREMGenerator(renderer);
 let gridH = null; const GRID = { size: 4096, seg: 256, x0: -2048, z0: -2048 };
 
-function setLoad(p, msg) { $('loadBar').firstElementChild.style.width = Math.round(p * 100) + '%'; if (msg) $('loadMsg').textContent = msg; }
+const bootTimes = []; const bootT0 = performance.now();
+function setLoad(p, msg) { bootTimes.push([msg || '', Math.round(performance.now() - bootT0)]); $('loadBar').firstElementChild.style.width = Math.round(p * 100) + '%'; if (msg) $('loadMsg').textContent = msg; }
 
 function buildSky() {
   sky = new Sky(); sky.scale.setScalar(40000); sky.renderOrder = -1; scene.add(sky);
@@ -826,6 +827,7 @@ function applyTime(fast = false) {
   if (waterMat) waterMat.color.copy(c1.set(0x2a5c7c).lerp(c2.set(0x040c18), dark));
   if (waterMat) waterMat.envMapIntensity = lerp(0.55, 1.6, dark);
   lightsOn = el < 4;
+  for (const cm of cloudMats) { cm.color.copy(night ? c1.set(0x2a3048) : c1.set(0xffffff).lerp(c2.set(0xffb08a), warm).lerp(c2.set(0x5a5f78), 1 - smooth(-5, 3, el))); cm.opacity = night ? 0.35 : 0.9; }
   if (headLamp) headLamp.intensity = lerp(0, 45, dark);
   if (smoke) smoke.material.uniforms.uColor.value.copy(c1.set(0xd8d4d0).lerp(c2.set(0x6f7487), dark));
   if (player) setPopups(player.car, lightsOn);
@@ -834,15 +836,189 @@ function applyTime(fast = false) {
   for (const id of ['timeLabel', 'pTimeLabel']) { const el2 = document.getElementById(id); if (el2) el2.textContent = lbl; }
 }
 
-function buildRoad() {
-  const tex = canvasTex(256, 1024, (g, w, h) => {
-    g.fillStyle = '#34353a'; g.fillRect(0, 0, w, h);
-    for (let i = 0; i < 26000; i++) { const v = 40 + Math.random() * 40 | 0; g.fillStyle = `rgba(${v},${v},${v + 4},${0.25 + Math.random() * 0.4})`; g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 1.5, 1 + Math.random() * 1.5); }
-    for (const x of [0.3, 0.7]) { const gr = g.createLinearGradient(w * x - 26, 0, w * x + 26, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.5, 'rgba(10,10,12,0.28)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(w * x - 26, 0, 52, h); }
-    g.fillStyle = '#e9e7e0'; g.fillRect(9, 0, 6, h); g.fillRect(w - 15, 0, 6, h);
-    g.fillRect(w / 2 - 3, 0, 6, h * 0.5);
-    for (let i = 0; i < 160; i++) { g.fillStyle = 'rgba(52,53,58,0.7)'; g.fillRect(Math.random() * w, Math.random() * h, 2 + Math.random() * 4, 2 + Math.random() * 4); }
+function asphaltMaps() {
+  const W = 512, H = 2048, r = mulberry32(31), hgt = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) hgt[y * W + x] = r() * 0.6 + 0.4 * fbm(x * 0.05, y * 0.05, 2);
+  const color = document.createElement('canvas'); color.width = W; color.height = H; const g = color.getContext('2d');
+  const img = g.createImageData(W, H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x, u = x / W, wear = Math.exp(-Math.pow((u - 0.3) / 0.06, 2)) + Math.exp(-Math.pow((u - 0.7) / 0.06, 2));
+    const patch = smooth(0.62, 0.66, fbm(x * 0.006 + 3, y * 0.004, 3)) * 0.12;
+    let v = 46 + hgt[i] * 34 - wear * 10 - patch * 60 + (r() < 0.012 ? 30 : 0);
+    img.data[i * 4] = v; img.data[i * 4 + 1] = v; img.data[i * 4 + 2] = v + 3; img.data[i * 4 + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  // cracks
+  g.strokeStyle = 'rgba(14,14,16,0.75)'; g.lineWidth = 1.2;
+  for (let k = 0; k < 40; k++) { let x = r() * W, y = r() * H; g.beginPath(); g.moveTo(x, y); for (let j = 0; j < 14; j++) { x += (r() - 0.5) * 18; y += r() * 14; g.lineTo(x, y); } g.stroke(); }
+  // markings: worn edge lines and dashed centre line
+  const paint = (x0, w0, y0, y1) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x0 + w0; x++) { const a = 0.78 + 0.22 * hgt[y * W + x] - (fbm(x * 0.2, y * 0.02, 2) < 0.35 ? 0.4 : 0); g.fillStyle = `rgba(236,234,226,${clamp(a, 0, 1)})`; g.fillRect(x, y, 1, 1); } };
+  paint(16, 10, 0, H); paint(W - 26, 10, 0, H); paint(W / 2 - 5, 10, 0, H / 2);
+  const tex = new THREE.CanvasTexture(color); tex.colorSpace = THREE.SRGBColorSpace;
+  // normal map from the aggregate height field
+  const nrm = canvasTex(W, H, (gc) => {
+    const im = gc.createImageData(W, H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x, dx = hgt[y * W + ((x + 1) % W)] - hgt[y * W + ((x - 1 + W) % W)], dy = hgt[((y + 1) % H) * W + x] - hgt[((y - 1 + H) % H) * W + x];
+      im.data[i * 4] = 128 - dx * 90; im.data[i * 4 + 1] = 128 - dy * 90; im.data[i * 4 + 2] = 255; im.data[i * 4 + 3] = 255;
+    }
+    gc.putImageData(im, 0, 0);
+  }, false);
+  const rough = canvasTex(W, 64, (gc) => { const grd = gc.createLinearGradient(0, 0, W, 0); grd.addColorStop(0, '#f4f4f4'); grd.addColorStop(0.3, '#d6d6d6'); grd.addColorStop(0.5, '#f0f0f0'); grd.addColorStop(0.7, '#d6d6d6'); grd.addColorStop(1, '#f4f4f4'); gc.fillStyle = grd; gc.fillRect(0, 0, W, 64); }, false);
+  return { tex, nrm, rough };
+}
+/* =====================================================================
+   Roadside detail: shoulders, kerbs, poles and wires, signs, grass, rocks, clouds
+   ===================================================================== */
+const cloudMats = [];
+function hStrip(filter, side, o0, o1, dy, uvLen = 4) {
+  const pos = [], uv = [];
+  let acc = 0;
+  for (let i = 0; i < N; i++) {
+    const j = (i + 1) % N; acc += DS; if (!filter(i) || !filter(j)) continue;
+    const a0 = [PX[i] + RX[i] * o0 * side, PY[i] + dy, PZ[i] + RZ[i] * o0 * side], a1 = [PX[i] + RX[i] * o1 * side, PY[i] + dy, PZ[i] + RZ[i] * o1 * side];
+    const b0 = [PX[j] + RX[j] * o0 * side, PY[j] + dy, PZ[j] + RZ[j] * o0 * side], b1 = [PX[j] + RX[j] * o1 * side, PY[j] + dy, PZ[j] + RZ[j] * o1 * side];
+    const v0 = (acc - DS) / uvLen, v1 = acc / uvLen;
+    if (side > 0) { pos.push(...a0, ...b0, ...a1, ...a1, ...b0, ...b1); uv.push(0, v0, 0, v1, 1, v0, 1, v0, 0, v1, 1, v1); }
+    else { pos.push(...a0, ...a1, ...b0, ...a1, ...b1, ...b0); uv.push(0, v0, 1, v0, 0, v1, 1, v0, 1, v1, 0, v1); }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals(); return g;
+}
+function buildDetails() {
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), c = new THREE.Color(), one = new THREE.Vector3(1, 1, 1);
+  const all = () => true;
+  // gravel / concrete shoulders between the asphalt and the barrier
+  const grav = canvasTex(128, 128, (g, w, h) => { const im = g.createImageData(w, h), r = mulberry32(3); for (let i = 0; i < w * h; i++) { const v = 70 + r() * 60; im.data.set([v + 8, v + 4, v - 4, 255], i * 4); } g.putImageData(im, 0, 0); });
+  grav.wrapS = grav.wrapT = THREE.RepeatWrapping;
+  const shoulderMat = new THREE.MeshStandardMaterial({ map: grav, roughness: 1, color: 0x9a948a });
+  for (const sd of [-1, 1]) { const sh = new THREE.Mesh(hStrip(all, sd, HW, HW + 1.0, -0.04, 2), shoulderMat); sh.receiveShadow = true; scene.add(sh); }
+  // red/white kerbs on the inside of corners
+  const kerbTex = canvasTex(64, 128, (g) => { for (let k = 0; k < 4; k++) { g.fillStyle = k % 2 ? '#f2f0ea' : '#c8202a'; g.fillRect(0, k * 32, 64, 32); } });
+  kerbTex.wrapT = THREE.RepeatWrapping;
+  const kerbMat = new THREE.MeshStandardMaterial({ map: kerbTex, roughness: 0.6 });
+  const kerbL = new Uint8Array(N), kerbR = new Uint8Array(N);
+  for (let i = 0; i < N; i++) { let ks = 0; for (let j = -10; j <= 10; j++) ks += K[(i + j + N) % N]; ks /= 21; if (ks > 1 / 75) kerbL[i] = 1; if (ks < -1 / 75) kerbR[i] = 1; }
+  // turning left (K > 0) → inside is the left side (−R)
+  scene.add(new THREE.Mesh(hStrip(i => kerbL[i], -1, HW - 0.9, HW, 0.012, 2), kerbMat), new THREE.Mesh(hStrip(i => kerbR[i], 1, HW - 0.9, HW, 0.012, 2), kerbMat));
+
+  // utility poles (電柱) with sagging wires along the village and hill road
+  const poleSide = 1, poles = [];
+  for (let i = 5; i < N; i += Math.round(42 / DS)) {
+    if (ZONE[i] === 2) continue;
+    const o = HW + 4.2, x = PX[i] + RX[i] * o * poleSide, z = PZ[i] + RZ[i] * o * poleSide;
+    if (inLake(x, z)) continue;
+    poles.push({ x, y: sampleGround(x, z) - 0.3, z, h: HEAD[i] });
+  }
+  const conc = new THREE.MeshStandardMaterial({ color: 0x8e8b84, roughness: 0.85 });
+  const poleGeo = mergeGeometries([new THREE.CylinderGeometry(0.13, 0.19, 11, 10).translate(0, 5.5, 0), new THREE.BoxGeometry(1.9, 0.12, 0.12).translate(0, 10.2, 0), new THREE.BoxGeometry(1.3, 0.1, 0.1).translate(0, 9.4, 0),
+    new THREE.CylinderGeometry(0.28, 0.28, 0.7, 10).translate(0.45, 8.6, 0.3)]);
+  const pIM = new THREE.InstancedMesh(poleGeo, conc, poles.length);
+  poles.forEach((p, k) => { m.compose(new THREE.Vector3(p.x, p.y, p.z), q.setFromAxisAngle(up, p.h), one); pIM.setMatrixAt(k, m); });
+  pIM.castShadow = true; scene.add(pIM);
+  const wires = [];
+  for (let k = 0; k < poles.length; k++) {
+    const a = poles[k], b = poles[(k + 1) % poles.length];
+    if (Math.hypot(a.x - b.x, a.z - b.z) > 70) continue;
+    for (const [ox, oy] of [[-0.85, 10.25], [0.85, 10.25], [0, 10.25], [-0.6, 9.45], [0.6, 9.45]]) {
+      const ax = a.x + Math.cos(a.h) * ox, az = a.z - Math.sin(a.h) * ox, bx = b.x + Math.cos(b.h) * ox, bz = b.z - Math.sin(b.h) * ox;
+      let px = ax, py = a.y + oy, pz = az;
+      for (let t = 1; t <= 8; t++) { const f = t / 8, x = lerp(ax, bx, f), z = lerp(az, bz, f), y = lerp(a.y + oy, b.y + oy, f) - Math.sin(Math.PI * f) * 0.9; wires.push(px, py, pz, x, y, z); px = x; py = y; pz = z; }
+    }
+  }
+  const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(wires, 3));
+  scene.add(new THREE.LineSegments(wg, new THREE.LineBasicMaterial({ color: 0x1a1b1f })));
+
+  // yellow curve-warning signs before every proper corner
+  const arrow = dir => canvasTex(128, 128, (g) => {
+    g.translate(64, 64); g.rotate(Math.PI / 4); g.fillStyle = '#f5c400'; g.fillRect(-42, -42, 84, 84); g.strokeStyle = '#111'; g.lineWidth = 5; g.strokeRect(-38, -38, 76, 76); g.rotate(-Math.PI / 4);
+    g.fillStyle = '#111'; g.beginPath(); g.moveTo(-6 * dir, 26); g.lineTo(-6 * dir, -4); g.quadraticCurveTo(-6 * dir, -14, 6 * dir, -14); g.lineTo(6 * dir, -24); g.lineTo(24 * dir, -8); g.lineTo(6 * dir, 8); g.lineTo(6 * dir, -2); g.quadraticCurveTo(6 * dir, -2, 6 * dir, -2); g.lineTo(6 * dir, 26); g.closePath(); g.fill();
   });
+  const signMats = { 1: new THREE.MeshStandardMaterial({ map: arrow(1), roughness: 0.4, side: THREE.DoubleSide }), [-1]: new THREE.MeshStandardMaterial({ map: arrow(-1), roughness: 0.4, side: THREE.DoubleSide }) };
+  for (const mt of Object.values(signMats)) emissiveMats.push({ mat: Object.assign(mt, { emissive: new THREE.Color(0x553f00) }), dusk: 0.2, night: 0.6 });
+  const signs = { 1: [], [-1]: [] }, signPoles = [];
+  let inC = false, sum = 0, st = 0, lastSign = -999;
+  for (let i = 0; i < N; i++) {
+    const on = Math.abs(K[i]) > 1 / 90;
+    if (on && !inC) { inC = true; sum = 0; st = i; }
+    if (on) sum += K[i] * DS;
+    if (!on && inC) { inC = false; if (Math.abs(sum) > 0.8 && st - lastSign > 60) {
+      const si = (st - Math.round(55 / DS) + N) % N, dir = sum > 0 ? -1 : 1; // K > 0 = left turn → arrow left
+      const x = PX[si] + RX[si] * (HW + 2.2), z = PZ[si] + RZ[si] * (HW + 2.2);
+      if (!inLake(x, z)) { signs[dir].push([x, PY[si], z, HEAD[si]]); signPoles.push([x, PY[si], z]); lastSign = st; }
+    } }
+  }
+  const sGeo = new THREE.PlaneGeometry(1.1, 1.1);
+  for (const dir of [1, -1]) {
+    const im = new THREE.InstancedMesh(sGeo, signMats[dir], Math.max(1, signs[dir].length)); im.count = signs[dir].length;
+    signs[dir].forEach((p, k) => { m.compose(new THREE.Vector3(p[0], p[1] + 2.3, p[2]), q.setFromAxisAngle(up, p[3] + Math.PI), one); im.setMatrixAt(k, m); });
+    scene.add(im);
+  }
+  const spIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.04, 0.04, 2.3, 6).translate(0, 1.15, 0), new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.6, roughness: 0.4 }), Math.max(1, signPoles.length));
+  spIM.count = signPoles.length; signPoles.forEach((p, k) => spIM.setMatrixAt(k, m.makeTranslation(p[0], p[1], p[2]))); scene.add(spIM);
+
+  // grass clumps and susuki (silver grass) on the verges
+  const bladeTex = (col, tall) => canvasTex(128, 128, (g) => {
+    const r = mulberry32(tall ? 9 : 4);
+    for (let k = 0; k < (tall ? 26 : 60); k++) {
+      const x = 64 + (r() - 0.5) * 90, h = (tall ? 70 : 40) + r() * (tall ? 50 : 50), bend = (r() - 0.5) * 30;
+      g.strokeStyle = col(r()); g.lineWidth = tall ? 2.2 : 2.6; g.beginPath(); g.moveTo(x, 128); g.quadraticCurveTo(x + bend * 0.3, 128 - h * 0.6, x + bend, 128 - h); g.stroke();
+      if (tall) { g.fillStyle = 'rgba(236,224,200,0.9)'; g.beginPath(); g.ellipse(x + bend, 128 - h + 8, 4, 14, bend / 60, 0, Math.PI * 2); g.fill(); }
+    }
+  });
+  const grassMat = new THREE.MeshStandardMaterial({ map: bladeTex(v => `rgb(${70 + v * 40},${100 + v * 50},${40 + v * 20})`, false), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.95 });
+  const susukiMat = new THREE.MeshStandardMaterial({ map: bladeTex(v => `rgb(${150 + v * 40},${135 + v * 30},${80 + v * 20})`, true), alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.9 });
+  const cross = (w, h) => mergeGeometries([new THREE.PlaneGeometry(w, h).translate(0, h / 2, 0), new THREE.PlaneGeometry(w, h).translate(0, h / 2, 0).rotateY(Math.PI / 2)]);
+  const MAXG = 16000, MAXSU = 3000;
+  const gIM = new THREE.InstancedMesh(cross(1.4, 0.8), grassMat, MAXG), suIM = new THREE.InstancedMesh(cross(1.6, 1.8), susukiMat, MAXSU);
+  let ng = 0, nsu = 0, tries = 0;
+  while ((ng < MAXG || nsu < MAXSU) && tries++ < 80000) {
+    const i = Math.floor(rand() * N), sd = rand() < 0.5 ? -1 : 1, off = HW + 1.3 + Math.pow(rand(), 1.8) * 40;
+    const x = PX[i] + RX[i] * off * sd + (rand() - 0.5) * 4, z = PZ[i] + RZ[i] * off * sd + (rand() - 0.5) * 4;
+    if (inLake(x, z)) continue;
+    const hgt = sampleGround(x, z); if (hgt < LAKE_Y + 0.4) continue;
+    const s = 0.7 + rand() * 0.7;
+    m.compose(new THREE.Vector3(x, hgt - 0.05, z), q.setFromAxisAngle(up, rand() * 6.3), new THREE.Vector3(s, s * (0.8 + rand() * 0.5), s));
+    const su = susuki(x, z) > 0.3 || (ZONE[i] === 2 && rand() < 0.25);
+    if (su && nsu < MAXSU) { suIM.setMatrixAt(nsu, m); suIM.setColorAt(nsu, c.setHSL(0.11, 0.3, 0.75 + rand() * 0.2)); nsu++; }
+    else if (ng < MAXG && !(ZONE[i] === 0 && off < HW + 6)) { gIM.setMatrixAt(ng, m); gIM.setColorAt(ng, c.setHSL(0.22 + rand() * 0.06, 0.4, 0.6 + rand() * 0.3)); ng++; }
+  }
+  for (const [im, n] of [[gIM, ng], [suIM, nsu]]) { im.userData.max = n; im.count = n; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.receiveShadow = true; im.computeBoundingSphere(); treeMeshes.push(im); scene.add(im); }
+
+  // rocks on the steeper verges
+  const rockGeo = (() => { const g = new THREE.DodecahedronGeometry(1, 1); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(p, i); const k = 0.75 + fbm(v.x * 1.3 + 4, v.y * 1.3 + v.z, 3) * 0.5; p.setXYZ(i, v.x * k, v.y * k * 0.7, v.z * k); } g.computeVertexNormals(); return g; })();
+  const rIM = new THREE.InstancedMesh(rockGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95 }), 900); let nr = 0;
+  for (let t = 0; t < 9000 && nr < 900; t++) {
+    const i = Math.floor(rand() * N), sd = rand() < 0.5 ? -1 : 1, off = HW + 2 + rand() * 50, x = PX[i] + RX[i] * off * sd, z = PZ[i] + RZ[i] * off * sd;
+    if (inLake(x, z) || ZONE[i] === 0) continue;
+    const hgt = sampleGround(x, z), sl = Math.abs(sampleGround(x + 3, z) - hgt) + Math.abs(sampleGround(x, z + 3) - hgt); if (sl < 1.2 && rand() < 0.85) continue;
+    const s = 0.4 + Math.pow(rand(), 2) * 2.2;
+    m.compose(new THREE.Vector3(x, hgt - s * 0.25, z), q.setFromEuler(new THREE.Euler(rand(), rand() * 6, rand())), new THREE.Vector3(s, s, s)); rIM.setMatrixAt(nr, m); rIM.setColorAt(nr, c.setHSL(0.08, 0.06, 0.32 + rand() * 0.18)); nr++;
+  }
+  rIM.count = nr; rIM.castShadow = rIM.receiveShadow = true; scene.add(rIM);
+
+  // clouds: soft billboards high over the caldera, tinted by the time of day
+  const cloudTex = canvasTex(256, 128, (g, w, h) => {
+    const im = g.createImageData(w, h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const dx = (x - w / 2) / (w / 2), dy = (y - h * 0.6) / (h / 2), base = Math.max(0, 1 - dx * dx - dy * dy * 1.6);
+      const n = fbm(x * 0.03, y * 0.05, 5), a = clamp((base * 1.3 - 0.25) * (0.4 + n * 1.1), 0, 1) * smooth(h, h * 0.55, y) ** 0.3;
+      const sh = 0.75 + 0.25 * (1 - y / h);
+      im.data.set([255 * sh, 255 * sh, 255 * sh, 255 * a], (y * w + x) * 4);
+    }
+    g.putImageData(im, 0, 0);
+  });
+  const rc = mulberry32(77);
+  for (let k = 0; k < 26; k++) {
+    const a = rc() * Math.PI * 2, d = 3500 + rc() * 16000, s = 1600 + rc() * 3200;
+    const mat = new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false, opacity: 0.9, fog: true });
+    const sp = new THREE.Sprite(mat); sp.scale.set(s, s * 0.45, 1); sp.position.set(Math.cos(a) * d, 1600 + rc() * 1500 - BASE * 0.2, Math.sin(a) * d); sp.renderOrder = -0.5;
+    scene.add(sp); cloudMats.push(mat);
+  }
+}
+
+function buildRoad() {
+  const { tex, nrm, rough } = asphaltMaps();
+  for (const t of [nrm, rough]) { t.wrapS = THREE.ClampToEdgeWrapping; t.wrapT = THREE.RepeatWrapping; }
   tex.wrapS = THREE.ClampToEdgeWrapping; tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
   const pos = [], uv = [], idx = [];
   let acc = 0;
@@ -855,7 +1031,7 @@ function buildRoad() {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
   geo.computeVertexNormals();
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.82, metalness: 0.0, envMapIntensity: 0.6 }));
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, normalMap: nrm, normalScale: new THREE.Vector2(0.9, 0.9), roughnessMap: rough, roughness: 1, metalness: 0.0, envMapIntensity: 0.35 }));
   mesh.receiveShadow = true; scene.add(mesh);
   // start/finish line
   const st = canvasTex(256, 32, (g, w, h) => { for (let x = 0; x < 16; x++) for (let y = 0; y < 2; y++) { g.fillStyle = (x + y) % 2 ? '#111' : '#eee'; g.fillRect(x * 16, y * 16, 16, 16); } });
@@ -863,6 +1039,18 @@ function buildRoad() {
   sl.rotation.order = 'YXZ'; sl.rotation.set(-Math.PI / 2, HEAD[2], 0); sl.position.set(PX[2], PY[2] + 0.02, PZ[2]); sl.receiveShadow = true; scene.add(sl);
 }
 
+function profileStrip(filter, side, off, p0, p1) {
+  const pos = [];
+  for (let i = 0; i < N; i++) {
+    const j = (i + 1) % N; if (!filter(i) || !filter(j)) continue;
+    const o0 = (off + p0[0]) * side, o1 = (off + p1[0]) * side;
+    const a0 = [PX[i] + RX[i] * o0, PY[i] + p0[1], PZ[i] + RZ[i] * o0], a1 = [PX[i] + RX[i] * o1, PY[i] + p1[1], PZ[i] + RZ[i] * o1];
+    const b0 = [PX[j] + RX[j] * o0, PY[j] + p0[1], PZ[j] + RZ[j] * o0], b1 = [PX[j] + RX[j] * o1, PY[j] + p1[1], PZ[j] + RZ[j] * o1];
+    pos.push(...a0, ...b0, ...a1, ...a1, ...b0, ...b1);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+  const uv = new Float32Array(pos.length / 3 * 2); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); return g;
+}
 function stripGeo(filter, side, off, y0, y1, top = 0) {
   const pos = [];
   for (let i = 0; i < N; i++) {
@@ -880,13 +1068,22 @@ function buildBarriers() {
   const railMat = new THREE.MeshStandardMaterial({ color: 0xc5c9d0, metalness: 0.85, roughness: 0.32, side: THREE.DoubleSide });
   const wallMat = new THREE.MeshStandardMaterial({ color: 0x9c9a94, roughness: 0.92, side: THREE.DoubleSide });
   for (const s of [-1, 1]) {
-    const r = new THREE.Mesh(stripGeo(notCity, s, HW + 0.8, 0.45, 0.82), railMat); r.castShadow = true; r.receiveShadow = true; scene.add(r);
+    // W-beam cross-section: two ridges and a valley
+    const prof = [[0, 0.46], [0.07, 0.52], [0.07, 0.58], [0.0, 0.64], [0.07, 0.7], [0.07, 0.76], [0, 0.82]];
+    const parts = []; for (let k = 0; k < prof.length - 1; k++) parts.push(profileStrip(notCity, s, HW + 0.8, prof[k], prof[k + 1]));
+    const r = new THREE.Mesh(mergeGeometries(parts), railMat); r.castShadow = true; r.receiveShadow = true; scene.add(r);
     const w = new THREE.Mesh(stripGeo(isCity, s, HW + 0.9, -0.3, 1.15, 0.35), wallMat); w.receiveShadow = true; w.castShadow = true; scene.add(w);
   }
   const posts = [];
   for (let i = 0; i < N; i += 3) if (ZONE[i] !== 0) for (const s of [-1, 1]) posts.push([PX[i] + RX[i] * (HW + 0.95) * s, PY[i], PZ[i] + RZ[i] * (HW + 0.95) * s]);
   const pm = new THREE.InstancedMesh(new THREE.BoxGeometry(0.13, 1.1, 0.13).translate(0, 0.35, 0), new THREE.MeshStandardMaterial({ color: 0x8a8f96, metalness: 0.7, roughness: 0.4 }), posts.length);
   const m = new THREE.Matrix4(); posts.forEach((p, k) => pm.setMatrixAt(k, m.makeTranslation(p[0], p[1], p[2]))); pm.castShadow = true; scene.add(pm);
+  // amber reflectors on every other post: they glint in the headlights
+  const refMat = new THREE.MeshStandardMaterial({ color: 0x3a2200, emissive: 0xffa020, emissiveIntensity: 0.3, metalness: 0.2, roughness: 0.3 });
+  emissiveMats.push({ mat: refMat, dusk: 0.1, night: 0.9 });
+  const refl = posts.filter((p, k) => k % 4 < 2);
+  const rm = new THREE.InstancedMesh(new THREE.BoxGeometry(0.08, 0.08, 0.02), refMat, refl.length);
+  refl.forEach((p, k) => rm.setMatrixAt(k, m.makeTranslation(p[0], p[1] + 0.95, p[2]))); scene.add(rm);
   // chevron boards at tight corners
   const chev = canvasTex(256, 64, (g, w, h) => { g.fillStyle = '#111'; g.fillRect(0, 0, w, h); g.fillStyle = '#ffd400'; for (let x = -1; x < 6; x++) { g.beginPath(); g.moveTo(x * 48 + 10, 6); g.lineTo(x * 48 + 34, 32); g.lineTo(x * 48 + 10, 58); g.lineTo(x * 48 + 24, 58); g.lineTo(x * 48 + 48, 32); g.lineTo(x * 48 + 24, 6); g.fill(); } });
   const chevMatL = new THREE.MeshStandardMaterial({ map: chev, emissive: 0xffffff, emissiveMap: chev, emissiveIntensity: 0.25, side: THREE.DoubleSide });
@@ -941,7 +1138,13 @@ function buildTerrain() {
     g.putImageData(img, 0, 0);
   });
   detail.wrapS = detail.wrapT = THREE.RepeatWrapping; detail.repeat.set(380, 380); detail.anisotropy = 4;
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, map: detail, roughness: 0.96, metalness: 0 }));
+  const relief = canvasTex(256, 256, (g, w, h) => {
+    const im = g.createImageData(w, h), hf = (x, y) => fbm(x * 0.05, y * 0.05, 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const dx = hf(x + 1, y) - hf(x - 1, y), dy = hf(x, y + 1) - hf(x, y - 1); im.data.set([128 - dx * 420, 128 - dy * 420, 255, 255], (y * w + x) * 4); }
+    g.putImageData(im, 0, 0);
+  }, false);
+  relief.wrapS = relief.wrapT = THREE.RepeatWrapping; relief.repeat.set(380, 380);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, map: detail, normalMap: relief, normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.96, metalness: 0 }));
   mesh.receiveShadow = true; scene.add(mesh);
   buildFarTerrain();
 }
@@ -1024,13 +1227,17 @@ function buildWater() {
 }
 
 function buildTrees() {
-  const cedarF = mergeGeometries([new THREE.ConeGeometry(2.6, 7, 7).translate(0, 6.5, 0), new THREE.ConeGeometry(2.0, 5.5, 7).translate(0, 9.6, 0), new THREE.ConeGeometry(1.3, 4, 7).translate(0, 12.2, 0)]);
-  const leafF = mergeGeometries([new THREE.IcosahedronGeometry(2.6, 1).translate(0, 5.2, 0), new THREE.IcosahedronGeometry(2.0, 1).translate(1.8, 4.6, 0.6), new THREE.IcosahedronGeometry(2.1, 1).translate(-1.5, 4.8, -0.8)]);
-  const trunk = new THREE.CylinderGeometry(0.22, 0.35, 5, 6).translate(0, 1.2, 0);
+  const tint = (g, lo, hi) => { const p = g.attributes.position, c = new Float32Array(p.count * 3), r = mulberry32(p.count); let y0 = 1e9, y1 = -1e9; for (let i = 0; i < p.count; i++) { y0 = Math.min(y0, p.getY(i)); y1 = Math.max(y1, p.getY(i)); } for (let i = 0; i < p.count; i++) { const t = (p.getY(i) - y0) / (y1 - y0), v = lerp(lo, hi, t) * (0.9 + r() * 0.2); c[i * 3] = v; c[i * 3 + 1] = v; c[i * 3 + 2] = v; } g.setAttribute('color', new THREE.BufferAttribute(c, 3)); return g; };
+  const lumpy = (g, amt, seed) => { const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 1 + (vnoise(x * 1.7 + seed, z * 1.7 + y) - 0.5) * amt; p.setXYZ(i, x * k, y, z * k); } g.computeVertexNormals(); return g; };
+  const tiers = []; for (let t = 0; t < 6; t++) { const r0 = 2.9 - t * 0.42, hgt = 3.6 - t * 0.25; tiers.push(lumpy(new THREE.ConeGeometry(r0, hgt, 11, 2).translate(0, 4.2 + t * 1.75, 0).rotateY(t * 0.9), 0.35, t)); }
+  const cedarF = tint(mergeGeometries(tiers.map(g => g.toNonIndexed())), 0.55, 1.05);
+  const lobe = (r, x, y, z, sd) => { const g = new THREE.IcosahedronGeometry(r, 2); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const vx = p.getX(i), vy = p.getY(i), vz = p.getZ(i), k = 1 + (fbm(vx * 0.9 + sd, vy * 0.9 + vz * 0.7, 3) - 0.5) * 0.55; p.setXYZ(i, vx * k + x, vy * k * 0.85 + y, vz * k + z); } g.computeVertexNormals(); return g; };
+  const leafF = tint(mergeGeometries([lobe(2.6, 0, 5.4, 0, 1), lobe(2.0, 1.9, 4.6, 0.7, 2), lobe(2.1, -1.6, 4.9, -0.9, 3), lobe(1.7, 0.3, 6.9, -0.4, 4), lobe(1.6, -0.6, 4.2, 1.7, 5)]), 0.6, 1.1);
+  const trunk = new THREE.CylinderGeometry(0.2, 0.38, 6, 8).translate(0, 1.7, 0);
   const MAXC = 7000, MAXS = 6000;
-  const cF = new THREE.InstancedMesh(cedarF, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true }), MAXC);
+  const cF = new THREE.InstancedMesh(cedarF, new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.9 }), MAXC);
   const cT = new THREE.InstancedMesh(trunk, new THREE.MeshStandardMaterial({ color: 0x4a3426, roughness: 1 }), MAXC);
-  const sF = new THREE.InstancedMesh(leafF, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, flatShading: true }), MAXS);
+  const sF = new THREE.InstancedMesh(leafF, new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.85 }), MAXS);
   const sT = new THREE.InstancedMesh(trunk, new THREE.MeshStandardMaterial({ color: 0x3b2a26, roughness: 1 }), MAXS);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), c = new THREE.Color();
   let nc = 0, ns = 0, tries = 0;
@@ -2602,7 +2809,7 @@ async function boot() {
     setLoad(0.15, 'Loading real Hakone terrain…'); await nextFrame(); buildTerrain();
     setLoad(0.45, 'Paving the touge…'); await nextFrame(); buildRoad(); buildBarriers(); buildWater();
     setLoad(0.6, 'Planting cedars and sakura…'); await nextFrame(); buildTrees();
-    setLoad(0.75, 'Lighting up Kojiri…'); await nextFrame(); buildCity(); buildLights(); buildLandmarks();
+    setLoad(0.75, 'Lighting up Kojiri…'); await nextFrame(); buildCity(); buildLights(); buildLandmarks(); buildDetails();
     setLoad(0.88, 'Warming up tyres…'); await nextFrame(); buildSmoke(); buildSkids(); buildBots(); spawnPlayer(); buildMinimap();
     applyTime(); applyQuality(); wireUI(); onResize();
     camPos.set(player.x, player.y + 3, player.z - 8); applyCamMode();
@@ -2621,6 +2828,7 @@ async function boot() {
 }
 // Test hook: advances the driving simulation without rendering (used by automated checks).
 window.__kaido = {
+  bootTimes,
   get player() { return player; }, get state() { return state; }, get S() { return S; }, get drift() { return drift; }, setState, bots, TRACK_LEN, N, track: { PX, PZ, HEAD, K, RX, RZ },
   set noWalls(v) { testNoWalls = !!v; },
   get scene() { return scene; },
