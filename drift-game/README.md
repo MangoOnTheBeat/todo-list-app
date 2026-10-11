@@ -39,7 +39,9 @@ Four views: chase, far chase, **cockpit (first person)** and hood. The cockpit h
 - **Drift assist** (Settings → Countersteer assist), on by default, gives Forza Horizon-style drifting on top of the tyre physics:
   - throttle sets the angle, steering into the drift tightens your line and countersteering opens it;
   - momentum is kept through the slide (about 6–10 % speed loss over a 5 s drift instead of 25–50 %);
-  - a handbrake tap or full throttle + steering kicks the car out quickly; swinging the wheel the other way right after a drift throws it into the next one (transitions in ~0.6 s);
+  - easy to start from any entry: steer + gas, handbrake tap, lift-off, a feint, or a **clutch kick** (quickly lift and re-press the gas while steering); the rear is set up drift-style with slightly less grip than the front;
+  - the angle is yours: a light guide plus damping keeps slides smooth without locking them to a preset angle, and drifts hold on part throttle;
+  - swinging the wheel the other way right after a drift throws it into the next one (transitions in ~0.6 s);
   - a spin guard keeps full lock + full throttle at a big but controllable angle.
   High / Standard / Low change the strength; **Off** is the raw simulation.
 
