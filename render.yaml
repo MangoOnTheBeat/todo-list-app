@@ -1,0 +1,11 @@
+# Render Blueprint: runs the Kaido Drift online server (game + WebSocket rooms and chat).
+# Render dashboard → New → Blueprint → pick this repo and the claude/jdm-drift-game branch.
+services:
+  - type: web
+    name: kaido-drift
+    runtime: node
+    plan: free
+    rootDir: drift-game
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
