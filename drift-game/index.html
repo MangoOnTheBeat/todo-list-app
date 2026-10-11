@@ -170,6 +170,10 @@ body.touch .hud-tc{top:calc(env(safe-area-inset-top,0px) + 26vh)}
   body.touch #chatLog{max-height:20vh}
   body.touch .hud-tc{top:calc(env(safe-area-inset-top,0px) + 18vh)}
 }
+/* consent */
+#consent{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:40;width:min(560px,calc(100% - 32px));background:var(--panel-solid);border:1px solid var(--line);border-radius:6px;padding:16px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;box-sizing:border-box}
+#consent p{margin:0;flex:1 1 260px;line-height:1.5;font-size:13px;color:var(--dim)}
+#consent p b{color:var(--text)}
 #chatForm{display:flex;gap:6px}
 /* the steering zone must never sit above chat or the HUD buttons */
 #touch{z-index:0}
