@@ -11,7 +11,7 @@ The 5.3 km course was placed on that land by an automated search for the positio
 
 **What is real and what isn't:** the terrain, lake and mountains are real data. The road layout, buildings, trees and signs are the game's own design placed on that land; they are not a survey of real roads. The terrain data is public-domain-derived; see Credits.
 
-Default time is **midnight**: a painted sky with ~9,000 stars and the Milky Way, twinkling bright stars, a textured moon low over the lake, moonlight on Fuji's snow cap, and the glow of distant towns on the horizon. A sunset option remains in Settings.
+Time of day runs on a 24-hour clock (Settings slider, or Dawn / Noon / Sunset / Midnight in the pause menu). The sun follows its real mid-October path over Hakone: sunrise ~05:45, ~47° high at noon, sunset ~17:15. Default time is **midnight**: a painted sky with ~9,000 stars and the Milky Way, twinkling bright stars, a textured moon low over the lake, moonlight on Fuji's snow cap, and the glow of distant towns on the horizon.
 
 ## Controls
 | | Keyboard | Touch | Gamepad |
@@ -37,6 +37,21 @@ Four views: chase, far chase, **cockpit (first person)** and hood. The cockpit h
 - Speed-sensitive steering with full lock available when countersteering; steering lock from 50° to 60°.
 - Wall hits use rigid-body impulses at the corner that touches, so clipping a rail spins the car the way it should.
 - **Countersteer assist** (Settings): High / Standard / Low steer the slide angle toward a target set by throttle and steering. **Off** is the raw simulation.
+
+## Cars differ for real
+| Car | Engine | Power | Weight | 0–100 km/h* | Top speed* | Lock |
+|---|---|---|---|---|---|---|
+| Hoshi PS13 Spirit (starter) | 1.8 turbo I4 | ~193 hp | 1240 kg | ~7.5 s | ~227 km/h | 48° |
+| Kaze AE8 Hachi | 1.6 NA I4 | ~150 hp | 925 kg | ~7.2 s | ~205 km/h | 52° |
+| Hoshi R-32 Raijin | twin-turbo I6 | ~341 hp | 1430 kg | ~5.8 s | ~274 km/h | 50° |
+| Akagi FD-7 Rotor | twin-rotor turbo | ~310 hp | 1250 kg | ~5.1 s | ~275 km/h | 54° |
+| Hoshi Z-33 Zenith | NA V6 | ~315 hp | 1450 kg | ~5.3 s | ~260 km/h | 54° |
+| Kaze JZA-80 Apex | built twin-turbo I6 | ~470 hp | 1490 kg | ~4.8 s | ~306 km/h | 55° |
+| Hoshi PS15 Spirit-R | built turbo I4 | ~400 hp | 1220 kg | ~4.5 s | ~278 km/h | 62° |
+
+*The garage shows exact figures measured live with the game's own physics, plus the difference from the car you're driving.
+
+Turbo cars have real lag (boost builds with revs and throttle) and blow-off on lift; each engine layout sounds different (four, straight-six, V6, rotary) with turbo whine. Drift character scales with power-to-weight, weight and steering lock: with the same inputs the starter holds ~25–35° while the JZA-80 and PS15 swing 45–65°, and more angle scores more.
 
 ## Drifting and progression
 Kick the rear out with the hand brake (or full throttle + steering), then hold the slide with throttle and countersteer. Score = speed × angle, with a combo multiplier up to ×5 and bonuses for **TANDEM** (drifting next to an AI car), **NEAR WALL**, **ANGLE** (> 45°) and **SPEED** (> 110 km/h). Hitting a wall hard loses the unbanked drift. Every 10 points banked = 1 credit; a full lap pays 500 credits.

@@ -87,11 +87,15 @@ h2.h span{color:var(--sakura);font-size:.6em;margin-left:8px}
 .car .tg{font-size:12px;color:var(--dim);grid-column:1}
 .car .pr{grid-row:1/3;grid-column:2;align-self:center;font-variant-numeric:tabular-nums;font-weight:600}
 .car.locked .nm::after{content:" · LOCKED";color:var(--dim);font-weight:500;font-size:11px;letter-spacing:.14em}
-.bars{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-size:12px;font-variant-numeric:tabular-nums}
+.bars{display:grid;grid-template-columns:auto minmax(40px,1fr) auto;gap:6px 10px;align-items:center;font-size:12px;font-variant-numeric:tabular-nums}
 .bars span{color:var(--dim);letter-spacing:.12em;text-transform:uppercase;font-size:11px}
 .bars i{height:6px;background:var(--line);border-radius:3px;overflow:hidden;display:block}
 .bars i b{display:block;height:100%;background:var(--neon)}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips button{padding:10px 14px;min-height:40px;border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:20px;font-weight:600;font-size:13px;letter-spacing:.06em}
+.chips button.on{background:var(--sakura);border-color:var(--sakura);color:#1a0b14}
+input[type=range]{width:100%;accent-color:var(--sakura)}
 .sw{width:30px;height:30px;border-radius:50%;border:2px solid transparent;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
 .sw.on{border-color:var(--text)}
 
@@ -280,8 +284,9 @@ body.touch .hud-tc{top:calc(env(safe-area-inset-top,0px) + 26vh)}
     <h2 class="h">Settings<span>設定</span></h2>
     <div class="field"><label for="setQuality">Graphics quality</label>
       <select id="setQuality"><option value="auto">Auto (recommended)</option><option value="low">Low · phones &amp; old laptops</option><option value="medium">Medium · shadows</option><option value="high">High · shadows + bloom</option></select></div>
-    <div class="field"><label for="setTime">Time of day</label>
-      <select id="setTime"><option value="night">Midnight · stars</option><option value="dusk">Sunset over Mt. Fuji</option></select></div>
+    <div class="field"><label for="setTime">Time of day · <b id="timeLabel">00:00</b></label>
+      <input id="setTime" type="range" min="0" max="23.75" step="0.25">
+      <div class="chips" data-time-presets><button type="button" data-h="5.75">Dawn</button><button type="button" data-h="12.5">Noon</button><button type="button" data-h="17.25">Sunset</button><button type="button" data-h="0">Midnight</button></div></div>
     <div class="field"><label for="setTrans">Gearbox</label>
       <select id="setTrans"><option value="auto">Automatic</option><option value="manual">Manual · Q / E or LB / RB to shift</option></select></div>
     <div class="field"><label for="setAssist">Countersteer assist</label>
@@ -330,6 +335,11 @@ body.touch .hud-tc{top:calc(env(safe-area-inset-top,0px) + 26vh)}
       <button class="btn primary" id="pResume" type="button">Resume</button>
       <button class="btn" id="pGarage" type="button">Garage</button>
       <button class="btn" id="pSettings" type="button">Settings</button>
+    </div>
+    <div class="field"><span class="eyebrow">Time of day · <b id="pTimeLabel">00:00</b></span>
+      <div class="chips" data-time-presets><button type="button" data-h="5.75">Dawn</button><button type="button" data-h="12.5">Noon</button><button type="button" data-h="17.25">Sunset</button><button type="button" data-h="0">Midnight</button></div>
+    </div>
+    <div class="menu">
       <button class="btn ghost" id="pQuit" type="button">Main menu</button>
     </div>
   </div>
@@ -388,26 +398,26 @@ function canvasTex(w, h, draw, srgb = true) {
    period-plausible for each body style and drive the physics directly.
    ===================================================================== */
 const CARS = [
-  { id: 'ps13', name: 'Hoshi PS13 Spirit', tag: 'Starter · 1989 turbo coupe · pop-up lamps', price: 0, color: '#e9e6df', rim: '#c3c6cc',
-    mass: 1240, front: 0.53, torque: 290, peak: 4000, red: 7200, gears: [3.32, 1.90, 1.31, 1.00, 0.76], final: 4.08, mu: 1.08, lock: 52, CdA: 0.66, engI: 0.13,
+  { id: 'ps13', name: 'Hoshi PS13 Spirit', tag: 'Starter · 1.8 turbo four · pop-up lamps', price: 0, color: '#e9e6df', rim: '#c3c6cc',
+    engine: 'i4', turbo: true, mass: 1240, front: 0.53, torque: 255, peak: 4000, red: 7200, gears: [3.32, 1.90, 1.31, 1.00, 0.76], final: 4.08, mu: 1.03, lock: 48, CdA: 0.68, engI: 0.13,
     b: { len: 4.52, wid: 1.69, wb: 2.47, h: 1.29, style: 'notch', popups: true, wing: false, duck: false, exhaust: 1 } },
-  { id: 'ae8', name: 'Kaze AE8 Hachi', tag: 'Featherweight hatch · revs to 7,800', price: 8000, color: '#f4f4f4', rim: '#2a2b30',
-    mass: 960, front: 0.53, torque: 165, peak: 5600, red: 7800, gears: [3.59, 2.02, 1.38, 1.00, 0.86], final: 4.3, mu: 1.05, lock: 50, CdA: 0.62, engI: 0.1,
+  { id: 'ae8', name: 'Kaze AE8 Hachi', tag: 'Featherweight · revvy 1.6 non-turbo · very agile', price: 8000, color: '#f4f4f4', rim: '#2a2b30',
+    engine: 'i4', turbo: false, mass: 925, front: 0.52, torque: 155, peak: 6000, red: 8200, gears: [3.59, 2.02, 1.38, 1.00, 0.86], final: 4.78, mu: 1.04, lock: 52, CdA: 0.64, engI: 0.09,
     b: { len: 4.2, wid: 1.63, wb: 2.4, h: 1.33, style: 'hatch', popups: true, wing: false, duck: true, exhaust: 1 } },
-  { id: 'r32', name: 'Hoshi R-32 Raijin', tag: 'Twin-turbo straight six', price: 20000, color: '#2b303b', rim: '#b8b8b8',
-    mass: 1430, front: 0.55, torque: 390, peak: 4400, red: 7600, gears: [3.21, 1.93, 1.30, 1.00, 0.75], final: 4.11, mu: 1.1, lock: 50, CdA: 0.7, engI: 0.14,
+  { id: 'r32', name: 'Hoshi R-32 Raijin', tag: 'Twin-turbo six · big boost, heavy nose', price: 20000, color: '#2b303b', rim: '#b8b8b8',
+    engine: 'i6', turbo: true, mass: 1430, front: 0.56, torque: 410, peak: 4600, red: 7800, gears: [3.21, 1.93, 1.30, 1.00, 0.75], final: 4.11, mu: 1.08, lock: 50, CdA: 0.7, engI: 0.14,
     b: { len: 4.55, wid: 1.76, wb: 2.62, h: 1.34, style: 'notch', popups: false, wing: true, duck: false, exhaust: 1 } },
-  { id: 'fd7', name: 'Akagi FD-7 Rotor', tag: 'Twin-rotor · 50/50 balance', price: 35000, color: '#ffcc00', rim: '#c9a227',
-    mass: 1280, front: 0.5, torque: 340, peak: 5500, red: 8200, gears: [3.48, 2.02, 1.39, 1.00, 0.72], final: 4.1, mu: 1.1, lock: 54, CdA: 0.62, engI: 0.09,
+  { id: 'fd7', name: 'Akagi FD-7 Rotor', tag: 'Twin-rotor · light, sharp, screams to 9,000', price: 35000, color: '#ffcc00', rim: '#c9a227',
+    engine: 'rotary', turbo: true, mass: 1250, front: 0.5, torque: 340, peak: 6000, red: 9000, gears: [3.48, 2.02, 1.39, 1.00, 0.72], final: 4.1, mu: 1.1, lock: 54, CdA: 0.6, engI: 0.08,
     b: { len: 4.3, wid: 1.76, wb: 2.43, h: 1.23, style: 'fast', popups: true, wing: true, duck: false, exhaust: 2 } },
-  { id: 'z33', name: 'Hoshi Z-33 Zenith', tag: 'Big V6 torque · long slides', price: 55000, color: '#b3121f', rim: '#2a2b30',
-    mass: 1450, front: 0.53, torque: 380, peak: 4800, red: 7000, gears: [3.79, 2.32, 1.62, 1.27, 1.00, 0.79], final: 3.7, mu: 1.12, lock: 52, CdA: 0.68, engI: 0.14,
+  { id: 'z33', name: 'Hoshi Z-33 Zenith', tag: 'Big non-turbo V6 · instant torque, long slides', price: 55000, color: '#b3121f', rim: '#2a2b30',
+    engine: 'v6', turbo: false, mass: 1450, front: 0.53, torque: 400, peak: 4800, red: 7200, gears: [3.79, 2.32, 1.62, 1.27, 1.00, 0.79], final: 3.7, mu: 1.12, lock: 54, CdA: 0.66, engI: 0.14,
     b: { len: 4.32, wid: 1.82, wb: 2.65, h: 1.3, style: 'fast', popups: false, wing: false, duck: true, exhaust: 2 } },
-  { id: 'jza', name: 'Kaze JZA-80 Apex', tag: 'Built straight six · huge torque', price: 80000, color: '#ff6a00', rim: '#c3c6cc',
-    mass: 1500, front: 0.54, torque: 520, peak: 4200, red: 7000, gears: [3.83, 2.36, 1.69, 1.31, 1.00, 0.79], final: 3.5, mu: 1.14, lock: 55, CdA: 0.66, engI: 0.15,
+  { id: 'jza', name: 'Kaze JZA-80 Apex', tag: 'Built twin-turbo six · fastest car here', price: 80000, color: '#ff6a00', rim: '#c3c6cc',
+    engine: 'i6', turbo: true, mass: 1490, front: 0.54, torque: 620, peak: 4500, red: 7400, gears: [3.83, 2.36, 1.69, 1.31, 1.00, 0.79], final: 3.5, mu: 1.14, lock: 55, CdA: 0.64, engI: 0.15,
     b: { len: 4.52, wid: 1.81, wb: 2.55, h: 1.27, style: 'fast', popups: false, wing: true, duck: false, exhaust: 2 } },
-  { id: 'ps15', name: 'Hoshi PS15 Spirit-R', tag: 'Final evolution · max steering lock', price: 120000, color: '#3a6cf4', rim: '#d8d8d8',
-    mass: 1250, front: 0.54, torque: 380, peak: 4200, red: 7600, gears: [3.32, 2.08, 1.48, 1.17, 1.00, 0.81], final: 4.1, mu: 1.14, lock: 60, CdA: 0.64, engI: 0.12,
+  { id: 'ps15', name: 'Hoshi PS15 Spirit-R', tag: 'Pro drift build · 62° lock, sticky tyres', price: 120000, color: '#3a6cf4', rim: '#d8d8d8',
+    engine: 'i4', turbo: true, mass: 1220, front: 0.53, torque: 470, peak: 5000, red: 8000, gears: [3.32, 2.08, 1.48, 1.17, 1.00, 0.81], final: 4.1, mu: 1.18, lock: 62, CdA: 0.64, engI: 0.11,
     b: { len: 4.45, wid: 1.69, wb: 2.52, h: 1.28, style: 'notch', popups: false, wing: true, duck: false, exhaust: 1 } },
 ];
 const carById = id => CARS.find(c => c.id === id) || CARS[0];
@@ -435,7 +445,7 @@ const SAVE_KEY = 'kaido-drift-save-v1';
 function uuid() { try { return crypto.randomUUID(); } catch (e) { return 'p-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); } }
 function defaultSave() {
   return { v: 2, id: uuid(), name: 'Driver' + (1000 + Math.floor(Math.random() * 9000)), credits: 0, owned: ['ps13'], selected: 'ps13',
-    paint: {}, best: 0, total: 0, laps: 0, consent: false, settings: { quality: 'auto', time: 'night', sound: true, sens: 1, cam: 0, trans: 'auto', assist: 'std' } };
+    paint: {}, best: 0, total: 0, laps: 0, consent: false, settings: { quality: 'auto', time: 0, sound: true, sens: 1, cam: 0, trans: 'auto', assist: 'std' } };
 }
 function sanitizeSave(o) {
   const d = defaultSave(); if (!o || typeof o !== 'object') return d;
@@ -451,7 +461,8 @@ function sanitizeSave(o) {
   const paint = {}; if (s.paint && typeof s.paint === 'object') for (const k in s.paint) if (CARS.some(c => c.id === k) && /^#[0-9a-f]{6}$/i.test(s.paint[k])) paint[k] = s.paint[k];
   s.paint = paint;
   if (!['auto', 'low', 'medium', 'high'].includes(s.settings.quality)) s.settings.quality = 'auto';
-  if (!['dusk', 'night'].includes(s.settings.time)) s.settings.time = 'dusk';
+  if (s.settings.time === 'night') s.settings.time = 0; else if (s.settings.time === 'dusk') s.settings.time = 17.25;
+  s.settings.time = Number.isFinite(Number(s.settings.time)) ? ((Number(s.settings.time) % 24) + 24) % 24 : 0;
   s.settings.sens = clamp(Number(s.settings.sens) || 1, 0.5, 1.6);
   s.settings.sound = s.settings.sound !== false;
   s.settings.cam = Math.abs(Math.floor(Number(s.settings.cam) || 0)) % 4;
@@ -459,7 +470,7 @@ function sanitizeSave(o) {
   if (!['off', 'low', 'std', 'high'].includes(s.settings.assist)) s.settings.assist = 'std';
   s.id = typeof s.id === 'string' && s.id.length < 64 ? s.id : d.id;
   s.consent = !!s.consent;
-  if ((Number(o.v) || 1) < 2) s.settings.time = 'night'; // v2 world is set at midnight
+  if ((Number(o.v) || 1) < 2) s.settings.time = 0; // v2 world starts at midnight
   s.v = 2;
   return s;
 }
@@ -763,43 +774,63 @@ function makeNightSky() {
   });
 }
 
-function applyTime() {
-  const night = S.settings.time === 'night';
-  const deg = THREE.MathUtils.degToRad;
-  const sun = new THREE.Vector3().setFromSphericalCoords(1, deg(90 - (night ? -12 : 3.2)), deg(night ? 200 : 262));
-  for (const s of [sky, envSky]) {
-    const u = s.material.uniforms;
+// Sun position for Hakone in mid-October (35.2° N): sunrise ~05:45 bearing ~97°,
+// ~47° high at noon, sunset ~17:15 bearing ~263°.
+function sunAt(h) {
+  const rise = 5.75, set = 17.25, day = (h - rise) / (set - rise);
+  let el, az;
+  if (day >= 0 && day <= 1) { el = 47 * Math.sin(Math.PI * day); az = 97 + 166 * day; }
+  else { const n = ((h - set + 24) % 24) / (24 - (set - rise)); el = -32 * Math.sin(Math.PI * n); az = 263 + 194 * n; }
+  return { el, az };
+}
+const TIME_NAMES = [[5, 'Night'], [7, 'Dawn'], [11, 'Morning'], [14, 'Midday'], [16.5, 'Afternoon'], [18, 'Sunset'], [19.5, 'Dusk'], [24, 'Night']];
+const timeName = h => TIME_NAMES.find(([e]) => h < e)[1];
+const fmtTime = h => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
+let lightsOn = true;
+function applyTime(fast = false) {
+  const h = S.settings.time, deg = THREE.MathUtils.degToRad, { el, az } = sunAt(h);
+  const night = el < -5;
+  const sun = new THREE.Vector3(Math.cos(deg(el)) * Math.sin(deg(az)), Math.sin(deg(el)), -Math.cos(deg(el)) * Math.cos(deg(az)));
+  const warm = 1 - smooth(4, 25, el), dayK = smooth(-4, 12, el), dark = 1 - smooth(-2, 8, el);
+  for (const sk of [sky, envSky]) {
+    const u = sk.material.uniforms;
     u.sunPosition.value.copy(sun);
-    u.turbidity.value = 7.5; u.rayleigh.value = 2.4; u.mieCoefficient.value = 0.006; u.mieDirectionalG.value = 0.86;
+    u.turbidity.value = lerp(3, 8, warm); u.rayleigh.value = lerp(1.1, 2.6, warm); u.mieCoefficient.value = 0.005; u.mieDirectionalG.value = 0.86;
   }
   const moonDir = new THREE.Vector3().setFromSphericalCoords(1, deg(90 - 26), deg(-18)); // low in the south, over the lake
-  const lightDir = night ? moonDir.clone() : sun.clone().setY(Math.max(sun.y, 0.09)).normalize();
-  sunLight.userData.dir = lightDir;
-  sunLight.color.set(night ? 0xb4c6ff : 0xffad72); sunLight.intensity = night ? 0.75 : 2.6;
-  hemi.color.set(night ? 0x26345e : 0xffd6b8); hemi.groundColor.set(night ? 0x05060a : 0x3b3127); hemi.intensity = night ? 0.5 : 0.75;
-  renderer.toneMappingExposure = night ? 1.1 : 0.76;
-  scene.fog = new THREE.Fog(night ? 0x070b18 : 0xd99a7c, night ? 1500 : 1200, night ? 70000 : 60000);
+  sunLight.userData.dir = night ? moonDir.clone() : sun.clone().setY(Math.max(sun.y, 0.09)).normalize();
+  const c1 = new THREE.Color(), c2 = new THREE.Color();
+  if (night) { sunLight.color.set(0xb4c6ff); sunLight.intensity = 0.75; }
+  else { sunLight.color.copy(c1.set(0xfff2e2).lerp(c2.set(0xff9450), warm)); sunLight.intensity = 0.15 + 3.0 * smooth(-3, 10, el); }
+  if (night) { hemi.color.set(0x26345e); hemi.groundColor.set(0x05060a); hemi.intensity = 0.5; }
+  else { hemi.color.copy(c1.set(0xbcd4ff).lerp(c2.set(0xffcfae), warm)).lerp(c2.set(0x3a4670), 1 - dayK); hemi.groundColor.set(0x3b3127); hemi.intensity = 0.35 + 0.45 * dayK; }
+  renderer.toneMappingExposure = night ? 1.1 : lerp(0.95, 0.56, smooth(0, 35, el));
+  const fogCol = night ? c1.set(0x070b18) : c1.set(0xaec4d8).lerp(c2.set(0xd99a7c), warm).lerp(c2.set(0x343c58), 1 - smooth(-5, 2, el));
+  scene.fog = new THREE.Fog(fogCol.getHex(), night ? 1500 : 1200, night ? 70000 : lerp(45000, 60000, warm));
   stars.visible = night; moon.visible = night;
   moon.position.copy(moonDir).multiplyScalar(26000);
-  if (envRT) envRT.dispose();
   sky.visible = !night;
   if (night) {
     if (!nightSky) { nightSky = makeNightSky(); nightSky.mapping = THREE.EquirectangularReflectionMapping; }
     scene.background = nightSky;
-    envRT = pmrem.fromEquirectangular(nightSky);
-  } else {
-    scene.background = null;
-    envRT = pmrem.fromScene(envScene, 0, 1, 50000);
+  } else scene.background = null;
+  if (!fast || !envRT) {
+    if (envRT) envRT.dispose();
+    envRT = night ? pmrem.fromEquirectangular(nightSky) : pmrem.fromScene(envScene, 0, 1, 50000);
+    scene.environment = envRT.texture;
   }
-  scene.environment = envRT.texture;
-  for (const e of emissiveMats) e.mat.emissiveIntensity = night ? e.night : e.dusk;
-  for (const g of glowMats) g.mat.opacity = night ? g.night : g.dusk;
-  for (const o of nightOnly) o.visible = night;
-  if (waterMat) waterMat.color.set(night ? 0x040c18 : 0x1d4a66);
-  if (headLamp) headLamp.intensity = night ? 45 : 12;
-  if (smoke) smoke.material.uniforms.uColor.value.set(night ? 0x6f7487 : 0xc9bdb6);
-  if (player) setPopups(player.car, night);
-  for (const b of bots) setPopups(b.car, night);
+  for (const e of emissiveMats) e.mat.emissiveIntensity = lerp(e.dusk * 0.35, e.night, dark);
+  for (const g of glowMats) g.mat.opacity = lerp(0, g.night, dark);
+  for (const o of nightOnly) o.visible = el < 1;
+  if (waterMat) waterMat.color.copy(c1.set(0x2a5c7c).lerp(c2.set(0x040c18), dark));
+  if (waterMat) waterMat.envMapIntensity = lerp(0.55, 1.6, dark);
+  lightsOn = el < 4;
+  if (headLamp) headLamp.intensity = lerp(0, 45, dark);
+  if (smoke) smoke.material.uniforms.uColor.value.copy(c1.set(0xd8d4d0).lerp(c2.set(0x6f7487), dark));
+  if (player) setPopups(player.car, lightsOn);
+  for (const b of bots) setPopups(b.car, lightsOn);
+  const lbl = `${fmtTime(h)} · ${timeName(h)}`;
+  for (const id of ['timeLabel', 'pTimeLabel']) { const el2 = document.getElementById(id); if (el2) el2.textContent = lbl; }
 }
 
 function buildRoad() {
@@ -1669,12 +1700,12 @@ function spawnPlayer() {
   if (old) scene.remove(old.car.root);
   const i = old ? old.idx : 8;
   const fresh = { car, def, x: PX[i], z: PZ[i], y: PY[i], h: HEAD[i], vx: 0, vz: 0, r: 0, wr: 0, idx: i, slip: 0, drifting: false, gear: 1, shiftT: 0, revT: 0,
-    delta: 0, ax: 0, ay: 0, eng: 900, rpm: 900, roll: 0, rollV: 0, pitch: 0, pitchV: 0, rearSlip: 0, frontLock: false, limiter: false,
+    delta: 0, ax: 0, ay: 0, boost: 0, eng: 900, rpm: 900, roll: 0, rollV: 0, pitch: 0, pitchV: 0, rearSlip: 0, frontLock: false, limiter: false,
     lastSkid: [null, null], crashT: 0, shake: 0, stuck: 0, tandem: false, wall: false, lookYaw: 0, fspin: 0 };
   player = old ? Object.assign(old, { car, def, gear: Math.min(Math.max(old.gear, 1), def.gears.length), wr: 0 }) : fresh;
   if (!headLamp) { headLamp = new THREE.SpotLight(0xfff0d8, 12, 90, 0.55, 0.6, 1); headLamp.position.set(0, 0.8, 1.6); headLamp.target.position.set(0, 0, 14); }
   car.root.add(headLamp, headLamp.target);
-  setPopups(car, S.settings.time === 'night');
+  setPopups(car, lightsOn);
   car.root.position.set(player.x, player.y, player.z); car.root.rotation.set(0, player.h, 0);
   if (typeof applyCamMode === 'function') applyCamMode();
 }
@@ -1716,9 +1747,11 @@ function stepPlayer(dt) {
   const eng = clutchSlip ? Math.max(wheelRpm, 900 + thr * 3400) : wheelRpm;
   let tq = 0;
   if (P.shiftT > 0 || hand) tq = 0;
-  else if (thr > 0.02) tq = eng > c.red ? 0 : torqueAt(c, eng) * thr;
+  else if (thr > 0.02) tq = eng > c.red ? 0 : torqueAt(c, eng) * thr * (c.turbo ? 0.62 + 0.38 * P.boost : 1);
   else if (!clutchSlip) tq = -Math.sign(P.wr * ratio) * c.torque * 0.14 * clamp(eng / c.red, 0.2, 1);
   P.limiter = eng > c.red && thr > 0.02;
+  // turbo: boost builds with revs and throttle (with lag) and dumps when you lift
+  if (c.turbo) { const want = smooth(2400, 4300, eng) * (thr > 0.05 && !hand ? thr : 0); P.boost += (want - P.boost) * Math.min(1, dt * (want > P.boost ? 2.2 : 5)); } else P.boost = 1;
   const Tdrive = tq * ratio * 0.85;
   // axle loads with longitudinal weight transfer
   const Fzf = clamp(m * G * b / Lw - m * P.ax * HCG / Lw, m * G * 0.2, m * G * 0.8), Fzr = m * G - Fzf;
@@ -1764,8 +1797,12 @@ function stepPlayer(dt) {
   const betaRate = (beta - (P.betaPrev ?? beta)) / dt; P.betaPrev = beta;
   if (assist > 0 && Math.abs(beta) > 0.12 && u > 5) {
     const dir = Math.sign(beta), into = clamp(-dIn * dir, -1, 1);
-    const bt = dir * clamp(0.18 + 0.4 * thr + 0.2 * into, 0.04, 0.95);
-    Mz += assist * Iz * (14 * (beta - bt) + 2.2 * clamp(betaRate, -3, 3));
+    // car character: power-to-weight sets how much angle the throttle can hold, steering lock caps it,
+    // and lighter cars snap to it faster
+    const pf = c._pf || (c._pf = clamp(carHp(c) / c.mass * 1000 / 220, 0.65, 1.45));
+    const bt = dir * clamp(0.14 + 0.44 * thr * pf + 0.2 * into, 0.04, 0.95 * c.lock / 52);
+    const snap = Math.sqrt(1300 / m);
+    Mz += assist * Iz * (14 * snap * (beta - bt) + 2.2 * clamp(betaRate, -3, 3));
   }
   P.vx += (Fxb * fx + Fyb * lx) / m * dt; P.vz += (Fxb * fz + Fyb * lz) / m * dt;
   P.r += Mz / Iz * dt;
@@ -1818,6 +1855,27 @@ function stepPlayer(dt) {
   }
 }
 
+// Garage numbers: run the car through the real driving physics on a flat straight (cached).
+function measureCar(c) {
+  if (c._meas) return c._meas;
+  const saved = player, savedIn = { ...input }, savedWalls = testNoWalls, savedTrans = S.settings.trans;
+  player = { car: saved && saved.car, def: c, x: 0, z: 0, y: 0, h: 0, vx: 0, vz: 0, r: 0, wr: 0, idx: 0, slip: 0, drifting: false, gear: 1, shiftT: 0, revT: 0,
+    delta: 0, ax: 0, ay: 0, boost: 0, eng: 900, rpm: 900, rearSlip: 0, lastSkid: [null, null], tandem: false, wall: false };
+  testNoWalls = true; S.settings.trans = 'auto'; Object.assign(input, { throttle: 1, brake: 0, hand: false, steer: 0 });
+  const realBots = bots.splice(0);
+  let t = 0, acc = 0, best = 0, flat = 0;
+  try {
+    while (t < 60 && flat < 3) {
+      stepPlayer(1 / 240); t += 1 / 240; player.idx = 0;
+      const v = Math.hypot(player.vx, player.vz) * 3.6;
+      if (!acc && v >= 100) acc = t;
+      if (v > best + 0.05) { best = v; flat = 0; } else flat += 1 / 240;
+    }
+  } finally {
+    bots.push(...realBots); player = saved; Object.assign(input, savedIn); testNoWalls = savedWalls; S.settings.trans = savedTrans;
+  }
+  return (c._meas = { acc: acc || 99, top: best });
+}
 function updatePlayerVisual(dt) {
   const P = player, c = P.def, car = P.car, sp = Math.hypot(P.vx, P.vz), i = P.idx;
   P.y = roadAt(P.x, P.z, i).y;
@@ -1858,6 +1916,8 @@ function updatePlayerVisual(dt) {
     } else P.lastSkid[slot] = null;
   }
   P.stuck = sp < 1.2 && (input.throttle > 0 || input.brake > 0) ? P.stuck + dt : 0;
+  if (c.turbo && (P.lastThr || 0) > 0.6 && input.throttle < 0.15 && P.boost > 0.45 && P.rpm > 3500) AudioSys.blowoff(P.boost);
+  P.lastThr = input.throttle;
   P.gearLabel = P.gear < 0 ? 'R' : sp < 0.5 && input.throttle === 0 ? 'N' : String(P.gear);
 }
 
@@ -2061,23 +2121,40 @@ const AudioSys = {
     this.master = c.createGain(); this.master.gain.value = S.settings.sound ? 0.55 : 0; this.master.connect(c.destination);
     this.o1 = c.createOscillator(); this.o1.type = 'sawtooth'; this.o2 = c.createOscillator(); this.o2.type = 'square';
     this.f = c.createBiquadFilter(); this.f.type = 'lowpass'; this.f.Q.value = 3;
-    this.eg = c.createGain(); this.eg.gain.value = 0; const g2 = c.createGain(); g2.gain.value = 0.4;
+    this.eg = c.createGain(); this.eg.gain.value = 0; const g2 = c.createGain(); g2.gain.value = 0.4; this.g2 = g2;
     this.o1.connect(this.f); this.o2.connect(g2); g2.connect(this.f); this.f.connect(this.eg); this.eg.connect(this.master);
     this.o1.start(); this.o2.start();
+    this.whine = c.createOscillator(); this.whine.type = 'sine'; this.wg = c.createGain(); this.wg.gain.value = 0; this.whine.connect(this.wg); this.wg.connect(this.master); this.whine.start();
     const buf = c.createBuffer(1, c.sampleRate, c.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     this.noiseBuf = buf;
     const n = c.createBufferSource(); n.buffer = buf; n.loop = true;
     this.bp = c.createBiquadFilter(); this.bp.type = 'bandpass'; this.bp.frequency.value = 1100; this.bp.Q.value = 2.2;
     this.tg = c.createGain(); this.tg.gain.value = 0; n.connect(this.bp); this.bp.connect(this.tg); this.tg.connect(this.master); n.start();
   },
-  update(rpm, thr, skid, on) {
+  // engine character per car: firing frequency and timbre follow the engine layout
+  setEngine(c) {
+    if (!this.ctx) return;
+    const t = { i4: ['sawtooth', 'square', 2, 0.4, 3], i6: ['sawtooth', 'triangle', 3, 0.55, 2], v6: ['sawtooth', 'sawtooth', 3, 0.35, 4.5], rotary: ['square', 'sawtooth', 3, 0.5, 1.6] }[c.engine] || ['sawtooth', 'square', 2, 0.4, 3];
+    this.o1.type = t[0]; this.o2.type = t[1]; this.mult = t[2]; this.g2.gain.value = t[3]; this.f.Q.value = t[4]; this.engine = c.engine;
+  },
+  update(rpm, thr, skid, on, c, boost = 0) {
     if (!this.ctx) return; const t = this.ctx.currentTime;
-    const f = rpm / 60 * 2;
-    this.o1.frequency.setTargetAtTime(f, t, 0.03); this.o2.frequency.setTargetAtTime(f * 0.5, t, 0.03);
-    this.f.frequency.setTargetAtTime(250 + rpm * 0.3 + thr * 700, t, 0.05);
+    if (c && c.engine !== this.engine) this.setEngine(c);
+    const f = rpm / 60 * (this.mult || 2), bright = c && c.engine === 'rotary' ? 1.6 : c && c.engine === 'v6' ? 0.8 : 1;
+    this.o1.frequency.setTargetAtTime(f, t, 0.03); this.o2.frequency.setTargetAtTime(f * (c && c.engine === 'v6' ? 0.75 : 0.5), t, 0.03);
+    this.f.frequency.setTargetAtTime((250 + rpm * 0.3 + thr * 700) * bright, t, 0.05);
     this.eg.gain.setTargetAtTime(on ? 0.05 + thr * 0.08 : 0, t, 0.08);
     this.tg.gain.setTargetAtTime(on ? skid * 0.13 : 0, t, 0.06);
     this.bp.frequency.setTargetAtTime(950 + skid * 450, t, 0.1);
+    const turbo = on && c && c.turbo ? boost : 0;
+    this.whine.frequency.setTargetAtTime(1800 + turbo * 3800 + rpm * 0.15, t, 0.08);
+    this.wg.gain.setTargetAtTime(turbo * thr * 0.022, t, 0.1);
+  },
+  blowoff(k) {
+    if (!this.ctx) return; const c = this.ctx, s = c.createBufferSource(), g = c.createGain(), f = c.createBiquadFilter();
+    s.buffer = this.noiseBuf; f.type = 'highpass'; f.frequency.value = 1600; g.gain.setValueAtTime(0.0001, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.22 * k, c.currentTime + 0.03); g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.45);
+    s.connect(f); f.connect(g); g.connect(this.master); s.start(); s.stop(c.currentTime + 0.5);
   },
   thump(v) {
     if (!this.ctx) return; const c = this.ctx, s = c.createBufferSource(), g = c.createGain(), f = c.createBiquadFilter();
@@ -2303,6 +2380,7 @@ function setState(s) {
   if (s === 'title') renderTitle();
   if (s === 'garage') renderGarage();
   if (s === 'settings') renderSettings();
+  if (s === 'settings' || s === 'pause') markTimeChips();
   if (s !== 'play') { keys.clear(); for (const k of ['gas', 'brake', 'hand']) touch[k] = false; touch.steer = 0; if (drift.active) endDrift(true); }
   $('shiftBtns').hidden = S.settings.trans !== 'manual';
   if (isTouch && s === 'play' && !rotateShown && innerHeight > innerWidth) { rotateShown = true; const r = $('rotate'); r.hidden = false; r.style.opacity = 1; setTimeout(() => { r.style.opacity = 0; setTimeout(() => { r.hidden = true; }, 600); }, 3500); }
@@ -2326,19 +2404,24 @@ function renderGarage() {
     const tg = document.createElement('span'); tg.className = 'tg'; tg.textContent = c.tag;
     const pr = document.createElement('span'); pr.className = 'pr'; pr.textContent = owned ? (S.selected === c.id ? 'DRIVING' : 'OWNED') : `${fmt(c.price)} CR`; if (!owned) pr.classList.add('gold');
     b.append(nm, pr, tg);
-    b.addEventListener('click', () => { garageSel = c.id; if (S.owned.includes(c.id)) { S.selected = c.id; persist(); spawnPlayer(); } renderGarage(); });
+    b.addEventListener('click', () => { garageSel = c.id; if (S.owned.includes(c.id) && S.selected !== c.id) { S.selected = c.id; persist(); spawnPlayer(); toast(`${c.name} · ${carHp(c)} hp · ${measureCar(c).acc.toFixed(1)} s to 100`, 'good', 2.6); } renderGarage(); });
     list.appendChild(b);
   }
   const c = carById(garageSel), owned = S.owned.includes(c.id);
   const det = $('carDetail'); det.textContent = '';
   const bars = document.createElement('div'); bars.className = 'bars';
   const stat = (label, v, txt) => { const a = document.createElement('span'); a.textContent = label; const i = document.createElement('i'); const bb = document.createElement('b'); bb.style.width = Math.round(clamp(v, 0.05, 1) * 100) + '%'; i.appendChild(bb); const t = document.createElement('span'); t.textContent = txt; bars.append(a, i, t); };
-  const hp = carHp(c), top = carTop(c);
-  stat('Power', (hp - 100) / 300, `${hp} hp · ${c.torque} Nm`);
-  stat('Weight', (c.mass - 900) / 700, `${c.mass} kg · ${Math.round(c.front * 100)}/${Math.round(100 - c.front * 100)}`);
-  stat('Top speed', (top * 3.6 - 180) / 110, `${Math.round(top * 3.6)} km/h`);
-  stat('Steering lock', (c.lock - 45) / 16, `${c.lock}°`);
-  stat('Gearbox', (c.gears.length - 4) / 2, `${c.gears.length}-speed · ${c.red.toLocaleString('en-US')} rpm`);
+  const drv = carById(S.selected), cmp = c.id !== drv.id;
+  const perf = x => x._perf || (x._perf = { hp: carHp(x), ...measureCar(x) });
+  const P1 = perf(c), P0 = perf(drv);
+  const diff = (a, b0, unit, dec = 0, lowerBetter = false) => { if (!cmp) return ''; const d = a - b0; if (Math.abs(d) < (dec ? 0.05 : 1)) return ' (same)'; const better = lowerBetter ? d < 0 : d > 0; return ` (${d > 0 ? '+' : ''}${d.toFixed(dec)}${unit} ${better ? '▲' : '▼'})`; };
+  stat('0–100 km/h', (8 - P1.acc) / 4.5, `${P1.acc.toFixed(1)} s${diff(P1.acc, P0.acc, ' s', 1, true)}`);
+  stat('Power', (P1.hp - 100) / 400, `${P1.hp} hp${diff(P1.hp, P0.hp, ' hp')}`);
+  stat('Top speed', (P1.top - 180) / 110, `${Math.round(P1.top)} km/h${diff(P1.top, P0.top, '')}`);
+  stat('Weight', (1600 - c.mass) / 700, `${c.mass} kg${diff(c.mass, drv.mass, ' kg', 0, true)}`);
+  stat('Tyre grip', (c.mu - 1.0) / 0.2, `${c.mu.toFixed(2)} g${diff(c.mu, drv.mu, '', 2)}`);
+  stat('Steering lock', (c.lock - 45) / 18, `${c.lock}°${diff(c.lock, drv.lock, '°')}`);
+  stat('Engine', c.turbo ? 0.8 : 0.5, `${{ i4: 'Inline-4', i6: 'Inline-6', v6: 'V6', rotary: 'Twin-rotor' }[c.engine]} ${c.turbo ? 'turbo' : 'non-turbo'} · ${c.gears.length}-speed`);
   det.appendChild(bars);
   if (!owned) {
     const can = S.credits >= c.price;
@@ -2360,6 +2443,7 @@ function renderSettings() {
   $('setTrans').value = S.settings.trans; $('setAssist').value = S.settings.assist; $('setCam').value = String(camMode); $('setQuality').value = S.settings.quality; $('setTime').value = S.settings.time; $('setSens').value = S.settings.sens; $('setSound').value = S.settings.sound ? '1' : '0';
   $('saveCode').value = exportCode(); $('importMsg').textContent = ''; $('resetYes').hidden = true;
 }
+function markTimeChips() { document.querySelectorAll('[data-time-presets] button').forEach(b => b.classList.toggle('on', +b.dataset.h === S.settings.time)); }
 function toggleSound() { S.settings.sound = !S.settings.sound; AudioSys.setOn(S.settings.sound); persist(); toast(S.settings.sound ? 'Sound on' : 'Sound off', 'info', 1.2); }
 function openChat() { const c = $('chat'); c.classList.remove('closed'); $('chatInput').focus(); }
 function wireUI() {
@@ -2384,7 +2468,11 @@ function wireUI() {
   $('setTrans').onchange = e => { S.settings.trans = e.target.value; $('shiftBtns').hidden = S.settings.trans !== 'manual'; persist(); };
   $('setAssist').onchange = e => { S.settings.assist = e.target.value; persist(); };
   $('setCam').onchange = e => { camMode = +e.target.value; S.settings.cam = camMode; applyCamMode(); persist(); };
-  $('setTime').onchange = e => { S.settings.time = e.target.value; applyTime(); persist(); };
+  $('setTime').oninput = e => { S.settings.time = +e.target.value; applyTime(true); markTimeChips(); };
+  $('setTime').onchange = e => { S.settings.time = +e.target.value; applyTime(); markTimeChips(); persist(); };
+  document.querySelectorAll('[data-time-presets] button').forEach(btn => btn.addEventListener('click', () => {
+    S.settings.time = +btn.dataset.h; $('setTime').value = S.settings.time; applyTime(); markTimeChips(); persist();
+  }));
   $('setSens').oninput = e => { S.settings.sens = clamp(+e.target.value, 0.5, 1.6); persist(); };
   $('setSound').onchange = e => { S.settings.sound = e.target.value === '1'; AudioSys.setOn(S.settings.sound); persist(); };
   $('copyCode').onclick = () => {
@@ -2440,7 +2528,7 @@ function frame(now) {
     }
     player.prevIdx = player.idx;
     updateCamera(dt, sp);
-    AudioSys.update(player.rpm, input.throttle, player.skid || 0, true);
+    AudioSys.update(player.rpm, input.throttle, player.skid || 0, true, player.def, player.boost);
     updateHUD(dt, sp);
     chatTick(dt);
     saveTimer += dt; if (saveTimer > 15) { saveTimer = 0; persist(); }
