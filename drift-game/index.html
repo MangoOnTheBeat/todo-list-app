@@ -165,15 +165,27 @@ body.touch #board{display:none}
 body.touch #chat{width:min(320px,62vw);bottom:auto;top:calc(env(safe-area-inset-top,0px) + 70px)}
 body.touch #chat.closed{display:none}
 body.touch #chatLog{max-height:24vh}
-body.touch .hud-tc{top:calc(env(safe-area-inset-top,0px) + 26vh)}
+/* drift score: a compact block at the top centre, between the credits and the minimap, clear of the road */
+body.touch .hud-tc{top:calc(env(safe-area-inset-top,0px) + 6px);width:min(240px,calc(100vw - 264px));gap:2px}
+body.touch .zone{font-size:12px;max-width:calc(50vw - 140px);line-height:1.25}
+body.touch #drift{display:grid;grid-template-columns:auto auto;justify-content:center;align-items:baseline;column-gap:8px}
+body.touch #dTier{grid-column:1;grid-row:1;font-size:10px;letter-spacing:.18em;margin:0;justify-self:end}
+body.touch #dMult{grid-column:2;grid-row:1;font-size:12px;justify-self:start}
+body.touch #dScore{grid-column:1/3;grid-row:2;justify-self:center;font-size:30px}
+body.touch #dTags{grid-column:1/3;grid-row:3;justify-self:center;min-height:0;gap:4px}
+body.touch #dTags b{font-size:9px;letter-spacing:.1em;padding:1px 4px}
+body.touch #toast{font-size:16px}
 @media (orientation:portrait){
   body.touch .hud-speed{left:calc(env(safe-area-inset-left,0px) + 26px);transform:none;bottom:calc(env(safe-area-inset-bottom,0px) + 150px)}
 }
 @media (orientation:landscape){
-  body.touch .hud-btns{flex-direction:row;top:calc(env(safe-area-inset-top,0px) + 14px);right:calc(env(safe-area-inset-right,0px) + 126px)}
+  body.touch .hud-btns{flex-direction:row;gap:4px;top:calc(env(safe-area-inset-top,0px) + 14px);right:calc(env(safe-area-inset-right,0px) + 124px)}
+  body.touch .hud-btns button{min-width:46px;padding:0 8px}
+  /* score sits right of the credits/zone block and left of the buttons, centred when there is room */
+  body.touch .hud-tc{width:124px;transform:none;left:max(calc(env(safe-area-inset-left,0px) + 192px),min(calc(50% - 62px),calc(100% - env(safe-area-inset-right,0px) - 470px)))}
+  body.touch .zone{max-width:168px}
   body.touch #chat{top:calc(env(safe-area-inset-top,0px) + 66px);width:min(340px,42vw)}
   body.touch #chatLog{max-height:20vh}
-  body.touch .hud-tc{top:calc(env(safe-area-inset-top,0px) + 18vh)}
 }
 /* consent */
 #consent{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:40;width:min(560px,calc(100% - 32px));background:var(--panel-solid);border:1px solid var(--line);border-radius:6px;padding:16px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;box-sizing:border-box}
@@ -293,7 +305,7 @@ body.touch .hud-tc{top:calc(env(safe-area-inset-top,0px) + 26vh)}
     <div class="field"><label for="setTrans">Gearbox</label>
       <select id="setTrans"><option value="auto">Automatic</option><option value="manual">Manual · Q / E or LB / RB to shift</option></select></div>
     <div class="field"><label for="setAssist">Drift assists</label>
-      <select id="setAssist"><option value="high">High · auto countersteer, stability, traction control</option><option value="std">Medium · auto countersteer, stability</option><option value="low">Low · light countersteer only</option><option value="off">Pro · no assists, pure simulation</option></select>
+      <select id="setAssist"><option value="touch">Easy drift · best for touch: auto drift entry, throttle feed, countersteer</option><option value="high">High · auto countersteer, stability, traction control</option><option value="std">Medium · auto countersteer, stability</option><option value="low">Low · light countersteer only</option><option value="off">Pro · no assists, pure simulation</option></select>
       <p class="fine">Every level uses the same four-tyre physics. Assists only help with steering and catching slides, like in sim drift games.</p></div>
     <div class="field"><label for="setCam">Camera</label>
       <select id="setCam"><option value="0">Chase</option><option value="1">Far chase</option><option value="2">Cockpit · first person</option><option value="3">Hood</option></select></div>
@@ -503,7 +515,8 @@ function sanitizeSave(o) {
   s.settings.sound = s.settings.sound !== false;
   s.settings.cam = Math.abs(Math.floor(Number(s.settings.cam) || 0)) % 4;
   if (!['auto', 'manual'].includes(s.settings.trans)) s.settings.trans = 'auto';
-  if (!['off', 'low', 'std', 'high'].includes(s.settings.assist)) s.settings.assist = 'std';
+  if (!['off', 'low', 'std', 'high', 'touch'].includes(s.settings.assist)) s.settings.assist = 'std';
+  s.settings.touchAssist = !!s.settings.touchAssist;
   s.id = typeof s.id === 'string' && s.id.length < 64 ? s.id : d.id;
   s.consent = !!s.consent;
   if ((Number(o.v) || 1) < 2) s.settings.time = 0; // v2 world starts at midnight
@@ -1950,13 +1963,16 @@ function addSkid(a, b) {
    lock-up and clutch/handbrake behaviour emerge), a torque curve and gearbox,
    and rigid-body impulses for wall hits.
    ===================================================================== */
-const G = 9.81, HCG = 0.5, KPK = 0.1, APK = 0.14, DEG = Math.PI / 180, WALL = HW + 0.78;
+const ENTRY_YAW = -1, G = 9.81, HCG = 0.5, KPK = 0.1, APK = 0.14, DEG = Math.PI / 180, WALL = HW + 0.78;
 // CarX-style assist levels. Pro is the raw simulation.
+// entry: a firm steer with the gas on breaks the rear loose (no hand brake needed)
+// thrMod: in a slide the throttle is fed automatically, for on/off gas buttons and keys
 const ASSISTS = {
-  off: { counter: 0, steerRate: 4.5, speedSteer: false, abs: false, tcs: false, esp: 0, espAngle: 9, damp: 0 },
-  low: { counter: 0.35, steerRate: 6, speedSteer: true, abs: true, tcs: false, esp: 0, espAngle: 9, damp: 0.6 },
-  std: { counter: 0.7, steerRate: 7.5, speedSteer: true, abs: true, tcs: false, esp: 8, espAngle: 1.15, damp: 1.6 },
-  high: { counter: 0.95, steerRate: 9, speedSteer: true, abs: true, tcs: true, esp: 16, espAngle: 0.95, damp: 2.8 },
+  off: { counter: 0, steerRate: 4.5, speedSteer: false, abs: false, tcs: false, esp: 0, espAngle: 9, damp: 0, entry: 0, thrMod: false },
+  low: { counter: 0.35, steerRate: 6, speedSteer: true, abs: true, tcs: false, esp: 0, espAngle: 9, damp: 0.6, entry: 0.35, thrMod: false },
+  std: { counter: 0.7, steerRate: 7.5, speedSteer: true, abs: true, tcs: false, esp: 8, espAngle: 1.15, damp: 1.6, entry: 0.5, thrMod: false },
+  high: { counter: 0.95, steerRate: 9, speedSteer: true, abs: true, tcs: true, esp: 16, espAngle: 0.95, damp: 2.8, entry: 0.7, thrMod: true },
+  touch: { counter: 1, steerRate: 9, speedSteer: true, abs: true, tcs: false, esp: 12, espAngle: 1.0, damp: 2.4, entry: 1, thrMod: true },
 };
 const tyreCurve = s => Math.sin(1.35 * Math.atan(2.36 * s)); // peaks at s = 1, slides at ~85 %
 const _t = { x: 0, y: 0 };
@@ -2004,7 +2020,14 @@ function stepPlayer(dt) {
   const u = P.vx * fx + P.vz * fz, vy = P.vx * lx + P.vz * lz;
   const sp = Math.hypot(P.vx, P.vz);
   let thr = input.throttle, brk = input.brake;
-  const hand = input.hand;
+  const hand = input.hand, A = ASSISTS[S.settings.assist] || ASSISTS.std;
+  // throttle feed: past ~26° of slide the gas is eased off so a held GAS button holds the angle instead of spinning
+  if (A.thrMod && thr > 0.05 && P.gear > 0) { const ab = Math.abs(P.bPrev || 0); if (ab > 0.45) thr *= clamp(1 - (ab - 0.45) / 0.4, 0.3, 1); }
+  // drift entry: steer firmly with the gas on and the rear steps out (fires once per steer input; also links transitions)
+  if (A.entry > 0 && P.gear > 0 && u > 8 && u < 45 && thr > 0.6 && Math.abs(input.steer) > 0.65 && P.entryArmed !== false && Math.abs(P.bPrev || 0) < 0.12) { P.entryT = 0.5; P.entryDir = Math.sign(input.steer); P.entryArmed = false; }
+  if (Math.abs(input.steer) < 0.3 || thr < 0.1) P.entryArmed = true;
+  P.entryT = Math.max(0, (P.entryT || 0) - dt);
+  const eK = A.entry * P.entryT / 0.5;
   // reverse: hold brake at a standstill
   if (P.gear > 0) {
     if (brk > 0.2 && thr < 0.05 && u < 0.4) { P.revT += dt; if (P.revT > 0.3) { P.gear = -1; P.revT = 0; } } else P.revT = 0;
@@ -2035,7 +2058,6 @@ function stepPlayer(dt) {
   if (c.turbo) { const want = smooth(2400, 4300, eng) * (thr > 0.05 && !hand ? thr : 0); P.boost += (want - P.boost) * Math.min(1, dt * (want > P.boost ? 2.2 : 5)); } else P.boost = 1;
   const Tdrive = tq * ratio * 0.85;
   // ===== Four-tyre simulation (CarX-style): per-wheel load, slip and grip =====
-  const A = ASSISTS[S.settings.assist] || ASSISTS.std;
   const tw = c.b.wid - 0.2, htw = tw / 2;
   // wheel loads: static split + longitudinal and lateral weight transfer (front takes 55 % of roll stiffness)
   const Wf = m * G * b / Lw / 2, Wr = m * G * a / Lw / 2;
@@ -2043,7 +2065,7 @@ function stepPlayer(dt) {
   const minZ = m * G * 0.02;
   const Fz = [Math.max(minZ, Wf - dLong - dLatF), Math.max(minZ, Wf - dLong + dLatF), Math.max(minZ, Wr + dLong - dLatR), Math.max(minZ, Wr + dLong + dLatR)];
   // tyre grip with load sensitivity (a loaded tyre grips less per kilo); setup: rears slightly grippier so the car is stable until provoked
-  const grip = (i) => c.mu * (i < 2 ? 1.0 : 1.06) * Fz[i] * (1 - 0.08 * (Fz[i] / (i < 2 ? Wf : Wr) - 1));
+  const grip = (i) => c.mu * (i < 2 ? 1.0 : 1.06 * (1 - 0.6 * eK)) * Fz[i] * (1 - 0.08 * (Fz[i] / (i < 2 ? Wf : Wr) - 1));
   const WX = [a, a, -b, -b], WY = [htw, -htw, htw, -htw];
   // steering: driver input plus countersteer assist (front wheels follow the direction of travel)
   const beta = sp > 1.5 && P.gear > 0 && u > -0.5 * sp ? Math.atan2(vy, Math.max(u, 0.01)) : 0;
@@ -2106,6 +2128,7 @@ function stepPlayer(dt) {
   // slide damping: slows sudden changes of drift angle (never pulls toward any particular angle)
   const bRate = (betaR - (P.bPrev ?? betaR)) / dt; P.bPrev = betaR;
   if (A.damp > 0 && sliding > 0) Mz += A.damp * sliding * Iz * clamp(bRate, -4, 4);
+  if (eK > 0) Mz += ENTRY_YAW * P.entryDir * eK * Iz * 3.2;
   const FzSum = Fz[0] + Fz[1] + Fz[2] + Fz[3]; P.loads = Fz.map(f => f / FzSum * 4);
   P.vx += (Fxb * fx + Fyb * lx) / m * dt; P.vz += (Fxb * fz + Fyb * lz) / m * dt;
   P.r += Mz / Iz * dt;
@@ -2800,7 +2823,7 @@ function setState(s) {
 function renderTitle() {
   setText('tCredits', fmt(S.credits)); setText('tBest', fmt(S.best)); setText('tCars', `${S.owned.length}/${CARS.length}`);
   $('nameInput').value = S.name; $('mDriveCar').textContent = carById(S.selected).name;
-  $('controlsHelp').textContent = isTouch ? 'Drag on the left to steer. GAS, BRAKE and HAND BRAKE are on the right. To start a drift: steer + GAS, tap HAND BRAKE, or quickly lift and re-press GAS (clutch kick). CAM switches to the first-person cockpit. A controller also works.' : 'W/↑ gas · S/↓ brake (hold to reverse) · A D / ← → steer · Space hand brake · drift: steer + gas, tap Space, or lift and re-press W (clutch kick) · C or V camera incl. first person · Q/E shift (manual) · R reset · T chat · Esc pause. Gamepads work too.';
+  $('controlsHelp').textContent = isTouch ? 'Drag on the left to steer. GAS, BRAKE and HAND BRAKE are on the right. To start a drift: hold GAS and steer hard — Easy drift (Settings) kicks the rear out and feeds the gas for you. HAND BRAKE and clutch kicks (lift and re-press GAS) work too. CAM switches to the first-person cockpit. A controller also works.' : 'W/↑ gas · S/↓ brake (hold to reverse) · A D / ← → steer · Space hand brake · drift: steer + gas, tap Space, or lift and re-press W (clutch kick) · C or V camera incl. first person · Q/E shift (manual) · R reset · T chat · Esc pause. Gamepads work too.';
 }
 let garageSel = null;
 function renderGarage() {
@@ -2911,6 +2934,8 @@ function wireUI() {
     document.body.classList.add('touch'); $('chat').classList.add('closed');
     $('chatInput').placeholder = 'Type a message…';
     $('setTrans').options[1].textContent = 'Manual · ▲ ▼ buttons to shift';
+    // touch players get the Easy drift assist once by default (they can change it in Settings)
+    if (!S.settings.touchAssist) { S.settings.touchAssist = true; S.settings.assist = 'touch'; persist(); }
   }
   $('tUp').addEventListener('click', () => shiftUp()); $('tDown').addEventListener('click', () => shiftDown());
   setupTouch();

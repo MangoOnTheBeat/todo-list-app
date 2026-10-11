@@ -41,11 +41,12 @@ CarX Drift Racing's physics code is private, so it is not copied; this is an ori
 | Level | What it does |
 |---|---|
 | **Pro** | Nothing. Pure simulation, raw steering rack, no ABS. |
-| **Low** | Light countersteer assist, ABS, speed-sensitive steering for keyboard/touch. |
-| **Medium** (default) | Stronger countersteer assist, slide damping, stability control past ~65°. |
-| **High** | Near-full countersteer assist, strong slide damping, stability control, traction control. |
+| **Low** | Light countersteer assist, light drift entry, ABS, speed-sensitive steering for keyboard/touch. |
+| **Medium** (default) | Stronger countersteer assist, drift entry, slide damping, stability control past ~65°. |
+| **High** | Near-full countersteer assist, strong drift entry and throttle feed, slide damping, stability control, traction control. |
+| **Easy drift** (default on phones and tablets) | Full drift entry, throttle feed and countersteer, tuned for an on/off GAS button and thumb steering. No hand brake needed. |
 
-Countersteer assist turns the front wheels toward where the front of the car is travelling, but only in a real slide (the car rotating against its path), so normal cornering is untouched. Slide damping slows sudden angle changes; it never pulls the car to a set angle. Measured with an automated driver trying 120 driving styles, the share that can hold a 6-second drift rises from 0 % on Pro to ~44 % on High.
+Drift entry: steering firmly (over ~65 %) with the gas on above ~30 km/h kicks the rear out once per steer input, so a drift starts without the hand brake; it also links direction changes. Throttle feed eases the gas past ~26° of slide so a held GAS button holds the angle instead of spinning. Countersteer assist turns the front wheels toward where the front of the car is travelling, but only in a real slide (the car rotating against its path), so normal cornering is untouched. Slide damping slows sudden angle changes; it never pulls the car to a set angle. Measured with an automated driver trying 120 driving styles, the share that can hold a 6-second drift rises from 0 % on Pro to ~44 % on High.
 
 ## Drifting and progression
 Kick the rear out with the hand brake (or full throttle + steering), then hold the slide with throttle and countersteer. Score = speed × angle, with a combo multiplier up to ×5 and bonuses for **TANDEM** (drifting next to an AI car), **NEAR WALL**, **ANGLE** (> 45°) and **SPEED** (> 110 km/h). Hitting a wall hard loses the unbanked drift. Every 10 points banked = 1 credit; a full lap pays 500 credits.
