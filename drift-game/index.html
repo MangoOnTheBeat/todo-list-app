@@ -545,9 +545,10 @@ function importCode(code) {
    Renderer, quality tiers
    ===================================================================== */
 const QUALITY = {
-  low: { pr: 0.9, shadows: false, shadowSize: 512, bloom: false, trees: 0.4, smoke: 0.5 },
-  medium: { pr: 1.35, shadows: true, shadowSize: 1024, bloom: false, trees: 0.7, smoke: 0.8 },
-  high: { pr: 2, shadows: true, shadowSize: 2048, bloom: true, trees: 1, smoke: 1 },
+  // view: how far scenery is drawn; hiLod/midLod: up to where the detailed and medium models are used
+  low: { pr: 0.9, shadows: false, shadowSize: 512, bloom: false, trees: 0.4, smoke: 0.5, view: 1300, hiLod: 0, midLod: 90, grass: 70 },
+  medium: { pr: 1.35, shadows: true, shadowSize: 1024, bloom: false, trees: 0.7, smoke: 0.8, view: 2200, hiLod: 90, midLod: 260, grass: 130 },
+  high: { pr: 2, shadows: true, shadowSize: 2048, bloom: true, trees: 1, smoke: 1, view: 3600, hiLod: 200, midLod: 500, grass: 200 },
 };
 const isTouch = matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
 function autoQuality() {
@@ -561,7 +562,7 @@ let Q = QUALITY[qName];
 const canvas = $('game');
 let renderer;
 try {
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true });
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: qName !== 'low', powerPreference: 'high-performance', logarithmicDepthBuffer: true });
 } catch (e) {
   $('loadMsg').textContent = 'WebGL is turned off or unsupported in this browser. Try Chrome, Edge, Safari or Firefox with hardware acceleration enabled.';
   throw e;
@@ -738,6 +739,37 @@ function groundH(x, z, ri = roadInfo(x, z), corridor = 0) {
    ===================================================================== */
 let sunLight, hemi, sky, envSky, envScene, envRT, stars, moon, water, waterMat, waterNormal, headLamp, nightSky;
 const treeMeshes = [];
+/* Scenery LOD: an instanced set is split into 300 m tiles so off-screen tiles are culled, and each tile
+   swaps to cheaper models with distance and disappears past the quality's view distance. */
+const LOD_TILE = 300, lodTiles = [];
+function chunkify(src, levels, opts = {}) {
+  const n = src.count, cells = new Map(), m = new THREE.Matrix4(), p = new THREE.Vector3();
+  for (let k = 0; k < n; k++) { src.getMatrixAt(k, m); p.setFromMatrixPosition(m); const key = Math.floor(p.x / LOD_TILE) * 100000 + Math.floor(p.z / LOD_TILE); let a = cells.get(key); if (!a) cells.set(key, a = []); a.push(k); }
+  const col = new THREE.Color();
+  for (const list of cells.values()) {
+    const len = list.length, mat = new THREE.InstancedBufferAttribute(new Float32Array(len * 16), 16);
+    const colr = src.instanceColor ? new THREE.InstancedBufferAttribute(new Float32Array(len * 3), 3) : null;
+    list.forEach((k, j) => { src.getMatrixAt(k, m); m.toArray(mat.array, j * 16); if (colr) { src.getColorAt(k, col); col.toArray(colr.array, j * 3); } });
+    const tile = { meshes: [], center: null, r: 0, far: opts.far || 0 };
+    // levels: [geometry, material, level ('hi' | 'mid' | 'lo' | 'near' = hi+mid | 'all'), castShadow, ignoreInstanceColour]
+    for (const [geo, material, lvl, shadow, plain] of levels) {
+      const im = new THREE.InstancedMesh(geo, material, len);
+      im.instanceMatrix = mat; if (colr && !plain) im.instanceColor = colr;
+      im.count = Math.floor(len * Q.trees); im.userData.max = len; im.castShadow = !!shadow; im.receiveShadow = src.receiveShadow;
+      if (!tile.center) { im.computeBoundingSphere(); tile.center = im.boundingSphere.center; tile.r = im.boundingSphere.radius; } else im.boundingSphere = tile.meshes[0].im.boundingSphere;
+      im.visible = false; scene.add(im); treeMeshes.push(im); tile.meshes.push({ im, lvl });
+    }
+    lodTiles.push(tile);
+  }
+}
+function updateLOD(pos) {
+  for (const t of lodTiles) {
+    const d = Math.max(0, Math.hypot(t.center.x - pos.x, t.center.z - pos.z) - t.r * 0.7);
+    const far = t.far ? Q[t.far] : Q.view;
+    const want = d > far ? '' : Q.hiLod > 0 && d <= Q.hiLod ? 'hi' : d <= Q.midLod ? 'mid' : 'lo';
+    for (const e of t.meshes) e.im.visible = want !== '' && (e.lvl === want || (e.lvl === 'all') || (e.lvl === 'near' && want !== 'lo'));
+  }
+}
 const emissiveMats = [];   // { mat, dusk, night }
 const nightOnly = [];      // objects shown at night only
 const glowMats = [];       // light pool decals { mat, dusk, night }
@@ -1056,7 +1088,7 @@ function buildDetails() {
     if (su && nsu < MAXSU) { suIM.setMatrixAt(nsu, m); suIM.setColorAt(nsu, c.setHSL(0.11, 0.3, 0.75 + rand() * 0.2)); nsu++; }
     else if (ng < MAXG && !(ZONE[i] === 0 && off < HW + 6)) { gIM.setMatrixAt(ng, m); gIM.setColorAt(ng, c.setHSL(0.22 + rand() * 0.06, 0.4, 0.6 + rand() * 0.3)); ng++; }
   }
-  for (const [im, n] of [[gIM, ng], [suIM, nsu]]) { im.userData.max = n; im.count = n; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.receiveShadow = true; im.computeBoundingSphere(); treeMeshes.push(im); scene.add(im); }
+  for (const [im, n] of [[gIM, ng], [suIM, nsu]]) { im.count = n; im.receiveShadow = true; chunkify(im, [[im.geometry, im.material, 'all', false]], { far: 'grass' }); }
 
   // rocks on the steeper verges
   const rockGeo = (() => { const g = new THREE.DodecahedronGeometry(1, 1); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(p, i); const k = 0.75 + fbm(v.x * 1.3 + 4, v.y * 1.3 + v.z, 3) * 0.5; p.setXYZ(i, v.x * k, v.y * k * 0.7, v.z * k); } g.computeVertexNormals(); return g; })();
@@ -1068,7 +1100,9 @@ function buildDetails() {
     const s = 0.4 + Math.pow(rand(), 2) * 2.2;
     m.compose(new THREE.Vector3(x, hgt - s * 0.25, z), q.setFromEuler(new THREE.Euler(rand(), rand() * 6, rand())), new THREE.Vector3(s, s, s)); rIM.setMatrixAt(nr, m); rIM.setColorAt(nr, c.setHSL(0.08, 0.06, 0.32 + rand() * 0.18)); nr++;
   }
-  rIM.count = nr; rIM.castShadow = rIM.receiveShadow = true; scene.add(rIM);
+  rIM.count = nr; rIM.receiveShadow = true;
+  const rockL = new THREE.DodecahedronGeometry(0.9, 0).scale(1, 0.7, 1);
+  chunkify(rIM, [[rockGeo, rIM.material, 'near', true], [rockL, rIM.material, 'lo', false]]);
 
   // clouds: soft billboards high over the caldera, tinted by the time of day
   const cloudTex = canvasTex(256, 128, (g, w, h) => {
@@ -1179,7 +1213,7 @@ const susuki = (x, z) => smooth(0.6, 0.68, fbm(x * 0.0035 + 40, z * 0.0035 - 12,
 const realElev = y => y + BASE; // metres above sea level
 
 function buildTerrain() {
-  const seg = qName === 'high' ? 640 : qName === 'medium' ? 512 : 384, size = DEM.near.size;
+  const seg = qName === 'high' ? 640 : qName === 'medium' ? 512 : 300, size = DEM.near.size;
   Object.assign(GRID, { size, seg, x0: -size / 2, z0: -size / 2 });
   const geo = new THREE.PlaneGeometry(size, size, seg, seg); geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position; gridH = new Float32Array(pos.count);
@@ -1308,6 +1342,13 @@ function buildTrees() {
   const lobe = (r, x, y, z, sd) => { const g = new THREE.IcosahedronGeometry(r, 2); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const vx = p.getX(i), vy = p.getY(i), vz = p.getZ(i), k = 1 + (fbm(vx * 0.9 + sd, vy * 0.9 + vz * 0.7, 3) - 0.5) * 0.55; p.setXYZ(i, vx * k + x, vy * k * 0.85 + y, vz * k + z); } g.computeVertexNormals(); return g; };
   const leafF = tint(mergeGeometries([lobe(2.6, 0, 5.4, 0, 1), lobe(2.0, 1.9, 4.6, 0.7, 2), lobe(2.1, -1.6, 4.9, -0.9, 3), lobe(1.7, 0.3, 6.9, -0.4, 4), lobe(1.6, -0.6, 4.2, 1.7, 5)]), 0.6, 1.1);
   const trunk = new THREE.CylinderGeometry(0.2, 0.38, 6, 8).translate(0, 1.7, 0);
+  // cheaper models for distance: fewer facets, then a single cone / two rough lobes
+  const cedarM = tint(mergeGeometries([0, 1, 2, 3, 4, 5].map(t => new THREE.ConeGeometry(2.9 - t * 0.42, 3.6 - t * 0.25, 7, 1).translate(0, 4.2 + t * 1.75, 0).rotateY(t * 0.9).toNonIndexed())), 0.55, 1.05);
+  const cedarL = tint(new THREE.ConeGeometry(2.7, 12.5, 6, 1).translate(0, 8.6, 0).toNonIndexed(), 0.55, 1.05);
+  const lobeL = (r, x, y, z, det = 0) => new THREE.IcosahedronGeometry(r, det).scale(1, 0.85, 1).translate(x, y, z);
+  const leafM = tint(mergeGeometries([lobeL(2.6, 0, 5.4, 0, 1), lobeL(2.0, 1.9, 4.6, 0.7, 1), lobeL(2.1, -1.6, 4.9, -0.9, 1), lobeL(1.7, 0.3, 6.9, -0.4, 1), lobeL(1.6, -0.6, 4.2, 1.7, 1)]), 0.6, 1.1);
+  const leafL = tint(mergeGeometries([lobeL(2.9, 0, 5.3, 0), lobeL(2.1, 0.4, 7, -0.3)]), 0.6, 1.1);
+  const trunkL = new THREE.CylinderGeometry(0.2, 0.38, 6, 5, 1, true).translate(0, 1.7, 0);
   const MAXC = 13000, MAXS = 11000;
   const cF = new THREE.InstancedMesh(cedarF, new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.9 }), MAXC);
   const cT = new THREE.InstancedMesh(trunk, new THREE.MeshStandardMaterial({ color: 0x4a3426, roughness: 1 }), MAXC);
@@ -1346,10 +1387,12 @@ function buildTrees() {
       ns++;
     }
   }
-  for (const [im, n] of [[cF, nc], [cT, nc], [sF, ns], [sT, ns]]) {
-    im.userData.max = n; im.count = n; im.castShadow = true; im.receiveShadow = true; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
-    im.computeBoundingSphere(); treeMeshes.push(im); scene.add(im);
-  }
+  cF.count = nc; sF.count = ns; cF.receiveShadow = sF.receiveShadow = true;
+  const cMat = cF.material, sMat = sF.material;
+  // trunks share the foliage instances (same matrices); they are only drawn close up
+  chunkify(cF, [[cedarF, cMat, 'hi', true], [cedarM, cMat, 'mid', true], [cedarL, cMat, 'lo', false], [trunk, cT.material, 'hi', true, true], [trunkL, cT.material, 'mid', false, true]]);
+  chunkify(sF, [[leafF, sMat, 'hi', true], [leafM, sMat, 'mid', true], [leafL, sMat, 'lo', false], [trunk, sT.material, 'hi', true, true], [trunkL, sT.material, 'mid', false, true]]);
+  cT.dispose(); sT.dispose();
 }
 
 // Kojiri village: low wooden buildings with tiled hip roofs, inns and shops, warm windows
@@ -2995,6 +3038,7 @@ function frame(now) {
   }
   if (stars && stars.visible) { stars.material.uniforms.uTime.value = now / 1000; stars.material.uniforms.uPR.value = renderer.getPixelRatio(); }
   waterT += dt; if (waterNormal) waterNormal.offset.set(waterT * 0.004, waterT * 0.0025);
+  updateLOD(camera.position);
   if (Q.bloom) composer.render(); else renderer.render(scene, camera);
 }
 
@@ -3039,6 +3083,7 @@ if ('serviceWorker' in navigator && defaultServer() && !/localhost|127\.0\.0\.1/
   addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { }));
 }
 window.__kaido = {
+  renderer, camera, lodTiles,
   bootTimes, net: Net, assists: ASSISTS,
   get player() { return player; }, get state() { return state; }, get S() { return S; }, get drift() { return drift; }, setState, bots, TRACK_LEN, N, track: { PX, PY, PZ, HEAD, K, RX, RZ }, zone: ZONE,
   set noWalls(v) { testNoWalls = !!v; },
