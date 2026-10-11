@@ -58,6 +58,10 @@ Credits unlock 6 more cars in the garage (starter: **Hoshi PS13 Spirit**, a 1989
 - **With AI drivers**: seven AI drivers labelled AI, with AI chat.
 - **Online**: join a Kaido Drift server, see other players' cars live (ghost cars, no collisions) and chat with them. `/mute name` and `/unmute name` hide a player's messages.
 
+## Download
+
+**Download game** on the title screen saves the whole game as one file, `kaido-drift.html` (about 2.3 MB, with three.js bundled in). Open it in Chrome, Edge, Firefox or Safari on a computer or Android phone and it plays Solo and With AI drivers with no connection. On iPhone and iPad, Files can't run a downloaded web page, so play there from a hosted copy (Safari → Share → Add to Home Screen installs it). Saves stay in the browser that runs the file; use the transfer code in Settings to move them.
+
 ## Running the online server
 ```
 cd drift-game

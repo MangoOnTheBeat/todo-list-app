@@ -4,7 +4,7 @@ import { build } from 'esbuild';
 import fs from 'fs';
 
 const src = fs.readFileSync('index.html', 'utf8');
-const mod = src.match(/<script type="module">([\s\S]*?)<\/script>/);
+const mod = src.match(/<script type="module" data-kaido>([\s\S]*?)<\/script>/);
 if (!mod) throw new Error('module script not found in index.html');
 fs.mkdirSync('dist', { recursive: true });
 fs.writeFileSync('dist/.entry.js', mod[1]);
@@ -14,8 +14,8 @@ const js = out.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 
 let html = src
   .replace(/<!-- Polyfills import maps[\s\S]*?<\/script>\n/, '')
-  .replace(/<script type="importmap">[\s\S]*?<\/script>\n/, '')
-  .replace(mod[0], () => `<script type="module">${js}</script>`)
+  .replace(/<script type="importmap"[^>]*>[\s\S]*?<\/script>\n/, '')
+  .replace(mod[0], () => `<script type="module" data-kaido>${js}</script>`)
   .replace('<meta name="theme-color" content="#0c0d16">', '<meta name="theme-color" content="#0c0d16">\n<link rel="manifest" href="manifest.webmanifest">\n<link rel="icon" href="icon.svg">\n<link rel="apple-touch-icon" href="icon.svg">\n<meta name="apple-mobile-web-app-capable" content="yes">');
 fs.writeFileSync('dist/kaido-drift.html', html);
 

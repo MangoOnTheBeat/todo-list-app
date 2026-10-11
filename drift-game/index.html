@@ -277,6 +277,7 @@ body.touch #toast{font-size:16px}
       <button class="btn" id="mOnline" type="button">Online <small>Join a server · chat with players</small></button>
       <button class="btn" id="mGarage" type="button">Garage <small>Unlock &amp; paint</small></button>
       <button class="btn" id="mSettings" type="button">Settings <small>Graphics, sound, save</small></button>
+      <button class="btn" id="mDownload" type="button">Download game <small>One file · plays offline in any browser</small></button>
       <button class="btn ghost" id="mLegal" type="button">Privacy &amp; legal</button>
     </div>
     <p class="fine" id="controlsHelp"></p>
@@ -383,14 +384,14 @@ body.touch #toast{font-size:16px}
 <div id="rotate" hidden>Rotate your phone to landscape for the best view</div>
 
 <!-- Polyfills import maps on older Safari / iOS (< 16.4). It does nothing on browsers that already support them. -->
-<script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.8.3/dist/es-module-shims.js"></script>
-<script type="importmap">
+<script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.8.3/dist/es-module-shims.js" data-kaido></script>
+<script type="importmap" data-kaido>
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
-<script type="module">
+<script type="module" data-kaido>
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -398,6 +399,9 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+// a copy of the page as it loaded, for "Download game" (taken before the game changes anything)
+const PAGE_SNAPSHOT = document.documentElement.cloneNode(true);
+const downloadsCap = window.claude && typeof window.claude.use === 'function' ? Promise.resolve(window.claude.use('downloads')).catch(() => null) : Promise.resolve(null);
 
 /* =====================================================================
    Utilities
@@ -2925,6 +2929,7 @@ function openChat() { const c = $('chat'); c.classList.remove('closed'); $('chat
 function wireUI() {
   $('mSolo').onclick = () => { setMode('solo'); setState('play'); };
   $('mDrive').onclick = () => { setMode('ai'); setState('play'); };
+  $('mDownload').onclick = downloadGame;
   $('mOnline').onclick = () => { $('serverInput').value = S.settings.server || defaultServer(); $('netStatus').textContent = defaultServer() || S.settings.server ? '' : 'Enter the address of a Kaido Drift server. If you opened the game from a server, this is filled in for you.'; setState('online'); };
   $('oBack').onclick = () => setState('title');
   $('netConnect').onclick = () => {
@@ -3040,6 +3045,37 @@ function frame(now) {
   waterT += dt; if (waterNormal) waterNormal.offset.set(waterT * 0.004, waterT * 0.0025);
   updateLOD(camera.position);
   if (Q.bloom) composer.render(); else renderer.render(scene, camera);
+}
+
+/* =====================================================================
+   Download: the whole game as one HTML file that runs offline
+   ===================================================================== */
+function gameHtml() {
+  const root = PAGE_SNAPSHOT.cloneNode(true);
+  // keep only the game's own scripts; drop anything a host page added (scripts, policies, base URLs, app links)
+  root.querySelectorAll('script:not([data-kaido]), meta[http-equiv], base, link[rel="manifest"], link[rel="icon"], link[rel="apple-touch-icon"]').forEach(n => n.remove());
+  const head = root.querySelector('head');
+  if (!root.querySelector('meta[name="viewport"]')) { const v = document.createElement('meta'); v.name = 'viewport'; v.content = 'width=device-width,initial-scale=1,viewport-fit=cover'; head.prepend(v); }
+  if (!root.querySelector('meta[charset]')) { const c = document.createElement('meta'); c.setAttribute('charset', 'utf-8'); head.prepend(c); }
+  return '<!doctype html>\n' + root.outerHTML;
+}
+let downloading = false;
+async function downloadGame() {
+  if (downloading) return;
+  downloading = true;
+  const note = $('mDownload').querySelector('small'), filename = 'kaido-drift.html';
+  const blob = new Blob([gameHtml()], { type: 'text/html' });
+  try {
+    const dl = await downloadsCap;
+    if (dl) {
+      try { await dl.save({ filename, data: blob }); note.textContent = 'Saved · open the file in any browser'; }
+      catch (e) { note.textContent = e && e.code === 'declined' ? 'Download cancelled' : e && e.code === 'rate_limited' ? 'Try again in a moment' : 'Download is not available here'; }
+      return;
+    }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+    note.textContent = 'Downloaded · open the file in any browser';
+  } finally { downloading = false; }
 }
 
 /* =====================================================================
