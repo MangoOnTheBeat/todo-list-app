@@ -36,7 +36,12 @@ Four views: chase, far chase, **cockpit (first person)** and hood. The cockpit h
 - Per-car engine torque curve, rev limiter, real gear ratios and final drive; automatic or manual gearbox. 0–100 km/h ranges from 4.8 s (JZA-80) to 6.8 s (AE8).
 - Speed-sensitive steering with full lock available when countersteering; steering lock from 50° to 60°.
 - Wall hits use rigid-body impulses at the corner that touches, so clipping a rail spins the car the way it should.
-- **Countersteer assist** (Settings): High / Standard / Low steer the slide angle toward a target set by throttle and steering. **Off** is the raw simulation.
+- **Drift assist** (Settings → Countersteer assist), on by default, gives Forza Horizon-style drifting on top of the tyre physics:
+  - throttle sets the angle, steering into the drift tightens your line and countersteering opens it;
+  - momentum is kept through the slide (about 6–10 % speed loss over a 5 s drift instead of 25–50 %);
+  - a handbrake tap or full throttle + steering kicks the car out quickly; swinging the wheel the other way right after a drift throws it into the next one (transitions in ~0.6 s);
+  - a spin guard keeps full lock + full throttle at a big but controllable angle.
+  High / Standard / Low change the strength; **Off** is the raw simulation.
 
 ## Cars differ for real
 | Car | Engine | Power | Weight | 0–100 km/h* | Top speed* | Lock |

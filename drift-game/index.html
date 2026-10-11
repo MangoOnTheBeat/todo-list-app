@@ -110,6 +110,7 @@ input[type=range]{width:100%;accent-color:var(--sakura)}
 .drift{display:flex;flex-direction:column;align-items:center;opacity:0;transition:opacity .2s;text-shadow:0 2px 14px rgba(0,0,0,.6)}
 .drift.on{opacity:1}
 #dScore{font-family:var(--f-display);font-size:clamp(30px,6vw,52px);line-height:1}
+#dTier{font-weight:700;letter-spacing:.24em;font-size:13px;color:var(--gold);margin-bottom:2px}
 #dMult{font-weight:700;color:var(--sakura);font-size:18px;letter-spacing:.06em}
 #dTags{display:flex;gap:6px;min-height:20px}
 #dTags b{font-size:11px;letter-spacing:.16em;padding:2px 6px;border-radius:2px;background:var(--neon);color:#04222b}
@@ -219,7 +220,7 @@ body.touch .hud-tc{top:calc(env(safe-area-inset-top,0px) + 26vh)}
     <div class="zone" id="hZone"></div>
   </div>
   <div class="hud-tc">
-    <div id="drift" class="drift"><div id="dScore">0</div><div id="dMult">×1.0</div><div id="dTags"></div></div>
+    <div id="drift" class="drift"><div id="dTier">DRIFT</div><div id="dScore">0</div><div id="dMult">×1.0</div><div id="dTags"></div></div>
     <div id="toast"></div>
   </div>
   <div class="hud-tr"><canvas id="minimap" width="300" height="300"></canvas><ol id="board"></ol></div>
@@ -1757,7 +1758,7 @@ function stepPlayer(dt) {
   const Fzf = clamp(m * G * b / Lw - m * P.ax * HCG / Lw, m * G * 0.2, m * G * 0.8), Fzr = m * G - Fzf;
   const Df = c.mu * Fzf, Dr = c.mu * Fzr;
   // steering: driver input plus self-aligning countersteer assist
-  const beta = sp > 1.5 && u > 0.5 ? Math.atan2(vy, u) : 0;
+  const beta = sp > 1.5 && P.gear > 0 && u > -0.5 * sp ? Math.atan2(vy, Math.max(u, 0.01)) : 0;
   // speed-sensitive rack: full lock when parking or when countersteering, a few degrees when turning in at speed
   const lock = c.lock * DEG, assist = ASSIST[S.settings.assist] ?? ASSIST.std;
   const dIn = -input.steer * S.settings.sens;
@@ -1789,20 +1790,42 @@ function stepPlayer(dt) {
   const tr = tyreXY((wr * RW - u) / den, alphaR, Dr), FxR = tr.x, FyR = tr.y;
   // body forces
   const drag = 0.6 * c.CdA * u * Math.abs(u) + m * G * 0.013 * clamp(u, -1, 1);
-  const Fxb = Fxf * cd - Fyf * sd + FxR - drag;
-  const Fyb = Fxf * sd + Fyf * cd + FyR - 0.9 * vy * Math.abs(vy);
+  let Fxb = Fxf * cd - Fyf * sd + FxR - drag;
+  let Fyb = Fxf * sd + Fyf * cd + FyR - 0.9 * vy * Math.abs(vy);
   let Mz = a * (Fxf * sd + Fyf * cd) - b * FyR;
   // drift assist: once sliding, steer the body-slip angle toward a target set by throttle and steering
   // (more throttle = more angle, countersteer = less). "Off" leaves the raw vehicle dynamics.
   const betaRate = (beta - (P.betaPrev ?? beta)) / dt; P.betaPrev = beta;
-  if (assist > 0 && Math.abs(beta) > 0.12 && u > 5) {
+  if (assist > 0 && Math.abs(beta) > 0.12 && sp > 5) {
     const dir = Math.sign(beta), into = clamp(-dIn * dir, -1, 1);
     // car character: power-to-weight sets how much angle the throttle can hold, steering lock caps it,
     // and lighter cars snap to it faster
     const pf = c._pf || (c._pf = clamp(carHp(c) / c.mass * 1000 / 220, 0.65, 1.45));
-    const bt = dir * clamp(0.14 + 0.44 * thr * pf + 0.2 * into, 0.04, 0.95 * c.lock / 52);
+    const bt = dir * clamp(0.2 + 0.45 * thr * pf + 0.22 * into, 0.04, 0.86 * c.lock / 52);
     const snap = Math.sqrt(1300 / m);
     Mz += assist * Iz * (14 * snap * (beta - bt) + 2.2 * clamp(betaRate, -3, 3));
+    if (Math.abs(beta) > Math.abs(bt) + 0.18) Mz += assist * Iz * 18 * (beta - dir * (Math.abs(bt) + 0.18)); // spin guard
+  }
+  // ---- Forza-style drift layer (only with an assist level on; "Off" stays pure simulation) ----
+  const aS = assist / ASSIST.std;
+  const slideK = assist > 0 && sp > 4 ? smooth(0.12, 0.35, Math.abs(beta)) : 0;
+  if (slideK > 0) {
+    const vb = Math.hypot(u, vy) || 1, vxu = u / vb, vyu = vy / vb, dir = Math.sign(beta), into = clamp(-dIn * dir, -1, 1);
+    // momentum: cancel most of the sliding scrub so the car carries its speed (never adds speed)
+    const along = Fxb * vxu + Fyb * vyu;
+    if (along < 0) { const keep = -along * Math.min(0.92, slideK * Math.min(1, aS) * (0.62 + 0.38 * thr)); Fxb += vxu * keep; Fyb += vyu * keep; }
+    // line: steering into the drift tightens the arc, countersteering opens it up
+    const aLine = slideK * aS * (into * 8 + 0.6);
+    Fxb += dir * vyu * m * aLine; Fyb += -dir * vxu * m * aLine;
+  }
+  P.sinceSlide = slideK > 0.5 ? 0 : (P.sinceSlide ?? 9) + dt;
+  if (assist > 0 && u > 8) {
+    // handbrake flick: rotate the car toward the steering straight away
+    if (hand && Math.abs(dIn) > 0.15 && slideK < 0.8) Mz += aS * Iz * 8 * clamp(dIn, -1, 1);
+    // power-over: full throttle + steering kicks the rear out on powerful cars
+    else if (slideK < 0.3 && thr > 0.85 && Math.abs(dIn) > 0.5) Mz += aS * Iz * 1.2 * dIn * Math.min(1, c._pf || 1);
+    // transition (Scandinavian flick): swinging the wheel the other way just after a drift throws the car into the next one
+    if (slideK < 0.5 && P.sinceSlide < 0.9 && Math.abs(dIn) > 0.6) Mz += aS * Iz * 3.6 * dIn;
   }
   P.vx += (Fxb * fx + Fyb * lx) / m * dt; P.vz += (Fxb * fz + Fyb * lz) / m * dt;
   P.r += Mz / Iz * dt;
@@ -1946,6 +1969,8 @@ function updateScoring(dt, sp) {
     if (drift.idle > 1.4) endDrift(true);
   }
 }
+const TIERS = [[0, 'DRIFT'], [3000, 'GREAT DRIFT'], [8000, 'AWESOME DRIFT'], [15000, 'INSANE DRIFT'], [30000, 'UNBELIEVABLE DRIFT']];
+const tierOf = pts => TIERS.filter(([t]) => pts >= t).pop()[1];
 function endDrift(bank) {
   if (!drift.active) return;
   const total = Math.floor(drift.score * drift.mult);
@@ -1954,7 +1979,7 @@ function endDrift(bank) {
   const cr = Math.floor(total / 10);
   S.credits += cr; S.total += total; sessionScore += total;
   const best = total > S.best; if (best) S.best = total;
-  toast(`+${fmt(total)}  ·  ${fmt(cr)} CR${best ? '  ·  NEW BEST' : ''}`, 'good');
+  toast(`${tierOf(total)}  +${fmt(total)}  ·  ${fmt(cr)} CR${best ? '  ·  NEW BEST' : ''}`, 'good');
   if (total > 9000) chatReact('praise', 0.75); else if (total > 4000) chatReact('praise', 0.3);
   persist(); drift.score = 0;
 }
@@ -2280,8 +2305,9 @@ function updateCamera(dt, sp) {
     return;
   }
   let dx = fx, dz = fz;
-  if (sp > 4) { const vx = P.vx / sp, vz = P.vz / sp; dx = lerp(fx, vx, 0.55); dz = lerp(fz, vz, 0.55); const l = Math.hypot(dx, dz); dx /= l; dz /= l; }
-  let dist = 6.4 + sp * 0.035, height = 2.25, look = 1.0;
+  P.camSlide = lerp(P.camSlide || 0, smooth(0.1, 0.6, Math.abs(P.slip)), Math.min(1, dt * 3));
+  if (sp > 4) { const vx = P.vx / sp, vz = P.vz / sp, kb = 0.55 + 0.35 * P.camSlide; dx = lerp(fx, vx, kb); dz = lerp(fz, vz, kb); const l = Math.hypot(dx, dz); dx /= l; dz /= l; }
+  let dist = 6.4 + sp * 0.035 + (P.camSlide || 0) * 0.9, height = 2.25 + (P.camSlide || 0) * 0.35, look = 1.0;
   if (camMode === 1) { dist = 10.5 + sp * 0.04; height = 3.9; look = 0.8; }
   const tx = P.x - dx * dist, tz = P.z - dz * dist;
   let ty = P.y + height; const gy = roadAt(tx, tz, nearestIdx(tx, tz, P.idx)).y; ty = Math.max(ty, gy + 1.2);
@@ -2348,7 +2374,7 @@ function updateHUD(dt, sp) {
   setText('hAngle', player.drifting ? `${Math.round(Math.abs(player.slip) * 57.3)}° ANGLE` : '');
   const d = $('drift'); d.classList.toggle('on', drift.active);
   if (drift.active) {
-    setText('dScore', fmt(drift.score * drift.mult)); setText('dMult', `×${drift.mult.toFixed(1)}`);
+    setText('dScore', fmt(drift.score * drift.mult)); setText('dTier', tierOf(drift.score * drift.mult)); setText('dMult', `×${drift.mult.toFixed(1)}`);
     const tags = [...drift.tags].join('|'); if (hudCache.tags !== tags) { hudCache.tags = tags; const el = $('dTags'); el.textContent = ''; for (const t of drift.tags) { const b = document.createElement('b'); b.textContent = t; el.appendChild(b); } }
   }
   const z = ZONE[player.idx]; if (z !== lastZone) { lastZone = z; setText('hZone', ZONE_NAMES[z]); if (state === 'play') toast(ZONE_NAMES[z], 'info', 2); }
