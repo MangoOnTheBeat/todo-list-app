@@ -292,8 +292,9 @@ body.touch .hud-tc{top:calc(env(safe-area-inset-top,0px) + 26vh)}
       <div class="chips" data-time-presets><button type="button" data-h="5.75">Dawn</button><button type="button" data-h="12.5">Noon</button><button type="button" data-h="17.25">Sunset</button><button type="button" data-h="0">Midnight</button></div></div>
     <div class="field"><label for="setTrans">Gearbox</label>
       <select id="setTrans"><option value="auto">Automatic</option><option value="manual">Manual · Q / E or LB / RB to shift</option></select></div>
-    <div class="field"><label for="setAssist">Countersteer assist</label>
-      <select id="setAssist"><option value="high">High · easiest drifts</option><option value="std">Standard</option><option value="low">Low</option><option value="off">Off · pure simulation</option></select></div>
+    <div class="field"><label for="setAssist">Drift assists</label>
+      <select id="setAssist"><option value="high">High · auto countersteer, stability, traction control</option><option value="std">Medium · auto countersteer, stability</option><option value="low">Low · light countersteer only</option><option value="off">Pro · no assists, pure simulation</option></select>
+      <p class="fine">Every level uses the same four-tyre physics. Assists only help with steering and catching slides, like in sim drift games.</p></div>
     <div class="field"><label for="setCam">Camera</label>
       <select id="setCam"><option value="0">Chase</option><option value="1">Far chase</option><option value="2">Cockpit · first person</option><option value="3">Hood</option></select></div>
     <div class="field"><label for="setSens">Steering sensitivity</label><input id="setSens" type="range" min="0.5" max="1.6" step="0.05"></div>
@@ -1903,8 +1904,14 @@ function addSkid(a, b) {
    lock-up and clutch/handbrake behaviour emerge), a torque curve and gearbox,
    and rigid-body impulses for wall hits.
    ===================================================================== */
-const G = 9.81, HCG = 0.58, KPK = 0.1, APK = 0.14, DEG = Math.PI / 180, WALL = HW + 0.78;
-const ASSIST = { off: 0, low: 0.3, std: 0.5, high: 0.75 };
+const G = 9.81, HCG = 0.5, KPK = 0.1, APK = 0.14, DEG = Math.PI / 180, WALL = HW + 0.78;
+// CarX-style assist levels. Pro is the raw simulation.
+const ASSISTS = {
+  off: { counter: 0, steerRate: 4.5, speedSteer: false, abs: false, tcs: false, esp: 0, espAngle: 9, damp: 0 },
+  low: { counter: 0.35, steerRate: 6, speedSteer: true, abs: true, tcs: false, esp: 0, espAngle: 9, damp: 0.6 },
+  std: { counter: 0.7, steerRate: 7.5, speedSteer: true, abs: true, tcs: false, esp: 8, espAngle: 1.15, damp: 1.6 },
+  high: { counter: 0.95, steerRate: 9, speedSteer: true, abs: true, tcs: true, esp: 16, espAngle: 0.95, damp: 2.8 },
+};
 const tyreCurve = s => Math.sin(1.35 * Math.atan(2.36 * s)); // peaks at s = 1, slides at ~85 %
 const _t = { x: 0, y: 0 };
 function tyreXY(kap, alpha, D) {
@@ -1981,81 +1988,79 @@ function stepPlayer(dt) {
   // turbo: boost builds with revs and throttle (with lag) and dumps when you lift
   if (c.turbo) { const want = smooth(2400, 4300, eng) * (thr > 0.05 && !hand ? thr : 0); P.boost += (want - P.boost) * Math.min(1, dt * (want > P.boost ? 2.2 : 5)); } else P.boost = 1;
   const Tdrive = tq * ratio * 0.85;
-  const assist = ASSIST[S.settings.assist] ?? ASSIST.std;
-  // axle loads with longitudinal weight transfer
-  const Fzf = clamp(m * G * b / Lw - m * P.ax * HCG / Lw, m * G * 0.2, m * G * 0.8), Fzr = m * G - Fzf;
-  const Df = c.mu * 1.06 * Fzf, Dr = c.mu * (assist > 0 ? 0.9 : 1) * Fzr; // drift tune: lighter rear grip
-  // steering: driver input plus self-aligning countersteer assist
+  // ===== Four-tyre simulation (CarX-style): per-wheel load, slip and grip =====
+  const A = ASSISTS[S.settings.assist] || ASSISTS.std;
+  const tw = c.b.wid - 0.2, htw = tw / 2;
+  // wheel loads: static split + longitudinal and lateral weight transfer (front takes 55 % of roll stiffness)
+  const Wf = m * G * b / Lw / 2, Wr = m * G * a / Lw / 2;
+  const dLong = m * P.ax * HCG / Lw / 2, dLatF = m * P.ay * HCG / tw * 0.62, dLatR = m * P.ay * HCG / tw * 0.38;
+  const minZ = m * G * 0.02;
+  const Fz = [Math.max(minZ, Wf - dLong - dLatF), Math.max(minZ, Wf - dLong + dLatF), Math.max(minZ, Wr + dLong - dLatR), Math.max(minZ, Wr + dLong + dLatR)];
+  // tyre grip with load sensitivity (a loaded tyre grips less per kilo); setup: rears slightly grippier so the car is stable until provoked
+  const grip = (i) => c.mu * (i < 2 ? 1.0 : 1.06) * Fz[i] * (1 - 0.08 * (Fz[i] / (i < 2 ? Wf : Wr) - 1));
+  const WX = [a, a, -b, -b], WY = [htw, -htw, htw, -htw];
+  // steering: driver input plus countersteer assist (front wheels follow the direction of travel)
   const beta = sp > 1.5 && P.gear > 0 && u > -0.5 * sp ? Math.atan2(vy, Math.max(u, 0.01)) : 0;
-  // speed-sensitive rack: full lock when parking or when countersteering, a few degrees when turning in at speed
-  const lock = c.lock * DEG;
-  const dIn = -input.steer * S.settings.sens;
-  const counter = beta !== 0 && Math.sign(dIn) === Math.sign(beta);
-  const sliding = clamp((Math.abs(beta) - 0.05) / 0.15, 0, 1);
-  const inLock = counter ? lock : lerp(lock / (1 + Math.pow(Math.abs(u) / 12, 1.5)), lock, sliding);
-  const dT = clamp(dIn * inLock + assist * beta, -lock, lock);
-  P.delta += clamp(dT - P.delta, -7 * dt, 7 * dt);
-  // front axle
-  const d = P.delta, cd = Math.cos(d), sd = Math.sin(d);
-  const vyf = vy + a * P.r, uw = u * cd + vyf * sd, vw = -u * sd + vyf * cd;
-  const alphaF = Math.atan2(vw, Math.max(Math.abs(uw), 1.5));
-  let Fyf = -Df * Math.sign(alphaF) * tyreCurve(Math.abs(alphaF) / APK), Fxf = 0;
-  const brakeF = brk * m * G * 0.74;
-  if (brakeF > 0 && Math.abs(uw) > 0.2) Fxf = -Math.sign(uw) * brakeF;
-  const tf = Math.hypot(Fxf, Fyf); if (tf > Df) { Fxf *= Df / tf; Fyf *= Df / tf; }
-  P.frontLock = brakeF > Df * 1.05 && Math.abs(uw) > 3;
-  if (P.frontLock) Fyf *= 0.45;
-  // rear axle: wheel speed integrated semi-implicitly against tyre force
-  const vyr = vy - b * P.r, den = Math.max(Math.abs(u), 2);
-  const alphaR = Math.atan2(vyr, Math.max(Math.abs(u), 1.5));
-  const Iw = 1.4 + c.engI * ratio * ratio * (clutchSlip ? 0.25 : 1);
-  const Fx0 = tyreXY((P.wr * RW - u) / den, alphaR, Dr).x;
-  const slope = Dr * 1.35 * 2.36 / KPK * RW / den;
-  let wr = P.wr + dt * (Tdrive - RW * Fx0) / (Iw + dt * RW * slope);
-  const Tb = brk * m * G * 0.4 * RW + (hand ? 3600 : 0);
+  const lock = c.lock * DEG, dIn = -input.steer * S.settings.sens;
+  // the assist reacts to the REAR tyres sliding (a drift), not to normal cornering
+  const betaR = sp > 1.5 && P.gear > 0 && u > 0.5 ? Math.atan2(vy - b * P.r, u) : 0;
+  const betaF = sp > 1.5 && P.gear > 0 && u > 0.5 ? Math.atan2(vy + a * P.r, u) : 0;
+  const sliding = smooth(0.1, 0.25, Math.abs(betaR));
+  // a drift = the front of the car travelling against the way the car is rotating (that needs countersteer)
+  const oversteer = Math.sign(betaF) === -Math.sign(P.r) ? 1 : 0;
+  const counter = sliding > 0 && Math.sign(dIn) === Math.sign(betaR);
+  // speed-sensitive input only when assisted (keyboard/touch friendly); Pro gives the raw rack
+  const inLock = A.speedSteer && !counter ? lerp(lock / (1 + Math.pow(Math.abs(u) / 14, 1.5)), lock, sliding) : lock;
+  // countersteer assist: in a slide the front wheels are pointed where the front of the car is travelling
+  const dT = clamp(dIn * inLock + A.counter * sliding * oversteer * betaF, -lock, lock);
+  P.delta += clamp(dT - P.delta, -A.steerRate * dt, A.steerRate * dt);
+  const d = P.delta, ack = Math.sign(d) * Math.min(0.06, Math.abs(d) * 0.12);
+  const DEL = [d + ack, d - ack, 0, 0]; // Ackermann: inside front wheel turns a little more
+  // brakes: 65 % front; ABS on every assist level except Pro
+  const brakeTotal = brk * m * G * 0.95;
+  const Fxw = [0, 0, 0, 0], Fyw = [0, 0, 0, 0], UW = [0, 0, 0, 0];
+  let lockF = false;
+  for (let i = 0; i < 2; i++) {
+    const ui = u - P.r * WY[i], vi = vy + P.r * WX[i], cd = Math.cos(DEL[i]), sd = Math.sin(DEL[i]);
+    const uw = ui * cd + vi * sd, vw = -ui * sd + vi * cd; UW[i] = uw;
+    const D = grip(i), alpha = Math.atan2(vw, Math.max(Math.abs(uw), 1.5));
+    let bf = brakeTotal * 0.65 / 2; if (A.abs) bf = Math.min(bf, D * 0.92);
+    if (bf > D * 1.02 && Math.abs(uw) > 2) { // locked wheel: slides along its velocity
+      lockF = true; const vv = Math.hypot(uw, vw) || 1; Fxw[i] = -uw / vv * D * 0.9; Fyw[i] = -vw / vv * D * 0.9;
+    } else {
+      Fyw[i] = -D * Math.sign(alpha) * tyreCurve(Math.abs(alpha) / APK);
+      Fxw[i] = Math.abs(uw) > 0.2 ? -Math.sign(uw) * bf : 0;
+      const t = Math.hypot(Fxw[i], Fyw[i]); if (t > D) { Fxw[i] *= D / t; Fyw[i] *= D / t; }
+    }
+  }
+  P.frontLock = lockF;
+  // rear axle: locked differential, one shared wheel speed, integrated semi-implicitly against both tyres
+  const Iw = 1.6 + c.engI * ratio * ratio * (clutchSlip ? 0.25 : 1);
+  const rr = [2, 3].map(i => { const ui = u - P.r * WY[i], vi = vy + P.r * WX[i]; return { i, ui, vi, den: Math.max(Math.abs(ui), 2), D: grip(i), alpha: Math.atan2(vi, Math.max(Math.abs(ui), 1.5)) }; });
+  let Fx0 = 0, slope = 0;
+  for (const w of rr) { Fx0 += tyreXY((P.wr * RW - w.ui) / w.den, w.alpha, w.D).x; slope += w.D * 1.35 * 2.36 / KPK * RW / w.den; }
+  // traction control on the High assist only
+  let Tdr = Tdrive;
+  if (A.tcs && thr > 0) { const spinS = P.wr * RW - u; if (spinS > 6 + Math.abs(vy)) Tdr *= clamp(1 - (spinS - 6) / 10, 0.35, 1); }
+  let wr = P.wr + dt * (Tdr - RW * Fx0) / (Iw + dt * RW * slope);
+  const Tb = brakeTotal * 0.35 * RW + (hand ? 4200 : 0);
   if (Tb > 0) { const dw = Tb * dt / Iw; wr = Math.abs(wr) <= dw ? 0 : wr - Math.sign(wr) * dw; }
   P.wr = wr;
-  const tr = tyreXY((wr * RW - u) / den, alphaR, Dr), FxR = tr.x, FyR = tr.y;
-  // body forces
+  for (const w of rr) { const t = tyreXY((wr * RW - w.ui) / w.den, w.alpha, w.D); Fxw[w.i] = t.x; Fyw[w.i] = t.y; UW[w.i] = w.ui; }
+  // sum the four tyres into body forces and yaw moment
+  let Fxb = 0, Fyb = 0, Mz = 0;
+  for (let i = 0; i < 4; i++) {
+    const cd = Math.cos(DEL[i]), sd = Math.sin(DEL[i]), fxb = Fxw[i] * cd - Fyw[i] * sd, fyb = Fxw[i] * sd + Fyw[i] * cd;
+    Fxb += fxb; Fyb += fyb; Mz += WX[i] * fyb - WY[i] * fxb;
+  }
   const drag = 0.6 * c.CdA * u * Math.abs(u) + m * G * 0.013 * clamp(u, -1, 1);
-  let Fxb = Fxf * cd - Fyf * sd + FxR - drag;
-  let Fyb = Fxf * sd + Fyf * cd + FyR - 0.9 * vy * Math.abs(vy);
-  let Mz = a * (Fxf * sd + Fyf * cd) - b * FyR;
-  // drift assist: once sliding, steer the body-slip angle toward a target set by throttle and steering
-  // (more throttle = more angle, countersteer = less). "Off" leaves the raw vehicle dynamics.
-  const betaRate = (beta - (P.betaPrev ?? beta)) / dt; P.betaPrev = beta;
-  if (assist > 0 && Math.abs(beta) > 0.12 && sp > 5) {
-    const dir = Math.sign(beta), into = clamp(-dIn * dir, -1, 1);
-    // car character: power-to-weight sets how much angle the throttle can hold, steering lock caps it,
-    // and lighter cars snap to it faster
-    const pf = c._pf || (c._pf = clamp(carHp(c) / c.mass * 1000 / 220, 0.65, 1.45));
-    const bt = dir * clamp(0.32 + 0.4 * thr * pf + 0.2 * into, 0.04, 0.86 * c.lock / 52);
-    const snap = Math.sqrt(1300 / m);
-    Mz += assist * Iz * (8 * snap * (beta - bt) + 3.4 * clamp(betaRate, -3, 3));
-    if (Math.abs(beta) > Math.abs(bt) + 0.2) Mz += assist * Iz * 32 * (beta - dir * (Math.abs(bt) + 0.2)); // spin guard
-  }
-  // ---- Forza-style drift layer (only with an assist level on; "Off" stays pure simulation) ----
-  const aS = assist / ASSIST.std;
-  const slideK = assist > 0 && sp > 4 ? smooth(0.12, 0.35, Math.abs(beta)) : 0;
-  if (slideK > 0) {
-    const vb = Math.hypot(u, vy) || 1, vxu = u / vb, vyu = vy / vb, dir = Math.sign(beta), into = clamp(-dIn * dir, -1, 1);
-    // momentum: cancel most of the sliding scrub so the car carries its speed (never adds speed)
-    const along = Fxb * vxu + Fyb * vyu;
-    if (along < 0) { const keep = -along * Math.min(0.85, slideK * Math.min(1, aS) * (0.55 + 0.35 * thr)); Fxb += vxu * keep; Fyb += vyu * keep; }
-    // line: steering into the drift tightens the arc, countersteering opens it up
-    const aLine = slideK * aS * (into * 4.5 + 0.4);
-    Fxb += dir * vyu * m * aLine; Fyb += -dir * vxu * m * aLine;
-  }
-  P.sinceSlide = slideK > 0.5 ? 0 : (P.sinceSlide ?? 9) + dt;
-  if (assist > 0 && u > 8) {
-    // handbrake flick: rotate the car toward the steering straight away
-    if (hand && Math.abs(dIn) > 0.15 && slideK < 0.8) Mz += aS * Iz * 8 * clamp(dIn, -1, 1);
-    // power-over: full throttle + steering kicks the rear out on powerful cars
-    else if (slideK < 0.3 && thr > 0.6 && Math.abs(dIn) > 0.3) Mz += aS * Iz * 2.4 * clamp(dIn, -1, 1) * Math.max(0.8, Math.min(1.1, c._pf || 1));
-    if (P.kickT > 0) Mz += aS * Iz * 2.5 * clamp(dIn, -1, 1);
-    // transition (Scandinavian flick): swinging the wheel the other way just after a drift throws the car into the next one
-    if (slideK < 0.5 && P.sinceSlide < 0.9 && Math.abs(dIn) > 0.6) Mz += aS * Iz * 3.6 * dIn;
-  }
+  Fxb -= drag;
+  // stability control: only past the angle a skilled driver would hold (Medium/High). Low and Pro are untouched.
+  if (A.esp > 0 && Math.abs(beta) > A.espAngle && sp > 5) Mz += A.esp * Iz * (beta - Math.sign(beta) * A.espAngle);
+  // slide damping: slows sudden changes of drift angle (never pulls toward any particular angle)
+  const bRate = (betaR - (P.bPrev ?? betaR)) / dt; P.bPrev = betaR;
+  if (A.damp > 0 && sliding > 0) Mz += A.damp * sliding * Iz * clamp(bRate, -4, 4);
+  const FzSum = Fz[0] + Fz[1] + Fz[2] + Fz[3]; P.loads = Fz.map(f => f / FzSum * 4);
   P.vx += (Fxb * fx + Fyb * lx) / m * dt; P.vz += (Fxb * fz + Fyb * lz) / m * dt;
   P.r += Mz / Iz * dt;
   if (sp < 2) P.r *= 1 - Math.min(1, (2 - sp) * 3 * dt);
@@ -2064,7 +2069,7 @@ function stepPlayer(dt) {
   P.ax += (Fxb / m - P.ax) * Math.min(1, dt * 10); P.ay += (Fyb / m - P.ay) * Math.min(1, dt * 10);
   P.eng = eng; P.u = u; P.thrEff = thr; P.brkEff = brk;
   P.slip = sp > 1.5 ? Math.atan2(-vy, Math.abs(u)) : 0; // + = sliding toward the car's right
-  P.rearSlip = Math.hypot(wr * RW - u, vyr);
+  P.rearSlip = Math.hypot(wr * RW - u, vy - b * P.r);
   const sp2 = Math.hypot(P.vx, P.vz);
   P.drifting = P.drifting ? (Math.abs(P.slip) > 0.1 && sp2 > 5) : (Math.abs(P.slip) > 0.19 && sp2 > 7);
   // walls: find the deepest corner and apply a rigid-body impulse there
@@ -2963,7 +2968,7 @@ if ('serviceWorker' in navigator && defaultServer() && !/localhost|127\.0\.0\.1/
   addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { }));
 }
 window.__kaido = {
-  bootTimes, net: Net,
+  bootTimes, net: Net, assists: ASSISTS,
   get player() { return player; }, get state() { return state; }, get S() { return S; }, get drift() { return drift; }, setState, bots, TRACK_LEN, N, track: { PX, PZ, HEAD, K, RX, RZ },
   set noWalls(v) { testNoWalls = !!v; },
   get scene() { return scene; },

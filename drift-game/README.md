@@ -7,7 +7,7 @@ The world is built from real elevation data for Hakone, Japan, at true scale:
 - **Near area (4 × 4 km, ~8 m detail)** around the north end of **Lake Ashi (芦ノ湖)** at Kojiri, including the real lake outline and the Hakone caldera hills.
 - **Far area (72 × 72 km, 150 m detail)** with the real **Mt. Fuji** about 27 km to the west-north-west, Sagami Bay, Suruga Bay, and the lowland towns (Odawara, Gotemba, Mishima) shown as night lights.
 
-The 5.8 km course is placed on the real land at Kojiri. It has 62 corners: chains of S-bends through the village and along the shore, and the Hakone hairpins on the climb (about 140 m). There is no straight longer than about 60 m. The road follows the real ground, smoothed and held to 10 % grade, and is checked automatically: tightest radius 21 m, at least 110 m between separate stretches of road, never in the lake.
+The **12.3 km** course is fitted onto a 5 × 5 km area of real terrain around the north end of Lake Ashi, about 250 m of real climb. It has 151 corners: S-bends through Kojiri village, a long mountain section of tight switchbacks, and the lakeshore road. The longest straight is under 100 m. It is checked automatically: tightest radius 18 m, at least 88 m between separate stretches of road, never in the lake. A lap takes roughly 10–15 minutes.
 
 **What is real and what isn't:** the terrain, lake and mountains are real data. The road layout, buildings, trees and signs are the game's own design placed on that land; they are not a survey of real roads. The terrain data is public-domain-derived; see Credits.
 
@@ -29,41 +29,48 @@ Time of day runs on a 24-hour clock (Settings slider, or Dawn / Noon / Sunset / 
 ## Cameras
 Four views: chase, far chase, **cockpit (first person)** and hood. The cockpit has a right-hand-drive interior with a steering wheel that turns with the front wheels, working tachometer and speedometer needles, a shift light, mirror, pillars and seats. In a slide the driver's view looks into the drift.
 
-## Physics
-- Two-axle vehicle model with a combined-slip tyre curve (grip peaks around 8° of slip, then slides at ~85 %), so throttle, brakes and steering all compete for the same tyre grip.
-- Longitudinal weight transfer: braking loads the front tyres, throttle loads the rears.
-- The driven rear axle has its own wheel speed: power oversteer, wheelspin, hand-brake lock-up and clutch-in hand-brake turns happen on their own rather than being scripted.
-- Per-car engine torque curve, rev limiter, real gear ratios and final drive; automatic or manual gearbox. 0–100 km/h ranges from 4.8 s (JZA-80) to 6.8 s (AE8).
-- Speed-sensitive steering with full lock available when countersteering; steering lock from 50° to 60°.
-- Wall hits use rigid-body impulses at the corner that touches, so clipping a rail spins the car the way it should.
-- **Drift assist** (Settings → Countersteer assist), on by default, gives Forza Horizon-style drifting on top of the tyre physics:
-  - throttle sets the angle, steering into the drift tightens your line and countersteering opens it;
-  - momentum is kept through the slide (about 6–10 % speed loss over a 5 s drift instead of 25–50 %);
-  - easy to start from any entry: steer + gas, handbrake tap, lift-off, a feint, or a **clutch kick** (quickly lift and re-press the gas while steering); the rear is set up drift-style with slightly less grip than the front;
-  - the angle is yours: a light guide plus damping keeps slides smooth without locking them to a preset angle, and drifts hold on part throttle;
-  - swinging the wheel the other way right after a drift throws it into the next one (transitions in ~0.6 s);
-  - a spin guard keeps full lock + full throttle at a big but controllable angle.
-  High / Standard / Low change the strength; **Off** is the raw simulation.
+## Physics (sim-style, inspired by CarX)
+CarX Drift Racing's physics code is private, so it is not copied; this is an original simulation of the same kind:
+- **Four tyres simulated separately**, each with its own load, slip angle, slip ratio and grip (combined-slip tyre curve with load sensitivity).
+- **Weight transfer** front/rear under throttle and braking, and side to side in corners (62 % of roll stiffness at the front), so the inside wheels unload.
+- **Locked rear differential** (drift setup): both rear wheels share one speed, which produces wheelspin, power oversteer and the push you feel from a welded diff.
+- **Ackermann steering**, real steering lock per car (48–62°), engine torque curves, turbo lag, gearbox, clutch kick, handbrake that locks the rears, brakes that can lock the fronts.
+- **No invisible helper forces**: the car only moves because of its tyres.
 
-## Cars differ for real
-| Car | Engine | Power | Weight | 0–100 km/h* | Top speed* | Lock |
-|---|---|---|---|---|---|---|
-| Hoshi PS13 Spirit (starter) | 1.8 turbo I4 | ~193 hp | 1240 kg | ~7.5 s | ~227 km/h | 48° |
-| Kaze AE8 Hachi | 1.6 NA I4 | ~150 hp | 925 kg | ~7.2 s | ~205 km/h | 52° |
-| Hoshi R-32 Raijin | twin-turbo I6 | ~341 hp | 1430 kg | ~5.8 s | ~274 km/h | 50° |
-| Akagi FD-7 Rotor | twin-rotor turbo | ~310 hp | 1250 kg | ~5.1 s | ~275 km/h | 54° |
-| Hoshi Z-33 Zenith | NA V6 | ~315 hp | 1450 kg | ~5.3 s | ~260 km/h | 54° |
-| Kaze JZA-80 Apex | built twin-turbo I6 | ~470 hp | 1490 kg | ~4.8 s | ~306 km/h | 55° |
-| Hoshi PS15 Spirit-R | built turbo I4 | ~400 hp | 1220 kg | ~4.5 s | ~278 km/h | 62° |
+### Drift assists (Settings)
+| Level | What it does |
+|---|---|
+| **Pro** | Nothing. Pure simulation, raw steering rack, no ABS. |
+| **Low** | Light countersteer assist, ABS, speed-sensitive steering for keyboard/touch. |
+| **Medium** (default) | Stronger countersteer assist, slide damping, stability control past ~65°. |
+| **High** | Near-full countersteer assist, strong slide damping, stability control, traction control. |
 
-*The garage shows exact figures measured live with the game's own physics, plus the difference from the car you're driving.
-
-Turbo cars have real lag (boost builds with revs and throttle) and blow-off on lift; each engine layout sounds different (four, straight-six, V6, rotary) with turbo whine. Drift character scales with power-to-weight, weight and steering lock: with the same inputs the starter holds ~25–35° while the JZA-80 and PS15 swing 45–65°, and more angle scores more.
+Countersteer assist turns the front wheels toward where the front of the car is travelling, but only in a real slide (the car rotating against its path), so normal cornering is untouched. Slide damping slows sudden angle changes; it never pulls the car to a set angle. Measured with an automated driver trying 120 driving styles, the share that can hold a 6-second drift rises from 0 % on Pro to ~44 % on High.
 
 ## Drifting and progression
 Kick the rear out with the hand brake (or full throttle + steering), then hold the slide with throttle and countersteer. Score = speed × angle, with a combo multiplier up to ×5 and bonuses for **TANDEM** (drifting next to an AI car), **NEAR WALL**, **ANGLE** (> 45°) and **SPEED** (> 110 km/h). Hitting a wall hard loses the unbanked drift. Every 10 points banked = 1 credit; a full lap pays 500 credits.
 
 Credits unlock 6 more cars in the garage (starter: **Hoshi PS13 Spirit**, a 1989 pop-up-lamp coupe). Paint is free for owned cars.
+
+## Play modes
+- **Solo**: just you; no AI, no chat. Works with no internet connection: `dist/kaido-drift.html` is fully self-contained (three.js bundled in), so it runs even opened straight from disk. When served from the server it also installs as an app (Add to Home Screen) and keeps working offline.
+- **With AI drivers**: seven AI drivers labelled AI, with AI chat.
+- **Online**: join a Kaido Drift server, see other players' cars live (ghost cars, no collisions) and chat with them. `/mute name` and `/unmute name` hide a player's messages.
+
+## Running the online server
+```
+cd drift-game
+npm install
+npm run build      # makes dist/kaido-drift.html, manifest, service worker
+npm start          # PORT=8080 by default
+```
+Open `http://localhost:8080`. Online mode connects to the same address automatically (`ws://host/ws`).
+
+To make it public, deploy this folder to any Node host that supports WebSockets (for example Render, Railway, Fly.io or a VPS): build command `npm install && npm run build`, start command `npm start`. Use HTTPS so the game connects over `wss://`. `/health` reports players and rooms.
+
+Server safeguards: 16 players per room (new rooms open automatically), position updates checked and clamped, chat rate limit (about one message every 2 s, bursts of 3), 120-character limit, word filter (extend with `BLOCKED_WORDS=word1,word2`), links blocked, names cleaned and made unique, at most 4 connections per IP.
+
+**Online play does not work inside the claude.ai preview**, which blocks network connections; use the server address.
 
 ## Saving
 Progress saves automatically to the browser's `localStorage` on the device — no account, no cookies. Settings → *Move progress to another device* gives a copyable transfer code (`KD1.…`, checksummed) that can be imported in another browser.
