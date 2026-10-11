@@ -75,7 +75,7 @@ To make it public, deploy this folder to any Node host that supports WebSockets 
 
 Server safeguards: 16 players per room (new rooms open automatically), position updates checked and clamped, chat rate limit (about one message every 2 s, bursts of 3), 120-character limit, word filter (extend with `BLOCKED_WORDS=word1,word2`), links blocked, names cleaned and made unique, at most 4 connections per IP.
 
-**Online play does not work inside the claude.ai preview**, which blocks network connections; use the server address.
+Online play needs a Kaido Drift server (this folder's `server/`). Static hosts such as pages.dev only serve files, so there the Online screen says no server is available and Solo and With AI drivers still work.
 
 ## Saving
 Progress saves automatically to the browser's `localStorage` on the device — no account, no cookies. Settings → *Move progress to another device* gives a copyable transfer code (`KD1.…`, checksummed) that can be imported in another browser.

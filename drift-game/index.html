@@ -2486,11 +2486,17 @@ const chatLog = $('chatLog');
    ===================================================================== */
 const muted = new Set();
 // Same address the page came from, when it was served by a Kaido Drift server
-function defaultServer() {
-  if (!/^https?:$/.test(location.protocol)) return '';
-  if (/(^|\.)claude\.(ai|com)$|claudeusercontent|anthropic/.test(location.hostname)) return '';
-  return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+// served from a web address (not a downloaded file or the Claude preview)
+const hostedPage = /^https?:$/.test(location.protocol) && !/(^|\.)claude\.(ai|com)$|claudeusercontent|anthropic/.test(location.hostname);
+// the game's own server answers /health; static hosts (pages.dev, GitHub Pages…) don't, so nothing is guessed there
+let serverProbe = null, foundServer = '';
+function findServer() {
+  if (!hostedPage) return Promise.resolve('');
+  return serverProbe || (serverProbe = fetch('/health', { cache: 'no-store' }).then(r => r.ok ? r.json() : null)
+    .then(j => (foundServer = j && j.ok === true ? (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws' : ''))
+    .catch(() => ''));
 }
+function defaultServer() { return foundServer; }
 const Net = {
   ws: null, id: null, players: new Map(), sendT: 0, url: '', want: false, retries: 0,
   status(t) { const el = $('netStatus'); if (el) el.textContent = t; },
@@ -2502,7 +2508,7 @@ const Net = {
     const timer = setTimeout(() => { if (ws.readyState !== 1) { ws.close(); this.status('No answer from the server. Check the address, or the server may be offline.'); } }, 8000);
     ws.onopen = () => { clearTimeout(timer); ws.send(JSON.stringify({ t: 'hello', name: S.name, car: S.selected, color: S.paint[S.selected] || carById(S.selected).color })); };
     ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } this.handle(m); };
-    ws.onerror = () => { if (state === 'online') this.status('Could not connect. Online play does not work inside the Claude preview; open the game from your server address.'); };
+    ws.onerror = () => { if (state === 'online') this.status('Could not connect to that server. Check the address, or play Solo or With AI drivers.'); };
     ws.onclose = () => {
       clearTimeout(timer);
       if (this.ws !== ws) return;
@@ -2966,7 +2972,15 @@ function wireUI() {
   // already running from the Home Screen: no need to offer it
   if (matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone) $('mInstall').hidden = true;
   $('installNow').onclick = async () => { if (!installPrompt) return; installPrompt.prompt(); try { await installPrompt.userChoice; } catch (e) { } installPrompt = null; $('installNow').hidden = true; };
-  $('mOnline').onclick = () => { $('serverInput').value = S.settings.server || defaultServer(); $('netStatus').textContent = defaultServer() || S.settings.server ? '' : 'Enter the address of a Kaido Drift server. If you opened the game from a server, this is filled in for you.'; setState('online'); };
+  $('mOnline').onclick = async () => {
+    $('serverInput').value = S.settings.server || ''; setState('online');
+    if (S.settings.server) { $('netStatus').textContent = ''; return; }
+    $('netStatus').textContent = 'Looking for a server…';
+    const url = await findServer();
+    if (state !== 'online' || S.settings.server) return;
+    $('serverInput').value = url;
+    $('netStatus').textContent = url ? '' : 'This site doesn’t have an online server yet. Solo and With AI drivers work fully. If someone runs a Kaido Drift server, paste its address here.';
+  };
   $('oBack').onclick = () => setState('title');
   $('netConnect').onclick = () => {
     const url = $('serverInput').value.trim();
@@ -3153,7 +3167,7 @@ async function boot() {
 }
 // Test hook: advances the driving simulation without rendering (used by automated checks).
 // installable app + offline cache, only when served from a Kaido Drift server (not inside previews)
-if ('serviceWorker' in navigator && defaultServer() && !/localhost|127\.0\.0\.1/.test(location.hostname) || ('serviceWorker' in navigator && defaultServer() && location.search.includes('sw'))) {
+if ('serviceWorker' in navigator && hostedPage && (!/localhost|127\.0\.0\.1/.test(location.hostname) || location.search.includes('sw'))) {
   addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { }));
 }
 window.__kaido = {
