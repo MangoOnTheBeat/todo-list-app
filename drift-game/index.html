@@ -151,19 +151,39 @@ h2.h span{color:var(--sakura);font-size:.6em;margin-left:8px}
 #tBrake{grid-column:1;grid-row:2;width:84px;height:70px}
 #tHand{grid-column:1;grid-row:1;width:84px;height:70px;border-color:var(--neon)!important}
 #tReset{position:absolute;right:0;top:-46px;width:38px;height:36px;font-size:16px!important}
-body.touch #chat{width:min(300px,46vw)}
-body.touch #chat.closed #chatLog,body.touch #chat.closed form,body.touch #chat.closed #typing{display:none}
-body.touch .hud-btns{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 14px);right:calc(env(safe-area-inset-right,0px) + 170px)}
-@media (max-width:720px),(max-height:480px){body.touch .hud-btns{right:calc(env(safe-area-inset-right,0px) + 122px)}}
-body.touch .hud-tc{top:calc(env(safe-area-inset-top,0px) + 54px)}
-body.touch #chat{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 64px)}
-body.touch #chatLog{max-height:120px}
-
-/* consent */
-#consent{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:40;width:min(560px,calc(100% - 32px));background:var(--panel-solid);border:1px solid var(--line);border-radius:6px;padding:16px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;box-sizing:border-box}
-#consent p{margin:0;flex:1 1 260px;line-height:1.5;font-size:13px;color:var(--dim)}
-#consent p b{color:var(--text)}
-#rotate{position:fixed;inset:auto 0 0 0;z-index:30;text-align:center;font-size:12px;letter-spacing:.14em;padding:6px;background:rgba(10,11,20,.8);color:var(--dim)}
+/* ---- touch layout: nothing interactive hugs the top edge (app chrome can sit there), 44 px targets ---- */
+body.touch button{touch-action:manipulation}
+body.touch .hud-btns{bottom:auto;right:calc(env(safe-area-inset-right,0px) + 12px);top:calc(env(safe-area-inset-top,0px) + 124px);flex-direction:column;gap:8px}
+body.touch .hud-btns button{min-width:56px;min-height:44px;font-size:12px}
+body.touch #minimap{width:100px;height:100px}
+body.touch #board{display:none}
+body.touch #chat{width:min(320px,62vw);bottom:auto;top:calc(env(safe-area-inset-top,0px) + 70px)}
+body.touch #chat.closed{display:none}
+body.touch #chatLog{max-height:24vh}
+body.touch .hud-tc{top:calc(env(safe-area-inset-top,0px) + 26vh)}
+@media (orientation:portrait){
+  body.touch .hud-speed{left:calc(env(safe-area-inset-left,0px) + 26px);transform:none;bottom:calc(env(safe-area-inset-bottom,0px) + 150px)}
+}
+@media (orientation:landscape){
+  body.touch .hud-btns{flex-direction:row;top:calc(env(safe-area-inset-top,0px) + 14px);right:calc(env(safe-area-inset-right,0px) + 126px)}
+  body.touch #chat{top:calc(env(safe-area-inset-top,0px) + 66px);width:min(340px,42vw)}
+  body.touch #chatLog{max-height:20vh}
+  body.touch .hud-tc{top:calc(env(safe-area-inset-top,0px) + 18vh)}
+}
+#chatForm{display:flex;gap:6px}
+/* the steering zone must never sit above chat or the HUD buttons */
+#touch{z-index:0}
+#chat,.hud-btns{z-index:2}
+@media (orientation:portrait){
+  body.touch #steerBase{width:146px}
+  body.touch #pedals{right:calc(env(safe-area-inset-right,0px) + 10px);gap:8px}
+  body.touch #tBrake,body.touch #tHand{width:74px}
+  body.touch #tGas{width:78px}
+}
+#chatSend{flex:none;background:rgba(10,11,20,.6);border:1px solid var(--line);border-radius:4px;padding:0 12px;font-weight:600;letter-spacing:.1em;font-size:12px}
+#shiftBtns{position:absolute;right:46px;top:-46px;display:flex;gap:6px}
+#shiftBtns button{width:44px;height:36px;font-size:16px!important}
+#rotate{position:fixed;left:50%;top:40%;transform:translateX(-50%);z-index:30;text-align:center;font-size:12px;letter-spacing:.12em;padding:8px 14px;border-radius:4px;background:rgba(10,11,20,.8);color:var(--text);pointer-events:none;transition:opacity .5s}
 @media (orientation:landscape){#rotate{display:none}}
 @media (max-width:720px){
   .hud-tc{width:80vw}
@@ -205,7 +225,7 @@ body.touch #chatLog{max-height:120px}
   <div id="chat">
     <div id="chatLog" aria-live="polite"></div>
     <div id="typing"></div>
-    <form id="chatForm" autocomplete="off"><input id="chatInput" maxlength="120" placeholder="Press T to chat" aria-label="Chat message"></form>
+    <form id="chatForm" autocomplete="off"><input id="chatInput" maxlength="120" placeholder="Press T to chat" aria-label="Chat message" enterkeyhint="send"><button id="chatSend" type="submit">SEND</button></form>
   </div>
   <div id="touch" hidden>
     <div id="steerZone"><div id="steerBase"><div id="steerKnob"></div></div><span>DRAG TO STEER</span></div>
@@ -214,6 +234,7 @@ body.touch #chatLog{max-height:120px}
       <button id="tBrake" type="button">BRAKE</button>
       <button id="tGas" type="button">GAS</button>
       <button id="tReset" type="button" aria-label="Reset car">↺</button>
+      <div id="shiftBtns" hidden><button id="tDown" type="button" aria-label="Shift down">▼</button><button id="tUp" type="button" aria-label="Shift up">▲</button></div>
     </div>
   </div>
   <div id="hint"></div>
@@ -2090,7 +2111,7 @@ function setupTouch() {
   const zone = $('steerZone'), knob = $('steerKnob'), base = $('steerBase');
   let pid = null, startX = 0;
   zone.addEventListener('pointerdown', e => { pid = e.pointerId; startX = e.clientX; zone.setPointerCapture(pid); touch.active = true; const r = base.getBoundingClientRect(); base.style.left = (e.clientX - r.width / 2) + 'px'; base.style.bottom = Math.max(20, innerHeight - e.clientY - r.height / 2) + 'px'; e.preventDefault(); });
-  zone.addEventListener('pointermove', e => { if (e.pointerId !== pid) return; touch.steer = clamp((e.clientX - startX) / 62, -1, 1); knob.style.transform = `translateX(${touch.steer * 58}px)`; });
+  zone.addEventListener('pointermove', e => { if (e.pointerId !== pid) return; touch.steer = clamp((e.clientX - startX) / 62, -1, 1); knob.style.transform = `translateX(${touch.steer * (base.clientWidth / 2 - 28)}px)`; });
   const end = e => { if (e.pointerId !== pid) return; pid = null; touch.steer = 0; knob.style.transform = ''; base.style.left = ''; base.style.bottom = ''; };
   zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
   for (const [id, key] of [['tGas', 'gas'], ['tBrake', 'brake'], ['tHand', 'hand']]) {
@@ -2149,6 +2170,12 @@ function applyCamMode() {
   if (player) player.car.blobHidden = camMode === 2;
 }
 function cycleCam() { camMode = (camMode + 1) % 4; S.settings.cam = camMode; persist(); applyCamMode(); toast(CAM_NAMES[camMode], 'info', 1.3); }
+// On a tall (portrait) screen keep roughly the side-to-side view of a landscape screen.
+function fovFor(v) {
+  if (camera.aspect >= 1.2) return v;
+  const h = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(v / 2)) * 1.2);
+  return Math.min(92, THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(h / 2) / camera.aspect)));
+}
 function updateCamera(dt, sp) {
   const P = player, car = P.car, fx = Math.sin(P.h), fz = Math.cos(P.h);
   if (camMode === 2 || camMode === 3) {
@@ -2166,7 +2193,7 @@ function updateCamera(dt, sp) {
     camera.quaternion.copy(_q1).multiply(_q2);
     if (P.shake > 0) { camera.rotateZ((Math.random() - 0.5) * P.shake * 0.03); P.shake = Math.max(0, P.shake - dt * 2.5); }
     if (camMode === 2 && sp > 25) camera.position.y += (Math.random() - 0.5) * 0.004 * (sp / 50);
-    const fov = clamp((camMode === 2 ? 70 : 66) + sp * 0.18, 60, 84);
+    const fov = fovFor(clamp((camMode === 2 ? 70 : 66) + sp * 0.18, 60, 84));
     if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 3); camera.updateProjectionMatrix(); updateSmokeScale(); }
     camPos.copy(camera.position);
     return;
@@ -2184,7 +2211,7 @@ function updateCamera(dt, sp) {
   camera.position.copy(camPos);
   if (P.shake > 0) { camera.position.x += (Math.random() - 0.5) * P.shake * 0.5; camera.position.y += (Math.random() - 0.5) * P.shake * 0.4; P.shake = Math.max(0, P.shake - dt * 2.5); }
   camera.lookAt(camLook);
-  const fov = clamp(60 + sp * 0.32, 60, 82);
+  const fov = fovFor(clamp(60 + sp * 0.32, 60, 82));
   if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 3); camera.updateProjectionMatrix(); updateSmokeScale(); }
 }
 let orbitA = 0.9;
@@ -2196,7 +2223,7 @@ function menuCamera(dt) {
   const side = state === 'garage' || state === 'title' ? 1 : 0;
   const rxs = -Math.cos(P.h + orbitA), rzs = Math.sin(P.h + orbitA);
   camera.lookAt(P.x + rxs * side * (innerWidth > 800 ? 2.2 : 0), P.y + 0.7, P.z + rzs * side * (innerWidth > 800 ? 2.2 : 0));
-  if (camera.fov !== 50 || camera.near !== 0.3) { camera.fov = 50; camera.near = 0.3; camera.far = 90000; camera.updateProjectionMatrix(); updateSmokeScale(); }
+  if (camera.fov !== fovFor(50) || camera.near !== 0.3) { camera.fov = fovFor(50); camera.near = 0.3; camera.far = 90000; camera.updateProjectionMatrix(); updateSmokeScale(); }
   if (P.car.cockpit) P.car.cockpit.group.visible = false;
 }
 
@@ -2251,7 +2278,7 @@ function updateHUD(dt, sp) {
     const rows = [{ n: S.name, s: sessionScore, me: true }, ...bots.map(b => ({ n: b.name, s: b.score, ai: true }))].sort((a, b) => b.s - a.s).slice(0, 6);
     const ol = $('board'); ol.textContent = '';
     rows.forEach((r, k) => { const li = document.createElement('li'); if (r.me) li.className = 'me'; const a = document.createElement('span'); a.textContent = k + 1; const n = document.createElement('span'); if (r.ai) { const t = document.createElement('span'); t.className = 'ai'; t.textContent = 'AI'; n.appendChild(t); } n.appendChild(document.createTextNode(r.n)); const s = document.createElement('span'); s.textContent = fmt(r.s); li.append(a, n, s); ol.appendChild(li); });
-    if (!player.drifting) { const vdot = sp > 3 ? (player.vx * TX[player.idx] + player.vz * TZ[player.idx]) / sp : 1; setHint(vdot < -0.5 ? 'Wrong way · press R to reset' : player.stuck > 2.5 ? (isTouch ? 'Stuck? Tap ↺ to reset' : 'Stuck? Press R to reset') : ''); }
+    if (!player.drifting) { const vdot = sp > 3 ? (player.vx * TX[player.idx] + player.vz * TZ[player.idx]) / sp : 1; setHint(vdot < -0.5 ? (isTouch ? 'Wrong way · tap ↺ to reset' : 'Wrong way · press R to reset') : player.stuck > 2.5 ? (isTouch ? 'Stuck? Tap ↺ to reset' : 'Stuck? Press R to reset') : ''); }
     else setHint('');
   }
   drawMinimap();
@@ -2260,7 +2287,7 @@ function updateHUD(dt, sp) {
 /* ---------- screens ---------- */
 let state = 'loading';
 const screens = { title: 'sTitle', garage: 'sGarage', settings: 'sSettings', legal: 'sLegal', pause: 'sPause' };
-let returnTo = 'title';
+let returnTo = 'title', rotateShown = false;
 function setState(s) {
   if (s === 'play' && state !== 'play') { AudioSys.init(); lastT = performance.now(); }
   if ((s === 'garage' || s === 'settings') && (state === 'pause' || state === 'play')) returnTo = 'pause';
@@ -2273,7 +2300,9 @@ function setState(s) {
   if (s === 'garage') renderGarage();
   if (s === 'settings') renderSettings();
   if (s !== 'play') { keys.clear(); for (const k of ['gas', 'brake', 'hand']) touch[k] = false; touch.steer = 0; if (drift.active) endDrift(true); }
-  $('rotate').hidden = !(isTouch && s === 'play');
+  $('shiftBtns').hidden = S.settings.trans !== 'manual';
+  if (isTouch && s === 'play' && !rotateShown && innerHeight > innerWidth) { rotateShown = true; const r = $('rotate'); r.hidden = false; r.style.opacity = 1; setTimeout(() => { r.style.opacity = 0; setTimeout(() => { r.hidden = true; }, 600); }, 3500); }
+  else if (s !== 'play') $('rotate').hidden = true;
   applyCamMode();
 }
 function renderTitle() {
@@ -2344,11 +2373,11 @@ function wireUI() {
   $('bPause').onclick = () => setState('pause');
   $('bCam').onclick = () => cycleCam();
   $('bMute').onclick = () => toggleSound();
-  $('bChat').onclick = () => { const c = $('chat'); c.classList.toggle('closed'); if (!c.classList.contains('closed') && !isTouch) $('chatInput').focus(); };
+  $('bChat').onclick = () => { const c = $('chat'); c.classList.toggle('closed'); if (!c.classList.contains('closed')) $('chatInput').focus(); else $('chatInput').blur(); };
   $('nameInput').addEventListener('change', e => { const n = cleanName(e.target.value); if (n) { S.name = n; persist(); } e.target.value = S.name; });
   $('chatForm').addEventListener('submit', e => { e.preventDefault(); const i = $('chatInput'); playerChat(i.value); i.value = ''; i.blur(); });
   $('setQuality').onchange = e => { S.settings.quality = e.target.value; qName = S.settings.quality === 'auto' ? autoQuality() : S.settings.quality; applyQuality(); persist(); };
-  $('setTrans').onchange = e => { S.settings.trans = e.target.value; persist(); };
+  $('setTrans').onchange = e => { S.settings.trans = e.target.value; $('shiftBtns').hidden = S.settings.trans !== 'manual'; persist(); };
   $('setAssist').onchange = e => { S.settings.assist = e.target.value; persist(); };
   $('setCam').onchange = e => { camMode = +e.target.value; S.settings.cam = camMode; applyCamMode(); persist(); };
   $('setTime').onchange = e => { S.settings.time = e.target.value; applyTime(); persist(); };
@@ -2367,7 +2396,12 @@ function wireUI() {
   $('resetYes').onclick = () => { const keep = { settings: S.settings, consent: true }; S = sanitizeSave({ ...defaultSave(), ...keep }); persist(); spawnPlayer(); renderSettings(); $('importMsg').textContent = 'Progress erased.'; };
   $('consentOk').onclick = () => { S.consent = true; persist(); $('consent').hidden = true; };
   $('consentMore').onclick = () => { S.consent = true; persist(); $('consent').hidden = true; setState('legal'); };
-  if (isTouch) { document.body.classList.add('touch'); $('chat').classList.add('closed'); }
+  if (isTouch) {
+    document.body.classList.add('touch'); $('chat').classList.add('closed');
+    $('chatInput').placeholder = 'Type a message…';
+    $('setTrans').options[1].textContent = 'Manual · ▲ ▼ buttons to shift';
+  }
+  $('tUp').addEventListener('click', () => shiftUp()); $('tDown').addEventListener('click', () => shiftDown());
   setupTouch();
   addEventListener('resize', onResize);
   document.addEventListener('visibilitychange', () => {
