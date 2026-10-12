@@ -34,11 +34,21 @@ text({ Text = 'KAIDO <font color="#ff7eb6">峠</font> DRIFT', FontFace = Ui.DISP
 local loadMsg = text({ Text = "Building Japan…", TextSize = 16, TextColor3 = Ui.DIM, TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.new(0, 0, 0.4, 30), ZIndex = 51, Parent = loading })
 local barBack = make("Frame", { Size = UDim2.new(0, 260, 0, 3), Position = UDim2.new(0.5, -130, 0.4, 64), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.85, BorderSizePixel = 0, ZIndex = 51, Parent = loading })
 local loadBar = make("Frame", { Size = UDim2.new(0.1, 0, 1, 0), BackgroundColor3 = Ui.SAKURA, BorderSizePixel = 0, ZIndex = 52, Parent = barBack })
+-- any error while loading is shown here (and in View › Output) rather than loading forever
+local function showLoadError(where, message)
+	if loading.Parent then
+		loadMsg.Text = "Something went wrong (" .. where .. "):\n" .. message .. "\nSend a screenshot of this to fix it."
+		loadMsg.TextColor3 = Ui.DANGER
+	end
+end
+game:GetService("ScriptContext").Error:Connect(function(message, trace) showLoadError("game", message .. "\n" .. trace) end)
 local R = ReplicatedStorage:WaitForChild("KaidoRemotes")
 local mapFolder = workspace:WaitForChild("KaidoMap")
 local t0 = os.clock()
 while not mapFolder:GetAttribute("Ready") do
-	loadBar.Size = UDim2.new(math.min(0.95, 0.1 + (os.clock() - t0) / 30), 0, 1, 0)
+	loadBar.Size = UDim2.new(math.min(0.95, 0.1 + (os.clock() - t0) / 60), 0, 1, 0)
+	local err = ReplicatedStorage:GetAttribute("KaidoError")
+	if err then showLoadError("server", err) end
 	task.wait(0.1)
 end
 loadMsg.Text = "Loading your garage…"

@@ -70,7 +70,6 @@ local N, X, Y, Z = Track.N, Track.X, Track.Y, Track.Z
 local HALF = Config.ROAD_HALF
 local FLOOR = 6 -- the open ground a little above the lake
 local terrain = workspace.Terrain
-terrain.Decoration = false -- no grass blades: they poke up through road parts
 local work = 0
 local function breathe() work += 1; if work % 120 == 0 then task.wait() end end
 
@@ -159,6 +158,7 @@ while i <= N do
 	-- a thick road slab, and no terrain from 3 studs below its surface upwards: terrain is built from 4-stud
 	-- voxels and bulges over a thin part, so it must stay well clear of the road
 	block(road, Vector3.new(HALF * 2, 4, len), cf * CFrame.new(0, -2, 0), asphalt, Enum.Material.Asphalt).Name = "Road"
+	terrain:FillBlock(cf * CFrame.new(0, -5.5, 0), Vector3.new(HALF * 2 + 4, 4, len + 2), Enum.Material.Ground) -- no grass blades under it
 	terrain:FillBlock(cf * CFrame.new(0, 13.5, 0), Vector3.new(HALF * 2 + 12, 33, len + 4), Enum.Material.Air)
 	for _, side in { -1, 1 } do
 		if side == junctionSide and (nearJunction(i) or nearJunction(jj)) then continue end

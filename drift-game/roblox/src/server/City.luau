@@ -73,7 +73,7 @@ function City.build(ctx)
 	-- would bulge through the streets otherwise); the street slab is thick enough to hide the gap
 	for gx = X0 - 200, X0 + SIZE + 200, 1024 do
 		for gz = Z0 - 200, Z0 + SIZE + 200, 1024 do
-			workspace.Terrain:FillBlock(CFrame.new(gx + 512, GY - 4 + 50, gz + 512), Vector3.new(1024, 100, 1024), Enum.Material.Air)
+			workspace.Terrain:FillBlock(CFrame.new(gx + 512, GY - 4 + 8, gz + 512), Vector3.new(1024, 16, 1024), Enum.Material.Air)
 			workspace.Terrain:FillBlock(CFrame.new(gx + 512, GY - 4 - 6, gz + 512), Vector3.new(1024, 12, 1024), Enum.Material.Concrete)
 			breathe()
 		end
@@ -512,6 +512,7 @@ function City.build(ctx)
 		local len = (b - a).Magnitude
 		local cf = CFrame.lookAt((a + b) / 2, b)
 		part(ground, Vector3.new(HALF * 2, 4, len + 2), cf * CFrame.new(0, -2, 0), asphalt, Enum.Material.Asphalt).Name = "Link"
+		workspace.Terrain:FillBlock(cf * CFrame.new(0, -5.5, 0), Vector3.new(HALF * 2 + 4, 4, len + 2), Enum.Material.Ground)
 		workspace.Terrain:FillBlock(cf * CFrame.new(0, 13.5, 0), Vector3.new(HALF * 2 + 12, 33, len + 4), Enum.Material.Air)
 		if k > 3 then
 			for _, sd in { -1, 1 } do
