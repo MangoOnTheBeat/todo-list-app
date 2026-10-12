@@ -69,18 +69,19 @@ function City.build(ctx)
 	local function streetX(i) return X0 + i * PITCH + STREET / 2 end -- centre line of the i-th north-south street
 	local function streetZ(j) return Z0 + j * PITCH + STREET / 2 end
 
-	-- terrain under the city: flat ground at street level
-	local th = GY - 0.4 - FLOOR + 12
+	-- terrain under the city: cleared from 4 studs below street level up (terrain uses 4-stud voxels and
+	-- would bulge through the streets otherwise); the street slab is thick enough to hide the gap
 	for gx = X0 - 200, X0 + SIZE + 200, 1024 do
 		for gz = Z0 - 200, Z0 + SIZE + 200, 1024 do
-			workspace.Terrain:FillBlock(CFrame.new(gx + 512, (GY - 0.4 + FLOOR - 12) / 2, gz + 512), Vector3.new(1024, th, 1024), Enum.Material.Concrete)
+			workspace.Terrain:FillBlock(CFrame.new(gx + 512, GY - 4 + 50, gz + 512), Vector3.new(1024, 100, 1024), Enum.Material.Air)
+			workspace.Terrain:FillBlock(CFrame.new(gx + 512, GY - 4 - 6, gz + 512), Vector3.new(1024, 12, 1024), Enum.Material.Concrete)
 			breathe()
 		end
 	end
 
 	-- streets: one asphalt sheet, then lane lines
 	local asphalt = Color3.fromRGB(40, 41, 46)
-	slab(ground, X0, Z0, X0 + SIZE, Z0 + SIZE, GY, 1, asphalt, Enum.Material.Asphalt)
+	slab(ground, X0, Z0, X0 + SIZE, Z0 + SIZE, GY, 6, asphalt, Enum.Material.Asphalt)
 	local lineCol = Color3.fromRGB(236, 232, 214)
 	local yellow = Color3.fromRGB(240, 188, 40)
 	local function mark(x, z, sx, sz, col)
@@ -510,9 +511,8 @@ function City.build(ctx)
 		local a, b = path[k], path[k + 1]
 		local len = (b - a).Magnitude
 		local cf = CFrame.lookAt((a + b) / 2, b)
-		part(ground, Vector3.new(HALF * 2, 1, len + 2), cf * CFrame.new(0, -0.5, 0), asphalt, Enum.Material.Asphalt).Name = "Link"
-		workspace.Terrain:FillBlock(cf * CFrame.new(0, -4.3, 0), Vector3.new(HALF * 2 + 8, 8, len + 2), Enum.Material.Asphalt)
-		workspace.Terrain:FillBlock(cf * CFrame.new(0, 14.7, 0), Vector3.new(HALF * 2 + 12, 30, len + 4), Enum.Material.Air)
+		part(ground, Vector3.new(HALF * 2, 4, len + 2), cf * CFrame.new(0, -2, 0), asphalt, Enum.Material.Asphalt).Name = "Link"
+		workspace.Terrain:FillBlock(cf * CFrame.new(0, 13.5, 0), Vector3.new(HALF * 2 + 12, 33, len + 4), Enum.Material.Air)
 		if k > 3 then
 			for _, sd in { -1, 1 } do
 				part(solid, Vector3.new(0.5, 1.2, len + 1), cf * CFrame.new(sd * (HALF + 0.9), 1.6, 0), Color3.fromRGB(172, 174, 178), Enum.Material.DiamondPlate).Name = "Rail"
