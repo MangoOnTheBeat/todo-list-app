@@ -808,6 +808,7 @@ RunService.RenderStepped:Connect(function(dt)
 			local now = Vector3.new(P.x * K, posY, P.z * K)
 			local hit = World.sweep(prev + up, now + up, P.h, size)
 			if hit then
+				-- stop at the wall (no tunnelling at speed), then bounce and slide along it
 				local dir = (now - prev).Unit
 				local back = prev + dir * math.max(0, hit.Distance - 0.05)
 				P.x, P.z = back.X / K, back.Z / K
@@ -817,9 +818,15 @@ RunService.RenderStepped:Connect(function(dt)
 					local v = CarPhysics.wallHit(P, c, n.X, n.Z, 0, (hit.Position.X - back.X) / K, (hit.Position.Z - back.Z) / K)
 					if v > 6.5 then crash(v) end
 				end
-			elseif World.inside(now + up, P.h, size * 0.96) then
-				P.x, P.z = prev.X / K, prev.Z / K
-				P.vx, P.vz, P.r = -P.vx * 0.25, -P.vz * 0.25, P.r * 0.3
+			end
+			-- touching a wall after turning into it: push the car out sideways, never freeze it in place
+			for _ = 1, 3 do
+				local here = Vector3.new(P.x * K, posY, P.z * K) + up
+				local push, n = World.pushOut(here, P.h, size)
+				if not push then break end
+				P.x, P.z = P.x + push.X / K, P.z + push.Z / K
+				local v = CarPhysics.wallHit(P, c, n.X, n.Z, 0, -n.X * c.b.wid / 2, -n.Z * c.b.wid / 2)
+				if v > 6.5 then crash(v) end
 			end
 		end
 
@@ -829,11 +836,7 @@ RunService.RenderStepped:Connect(function(dt)
 		local gy, gn = World.ground(X, posY, Z)
 		if gy then
 			local snap = 0.6 + sp * K * dt * 0.7
-			if gy > posY + 3.2 then
-				-- a step too tall to drive up: treat as a wall
-				P.x, P.z = prev.X / K, prev.Z / K
-				P.vx, P.vz = -P.vx * 0.2, -P.vz * 0.2
-			elseif onGround and posY - gy <= snap then
+			if onGround and posY - gy <= snap then
 				vy = (gy - posY) / dt
 				posY = gy
 				groundN = groundN:Lerp(gn, math.min(1, dt * 12))
