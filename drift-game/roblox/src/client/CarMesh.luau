@@ -88,13 +88,14 @@ end
 
 -- build (or clone) the browser model of car `def`
 function CarMesh.build(def, name: string, paint: Color3?)
-	local tpl = templates[def.id]
+	local key = def.mesh or def.id -- special cars reuse a browser body
+	local tpl = templates[key]
 	if tpl == false then return nil end
 	if not tpl then
 		local ok, res = pcall(function()
-			local src = require(folder:WaitForChild(def.id, 5))
+			local src = require(folder:WaitForChild(key, 5))
 			local m = Instance.new("Model")
-			m.Name = def.id
+			m.Name = key
 			local root = Instance.new("Part")
 			root.Name = "Root"
 			root.Size = Vector3.new(1, 1, 1)
@@ -128,11 +129,11 @@ function CarMesh.build(def, name: string, paint: Color3?)
 		end)
 		if not ok then
 			CarMesh.lastError = tostring(res)
-			templates[def.id] = false
+			templates[key] = false
 			return nil
 		end
 		tpl = res
-		templates[def.id] = tpl
+		templates[key] = tpl
 	end
 	local m = tpl:Clone()
 	m.Name = name

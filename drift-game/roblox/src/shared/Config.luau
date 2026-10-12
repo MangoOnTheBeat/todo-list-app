@@ -2,11 +2,37 @@
 -- numbers live in CarPhysics, exactly as in the browser.
 local Config = {}
 
-Config.ROAD_HALF = 16 -- half the pass road width (studs)
+Config.ROAD_HALF = 22 -- half the pass road width (studs): a wide, two-car road
 Config.SEG = 10 -- pass road sample spacing (studs)
 Config.SCALE = 3.5 -- studs per metre for cars and physics
 
 Config.Cars = require(script.Parent.Cars)
+
+-- Special cars, sold for Robux as game passes. Each one beats the fastest credit car (JZA-80 Apex) and
+-- uses a browser body. To put one on sale: Creator Hub › your game › Monetization › Passes › create a
+-- pass at the price below, then paste its ID into `pass`. While `pass` is 0 the car shows "Coming soon".
+-- `robux` must match the pass price you set on Roblox (100 or more; lower only for a marked deal).
+local function special(base: string, t)
+	local src
+	for _, c in Config.Cars do if c.id == base then src = c end end
+	local car = table.clone(src)
+	for k, v in t do car[k] = v end
+	car.mesh, car.premium = base, true
+	car.price = 0
+	return car
+end
+Config.Premium = {
+	special("fd7", { id = "fd7x", name = "Akagi FD-7 Spirit Rotor", tag = "Special · 1,180 kg triple-rotor · screams to 9,500",
+		pass = 0, robux = 149, color = Color3.fromHex("#e8f0ff"), rim = Color3.fromHex("#ff7eb6"),
+		mass = 1180, torque = 640, peak = 6800, red = 9500, mu = 1.2, lock = 64 }),
+	special("jza", { id = "jzax", name = "Kaze JZA-80 Apex Omega", tag = "Special · 1,000 hp twin-turbo six · fastest on the mountain",
+		pass = 0, robux = 249, color = Color3.fromHex("#14141a"), rim = Color3.fromHex("#ffc94d"),
+		mass = 1420, torque = 880, peak = 5200, red = 8200, mu = 1.22, lock = 65 }),
+	special("r34", { id = "r34x", name = "Hoshi R-34 Raijin Z-Tune", tag = "Special · stroked twin-turbo · 6-speed · ultimate grip",
+		pass = 0, robux = 399, color = Color3.fromHex("#9aa3b2"), rim = Color3.fromHex("#59e3ff"),
+		mass = 1460, torque = 860, peak = 5000, red = 8600, mu = 1.26, lock = 66 }),
+}
+for _, c in Config.Premium do table.insert(Config.Cars, c) end
 
 -- free paints (index 0 = the car's own colour)
 Config.Paints = {
@@ -31,7 +57,7 @@ Config.Quality = {
 	high = { trees = 3, lights = 1, shadows = true, bloom = true, smoke = 1, windows = 3, signs = true },
 }
 
-Config.DefaultSettings = { quality = "auto", time = 0, trans = "auto", assist = "", cam = 0, sens = 1, sound = true, volume = 0.8, start = "pass" }
+Config.DefaultSettings = { quality = "auto", time = 0, trans = "auto", assist = "", cam = 0, sens = 1, sound = true, volume = 0.8, start = "city", v = 2 }
 
 function Config.cleanSettings(t)
 	local d = Config.DefaultSettings
@@ -46,7 +72,9 @@ function Config.cleanSettings(t)
 	out.sens = type(t.sens) == "number" and t.sens == t.sens and math.clamp(t.sens, 0.5, 1.6) or 1
 	out.sound = t.sound ~= false
 	out.volume = type(t.volume) == "number" and t.volume == t.volume and math.clamp(t.volume, 0, 1) or d.volume
-	out.start = t.start == "city" and "city" or "pass"
+	-- everyone starts in the city; the pass is kept only if picked after the city became the default (v2)
+	out.start = (t.v == 2 and t.start == "pass") and "pass" or "city"
+	out.v = 2
 	return out
 end
 

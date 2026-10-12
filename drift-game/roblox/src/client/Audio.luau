@@ -10,25 +10,36 @@ Audio.__index = Audio
 local NAMES = { "kaido_engine_low", "kaido_engine_mid", "kaido_engine_high", "kaido_engine_off", "kaido_skid", "kaido_blowoff", "kaido_wind" }
 local LAYER_RPM = { 1800, 4200, 7000 }
 
--- find each sound: a Sound named after it anywhere players can see, or an ID in SoundIds
+-- find each sound: a Sound or AudioPlayer whose name contains the file name (Studio may add a suffix
+-- like "kaido_engine_low (1)"), anywhere players can see, or an ID pasted into SoundIds
 local ids = {}
+local function learn(d: Instance)
+	local id = if d:IsA("Sound") then d.SoundId elseif d:IsA("AudioPlayer") then (d :: any).AssetId else nil
+	if not id or id == "" then return end
+	local key = string.lower(d.Name)
+	for _, n in NAMES do
+		if string.find(key, n, 1, true) and not ids[n] then ids[n] = id end
+	end
+end
 local function scan()
 	local pasted = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SoundIds"))
 	for _, n in NAMES do
-		if pasted[n] and pasted[n] ~= "" then ids[n] = pasted[n] end
+		local v = pasted[n]
+		if type(v) == "number" then v = "rbxassetid://" .. v end
+		if type(v) == "string" and v ~= "" then
+			if string.match(v, "^%d+$") then v = "rbxassetid://" .. v end
+			ids[n] = v
+		end
 	end
 	for _, where in { workspace, ReplicatedStorage, SoundService } do
-		for _, d in where:GetDescendants() do
-			if d:IsA("Sound") and d.SoundId ~= "" then
-				local key = string.lower(d.Name):gsub("%.ogg$", ""):gsub("%.mp3$", "")
-				for _, n in NAMES do
-					if key == n then ids[n] = d.SoundId end
-				end
-			end
-		end
+		for _, d in where:GetDescendants() do learn(d) end
 	end
 end
 scan()
+-- sounds dropped in while the game runs are picked up for the next car
+for _, where in { workspace, ReplicatedStorage, SoundService } do
+	where.DescendantAdded:Connect(function(d) task.defer(learn, d) end)
+end
 
 function Audio.available(): boolean
 	return ids.kaido_engine_mid ~= nil

@@ -229,7 +229,7 @@ local bGarage = Ui.button("Garage", "Unlock & paint", nil, 3, tMenu)
 local bSettings = Ui.button("Settings", "Graphics, gearbox, assists, sound", nil, 4, tMenu)
 do
 	local f = Ui.field("Start at", 5, tMenu)
-	Ui.chips({ { "pass", "Hakone pass" }, { "city", "Shin-Hakone city" } }, S.start, function(v) S.start = v; saveSettings() end, 1, f)
+	Ui.chips({ { "city", "Shin-Hakone city" }, { "pass", "Hakone pass" } }, S.start, function(v) S.start = v; saveSettings() end, 1, f)
 end
 Ui.fine(touch and "Drag on the left to steer. GAS, BRAKE and HAND BRAKE are on the right; hold BRAKE when stopped to reverse. To start a drift: steer hard with GAS, tap HAND BRAKE, or lift and re-press GAS (clutch kick). CAM switches to the cockpit view."
 	or "W/↑ gas · S/↓ brake (hold to reverse) · A D / ← → steer · Space hand brake · drift: steer + gas, tap Space, or lift and re-press W (clutch kick) · C camera · Q/E shift (manual) · R reset · Esc pause. Controllers work too.", 5, tCol)
@@ -260,15 +260,26 @@ end
 renderGarage = function()
 	gStats[1].Text = fmt(profile.credits)
 	for _, c in gList:GetChildren() do if c:IsA("GuiObject") then c:Destroy() end end
+	local order = 0
 	for k, car in Config.Cars do
+		order += 1
+		if car.premium and not Config.Cars[k - 1].premium then
+			-- the Robux section, with its own header
+			local h = text({ Text = 'SPECIAL CARS  <font color="#b3b0c4">·  faster than anything in the garage  ·  Robux</font>', TextSize = 12, FontFace = Ui.BOLD, TextColor3 = Ui.VIOLET, LayoutOrder = order, Parent = gList })
+			h.RichText = true
+			order += 1
+		end
 		local sel = car.id == garageSel
 		local have = owned(car.id)
-		local card = make("TextButton", { Size = UDim2.new(1, 0, 0, 58), AutoButtonColor = false, Text = "", LayoutOrder = k, BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = sel and 0.9 or 0.97, Parent = gList },
-			{ Ui.corner(4), Ui.stroke(sel and Ui.SAKURA or Ui.LINE, sel and 1.5 or 1, sel and 0 or 0.87) })
+		local card = make("TextButton", { Size = UDim2.new(1, 0, 0, 58), AutoButtonColor = false, Text = "", LayoutOrder = order, BackgroundColor3 = car.premium and Ui.VIOLET or Color3.new(1, 1, 1), BackgroundTransparency = sel and 0.82 or (car.premium and 0.9 or 0.97), Parent = gList },
+			{ Ui.corner(14), Ui.stroke(sel and Ui.SAKURA or (car.premium and Ui.VIOLET or Ui.LINE), sel and 1.5 or 1, sel and 0 or (car.premium and 0.5 or 0.87)) })
+		Ui.bouncy(card)
 		text({ Text = car.name, FontFace = Ui.BOLD, TextSize = 16, AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(1, -150, 0, 22), Position = UDim2.new(0, 14, 0, 8), TextWrapped = false, Parent = card })
 		text({ Text = car.tag, TextSize = 13, TextColor3 = Ui.DIM, AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(1, -150, 0, 18), Position = UDim2.new(0, 14, 0, 31), TextWrapped = false, TextTruncate = Enum.TextTruncate.AtEnd, Parent = card })
-		local pr = car.id == profile.selected and "DRIVING" or have and "OWNED" or (fmt(car.price) .. " CR")
-		text({ Text = pr, FontFace = Ui.BOLD, TextSize = 15, TextColor3 = have and Ui.NEON or (profile.credits >= car.price and Ui.GOLD or Ui.DIM), AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(0, 130, 1, 0), Position = UDim2.new(1, -144, 0, 0), TextXAlignment = Enum.TextXAlignment.Right, TextWrapped = false, Parent = card })
+		local pr = car.id == profile.selected and "DRIVING" or have and "OWNED"
+			or car.premium and (car.pass > 0 and ("R$ " .. car.robux) or "COMING SOON")
+			or (fmt(car.price) .. " CR")
+		text({ Text = pr, FontFace = Ui.BOLD, TextSize = 15, TextColor3 = have and Ui.NEON or car.premium and Ui.VIOLET or (profile.credits >= car.price and Ui.GOLD or Ui.DIM), AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(0, 130, 1, 0), Position = UDim2.new(1, -144, 0, 0), TextXAlignment = Enum.TextXAlignment.Right, TextWrapped = false, Parent = card })
 		card.Activated:Connect(function()
 			garageSel = car.id
 			spawnCar(car.id)
@@ -291,6 +302,12 @@ renderGarage = function()
 		label, note, kind = "Driving this car", nil, nil
 	elseif have then
 		label, note, kind = "Drive this car", nil, "primary"
+	elseif car.premium then
+		if car.pass > 0 then
+			label, note, kind = "Buy for R$ " .. car.robux, "One-time Robux purchase · yours on every device", "primary"
+		else
+			label, note, kind = "Coming soon", "Not on sale yet", nil
+		end
 	elseif profile.credits >= car.price then
 		label, note, kind = "Buy", fmt(car.price) .. " CR", "primary"
 	else
@@ -301,6 +318,9 @@ renderGarage = function()
 		local res
 		if have and car.id ~= profile.selected then
 			res = R.Select:InvokeServer(car.id)
+		elseif not have and car.premium then
+			if car.pass > 0 then R.BuySpecial:FireServer(car.id) end
+			return
 		elseif not have and profile.credits >= car.price then
 			res = R.Buy:InvokeServer(car.id)
 		end
@@ -409,7 +429,7 @@ local pQuit = Ui.button("Main menu", nil, "ghost", 6, pMenu)
 -- ===================== HUD =====================
 local hud = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false, Parent = gui })
 local shadowT = function(o) make("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1, Transparency = 0.55, ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual, Parent = o }); return o end
-local tl = make("Frame", { Size = UDim2.new(0, 280, 0, 60), Position = UDim2.new(0, 16, 0, 62), BackgroundTransparency = 1, Parent = hud }, { Ui.list(2) })
+local tl = Ui.glass(make("Frame", { Size = UDim2.new(0, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.XY, Position = UDim2.new(0, 16, 0, 62), Parent = hud }, { Ui.list(2), Ui.pad(14, 8, 18, 10) }), 16, 0.45)
 local credRow = make("Frame", { Size = UDim2.new(1, 0, 0, 26), BackgroundTransparency = 1, LayoutOrder = 1, Parent = tl }, { Ui.list(8, true, Enum.VerticalAlignment.Bottom) })
 text({ Text = "CR", TextSize = 11, FontFace = Ui.BOLD, TextColor3 = Ui.DIM, AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.new(), TextWrapped = false, LayoutOrder = 1, Parent = credRow })
 local hCredits = shadowT(text({ Text = "0", TextSize = 22, FontFace = Ui.BOLD, TextColor3 = Ui.GOLD, AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.new(), TextWrapped = false, LayoutOrder = 2, Parent = credRow }))
@@ -427,10 +447,10 @@ local dTags = make("Frame", { Size = UDim2.new(1, 0, 0, touch and 16 or 22), Bac
 })
 local toast = shadowT(text({ Text = "", TextSize = touch and 16 or 24, FontFace = Ui.DISPLAY, TextColor3 = Ui.GOLD, TextXAlignment = Enum.TextXAlignment.Center, Size = UDim2.new(0, 520, 0, 0), Position = UDim2.new(0.5, -260, 0, touch and 82 or 130), TextTransparency = 1, Parent = hud }))
 local toastT = 0
-local function showToast(t, c) toast.Text, toast.TextColor3, toast.TextTransparency, toastT = t, c or Ui.GOLD, 0, 2.4 end
+local function showToast(t, c) toast.Text, toast.TextColor3, toast.TextTransparency, toastT = t, c or Ui.GOLD, 0, 2.4; Ui.pop(toast, 1.25) end
 local hint = make("TextLabel", { Size = UDim2.new(0, 0, 0, 34), AutomaticSize = Enum.AutomaticSize.X, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.42, 0), BackgroundColor3 = Color3.fromHex("0a0b14"), BackgroundTransparency = 0.3, Text = "", FontFace = Ui.BOLD, TextSize = 14, TextColor3 = Ui.TEXT, Visible = false, Parent = hud }, { Ui.corner(4), Ui.pad(14, 0, 14, 0) })
 -- speed
-local spBox = make("Frame", { Size = UDim2.new(0, 190, 0, 86), Position = UDim2.new(0.5, -95, 1, touch and -104 or -100), BackgroundTransparency = 1, Parent = hud })
+local spBox = Ui.glass(make("Frame", { Size = UDim2.new(0, 210, 0, 96), Position = UDim2.new(0.5, -105, 1, touch and -112 or -108), Parent = hud }, { Ui.pad(10, 6, 10, 6) }), 20, 0.45)
 local hSpeed = shadowT(text({ Text = "0", TextSize = touch and 42 or 56, FontFace = Ui.DISPLAY, TextXAlignment = Enum.TextXAlignment.Right, AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(0.6, 0, 0, 56), Parent = spBox }))
 text({ Text = "KM/H", TextSize = 11, FontFace = Ui.BOLD, TextColor3 = Ui.DIM, AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(0.38, 0, 0, 14), Position = UDim2.new(0.64, 0, 0, 12), Parent = spBox })
 local hGear = shadowT(text({ Text = "1", TextSize = 22, FontFace = Ui.BOLD, TextColor3 = Ui.NEON, AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(0.38, 0, 0, 26), Position = UDim2.new(0.64, 0, 0, 26), Parent = spBox }))
@@ -441,7 +461,7 @@ local rpmBar = make("Frame", { Size = UDim2.new(0.2, 0, 1, 0), BackgroundColor3 
 local hAngle = text({ Text = "", TextSize = 11, FontFace = Ui.BOLD, TextColor3 = Ui.DIM, TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.new(0, 0, 0, 70), Parent = spBox })
 -- minimap (the pass and the city)
 local mmSize = touch and 100 or 150
-local mm = make("Frame", { Size = UDim2.new(0, mmSize, 0, mmSize), Position = UDim2.new(1, -mmSize - 14, 0, 14), BackgroundColor3 = Color3.fromHex("0a0b14"), BackgroundTransparency = 0.45, ClipsDescendants = true, Parent = hud }, { make("UICorner", { CornerRadius = UDim.new(0.5, 0) }), Ui.stroke(Ui.LINE, 1, 0.87) })
+local mm = make("Frame", { Size = UDim2.new(0, mmSize, 0, mmSize), Position = UDim2.new(1, -mmSize - 14, 0, 14), BackgroundColor3 = Color3.fromHex("1a1d36"), BackgroundTransparency = 0.45, ClipsDescendants = true, Parent = hud }, { make("UICorner", { CornerRadius = UDim.new(0.5, 0) }), Ui.stroke(Ui.LINE, 1.5, 0.7) })
 local cityMin, cityMax = mapFolder:GetAttribute("CityMin"), mapFolder:GetAttribute("CityMax")
 local mmMinX, mmMaxX, mmMinZ, mmMaxZ = math.huge, -math.huge, math.huge, -math.huge
 for i = 1, Track.N do
@@ -478,7 +498,7 @@ local hb = make("Frame", { Size = UDim2.new(0, 4 * 60, 0, 44), BackgroundTranspa
 })
 hb.Position = touch and UDim2.new(1, -mmSize - 14 - 4 * 60 - 8, 0, 14) or UDim2.new(1, -4 * 60 - 14, 1, -58)
 local function hudBtn(t, order)
-	return make("TextButton", { Size = UDim2.new(0, 54, 0, 44), BackgroundColor3 = Color3.fromHex("0a0b14"), BackgroundTransparency = 0.4, Text = t, TextColor3 = Ui.TEXT, FontFace = Ui.BOLD, TextSize = 13, LayoutOrder = order, Parent = hb }, { Ui.corner(4), Ui.stroke(Ui.LINE, 1, 0.87) })
+	return Ui.bouncy(Ui.glass(make("TextButton", { Size = UDim2.new(0, 54, 0, 44), Text = t, TextColor3 = Ui.TEXT, FontFace = Ui.BOLD, TextSize = 13, AutoButtonColor = false, LayoutOrder = order, Parent = hb }), 14, 0.45))
 end
 local bCam, bSnd, bPause = hudBtn("CAM", 1), hudBtn("SND", 2), hudBtn("II", 3)
 
@@ -497,7 +517,8 @@ if touch then
 	UserInputService.InputEnded:Connect(function(io) if io == steerInput then steerInput = nil; touchState.steer = 0 end end)
 	RunService.RenderStepped:Connect(function() knob.Position = UDim2.new(0.5, -24 + touchState.steer * 58, 0, 4) end)
 	local function pedal(t, size, pos, color, key)
-		local b = make("TextButton", { Size = size, Position = pos, BackgroundColor3 = color, BackgroundTransparency = 0.3, Text = t, TextColor3 = Ui.INK, FontFace = Ui.BOLD, TextSize = 15, AutoButtonColor = false, Parent = hud }, { Ui.corner(8) })
+		local b = make("TextButton", { Size = size, Position = pos, BackgroundColor3 = color, BackgroundTransparency = 0.3, Text = t, TextColor3 = Ui.INK, FontFace = Ui.BOLD, TextSize = 15, AutoButtonColor = false, Parent = hud }, { Ui.corner(18), Ui.stroke(Ui.LINE, 1.5, 0.5), make("UIGradient", { Rotation = 90, Transparency = NumberSequence.new(0, 0.3) }) })
+		Ui.bouncy(b)
 		local held = {}
 		b.InputBegan:Connect(function(io) if io.UserInputType == Enum.UserInputType.Touch then held[io] = true; touchState[key] = true; b.BackgroundTransparency = 0.05 end end)
 		b.InputEnded:Connect(function(io) held[io] = nil; if next(held) == nil then touchState[key] = false; b.BackgroundTransparency = 0.3 end end)
@@ -506,11 +527,11 @@ if touch then
 	pedal("GAS", UDim2.new(0, 88, 0, 150), UDim2.new(1, -102, 1, -164), Ui.SAKURA, "gas")
 	pedal("BRAKE", UDim2.new(0, 84, 0, 70), UDim2.new(1, -194, 1, -84), Color3.fromRGB(214, 216, 226), "brake")
 	pedal("HAND", UDim2.new(0, 84, 0, 70), UDim2.new(1, -194, 1, -164), Ui.NEON, "hand")
-	local reset = make("TextButton", { Size = UDim2.new(0, 44, 0, 40), Position = UDim2.new(1, -58, 1, -214), BackgroundColor3 = Color3.fromHex("0a0b14"), BackgroundTransparency = 0.4, Text = "↺", TextColor3 = Ui.TEXT, TextSize = 20, FontFace = Ui.BOLD, Parent = hud }, { Ui.corner(4) })
+	local reset = Ui.bouncy(Ui.glass(make("TextButton", { Size = UDim2.new(0, 44, 0, 40), Position = UDim2.new(1, -58, 1, -214), Text = "↺", TextColor3 = Ui.TEXT, TextSize = 20, FontFace = Ui.BOLD, AutoButtonColor = false, Parent = hud }), 14, 0.45))
 	reset.Activated:Connect(function() resetCar() end)
 	shiftRow = make("Frame", { Size = UDim2.new(0, 100, 0, 40), Position = UDim2.new(1, -164, 1, -214), BackgroundTransparency = 1, Parent = hud }, { Ui.list(8, true) })
 	for k, d in { { "▼", -1 }, { "▲", 1 } } do
-		local sb = make("TextButton", { Size = UDim2.new(0, 46, 0, 40), BackgroundColor3 = Color3.fromHex("0a0b14"), BackgroundTransparency = 0.4, Text = d[1], TextColor3 = Ui.TEXT, TextSize = 18, FontFace = Ui.BOLD, LayoutOrder = k, Parent = shiftRow }, { Ui.corner(4) })
+		local sb = Ui.bouncy(Ui.glass(make("TextButton", { Size = UDim2.new(0, 46, 0, 40), Text = d[1], TextColor3 = Ui.TEXT, TextSize = 18, FontFace = Ui.BOLD, AutoButtonColor = false, LayoutOrder = k, Parent = shiftRow }), 14, 0.45))
 		sb.Activated:Connect(function() if d[2] > 0 then CarPhysics.shiftUp(P, carDef) else CarPhysics.shiftDown(P, carDef) end end)
 	end
 end
@@ -554,7 +575,15 @@ local function setMode(m)
 	elseif m == "garage" or m == "settings" then returnTo = "title" end
 	if mode == "garage" and m ~= "garage" and garageSel ~= profile.selected then garageSel = profile.selected; spawnCar() end
 	mode = m
-	title.Visible, garage.Visible, settings.Visible, pause.Visible = m == "title", m == "garage", m == "settings", m == "pause"
+	-- the new screen slides in on glass; the world behind blurs while a menu is open
+	for name, root in { title = title, garage = garage, settings = settings, pause = pause } do
+		if name == m then
+			if not root.Visible then Ui.show(root) end
+		else
+			root.Visible = false
+		end
+	end
+	Ui.blur(m ~= "play")
 	hud.Visible = m == "play"
 	if m == "title" then clearGhosts(); refreshTitle() end
 	if m == "garage" then garageSel = profile.selected; renderGarage() end
@@ -586,6 +615,16 @@ pSettings.Activated:Connect(function() setMode("settings") end)
 pPass.Activated:Connect(function() resetCar(START); onPass = true; setMode("play") end)
 pCity.Activated:Connect(function() goCity(); setMode("play") end)
 pQuit.Activated:Connect(function() R.SetMode:FireServer("solo"); setMode("title") end)
+-- a special car bought with Robux: the server sends the new profile
+R.Profile.OnClientEvent:Connect(function(res)
+	profile = res
+	profile.settings = S
+	garageSel = profile.selected
+	spawnCar(profile.selected)
+	if mode == "garage" then renderGarage() end
+	refreshTitle()
+	showToast("Unlocked · " .. Config.car(profile.selected).name, Ui.VIOLET)
+end)
 local CAM_NAMES = { [0] = "Chase", [1] = "Far chase", [2] = "Cockpit · first person", [3] = "Hood" }
 local function cycleCam()
 	camMode = (camMode + 1) % 4
@@ -827,7 +866,8 @@ RunService.RenderStepped:Connect(function(dt)
 		hGear.Text = (S.trans == "manual" and "M" or "") .. (if P.gear < 0 then "R" elseif sp < 0.5 and input.throttle == 0 then "N" else tostring(P.gear))
 		rpmBar.Size = UDim2.new(math.clamp((P.rpm - 800) / (c.red - 800), 0, 1), 0, 1, 0)
 		hAngle.Text = if P.drifting then (math.floor(math.abs(P.slip) * 57.3) .. "° ANGLE") else ""
-		hCredits.Text = fmt(profile.credits)
+		local credText = fmt(profile.credits)
+		if credText ~= hCredits.Text then hCredits.Text = credText; Ui.pop(tl, 1.12) end
 		local cmin, cmax = mapFolder:GetAttribute("CityMin"), mapFolder:GetAttribute("CityMax")
 		local z = if onPass then Track.ZONE[idx] elseif cmin and X > cmin.X and X < cmax.X and Z > cmin.Y and Z < cmax.Y then 3 else 4
 		if z ~= lastZone then
@@ -841,7 +881,8 @@ RunService.RenderStepped:Connect(function(dt)
 			local pts = drift.score * drift.mult
 			dScore.Text = fmt(pts)
 			dMult.Text = string.format("×%.1f", drift.mult)
-			dTier.Text = tierOf(pts)
+			local tier = tierOf(pts)
+			if tier ~= dTier.Text then dTier.Text = tier; Ui.pop(dBox, 1.15) end
 			renderTags()
 		end
 		mmMe.Position = mmPos(X, Z)

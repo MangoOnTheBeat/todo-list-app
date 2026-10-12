@@ -17,20 +17,30 @@ A Roblox replica of the browser drift game:
 - **Engine sound** synthesised for this game: three rpm layers, off-throttle crackle, turbo blow-off, tyres, wind.
 
 ## 1. Open it
-Double-click `KaidoDrift.rbxlx` (Roblox Studio opens it) and press **Play**. The map is built when the game
+Double-click `KaidoDrift.rbxl` (Roblox Studio opens it) and press **Play**. The map is built when the game
 starts, so the place looks empty in edit mode. The first start takes a few seconds while the hills fill in.
 
 ## 2. Add the sounds (once)
 Roblox only plays audio uploaded to Roblox, so upload the 7 files in `sounds/`:
 1. In Studio: **Window → Asset Manager → Bulk Import** (or Creator Hub → Creations → Audio → Upload), pick all 7 `.ogg` files.
-2. Open the **Toolbox → Inventory → My Audio** and click each one so it lands in Workspace. Keep their names
-   (`kaido_engine_low`, `kaido_engine_mid`, …). The game finds them by name.
-   Alternatively paste their IDs into `ReplicatedStorage > Shared > SoundIds`.
+2. Open the **Toolbox → Inventory → My Audio** and click each one so it lands in Workspace. The game finds
+   them by name (`kaido_engine_low`, `kaido_engine_mid`, …), even with a suffix like "(1)".
+   Or paste just the ID numbers into `ReplicatedStorage › Shared › SoundIds`.
+   Settings › Sound in the game shows how many of the 7 it found.
 
-## 3. Publish
+## 3. Special cars (Robux)
+Three special cars sit in their own garage section, each faster than the fastest credit car:
+FD-7 Spirit Rotor (R$ 149), JZA-80 Apex Omega (R$ 249) and R-34 Raijin Z-Tune (R$ 399). They show
+"Coming soon" until you put them on sale:
+1. Publish the game, then Creator Hub → your game → **Monetization → Passes → Create a Pass** for each car,
+   and set its price (the same as `robux` in `ReplicatedStorage › Shared › Config`).
+2. Paste each pass ID into `pass = ...` for that car in `Config` and publish again.
+Ownership comes from the pass itself, so it works on every device and survives "Erase progress".
+
+## 4. Publish
 **File → Publish to Roblox**, then **Game Settings → Security → Enable Studio Access to API Services** (so
 progress saves while testing in Studio) and set the game to **Public** in Permissions.
 
 ## Rebuild from source
-`rojo build -o KaidoDrift.rbxlx` (Rojo 7) in this folder. `tools/make_course.py` regenerates
+`rojo build -o KaidoDrift.rbxl` (Rojo 7) in this folder. `tools/make_course.py` regenerates
 `src/shared/CourseData.luau` from the browser game; `tools/make_sounds.py` regenerates `sounds/`.

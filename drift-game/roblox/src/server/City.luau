@@ -82,21 +82,34 @@ function City.build(ctx)
 	local asphalt = Color3.fromRGB(40, 41, 46)
 	slab(ground, X0, Z0, X0 + SIZE, Z0 + SIZE, GY, 1, asphalt, Enum.Material.Asphalt)
 	local lineCol = Color3.fromRGB(236, 232, 214)
+	local yellow = Color3.fromRGB(240, 188, 40)
+	local function mark(x, z, sx, sz, col)
+		local p = part(deco, Vector3.new(sx, 0.06, sz), CFrame.new(x, GY + 0.03, z), col)
+		p.CanCollide, p.CanQuery = false, false
+	end
+	-- every fourth street is an avenue: double yellow centre line and white lane lines; others a white centre line
 	for i = 0, GRID do
-		local x = streetX(i)
+		local avenue = i % 4 == 0
 		for j = 0, GRID - 1 do
-			local z0 = streetZ(j) + STREET / 2 + 6
-			local l = BLOCK - 12
-			local ln = part(deco, Vector3.new(0.5, 0.06, l), CFrame.new(x, GY + 0.03, z0 + l / 2), lineCol)
-			ln.CanCollide = false
+			local a0 = Z0 + j * PITCH + STREET + 8 -- this block's stretch, clear of the junctions
+			local l = BLOCK - 16
+			local mid = a0 + l / 2
+			local x = streetX(i)
 			local z = streetZ(i)
-			local x0 = streetX(j) + STREET / 2 + 6
-			local ln2 = part(deco, Vector3.new(l, 0.06, 0.5), CFrame.new(x0 + l / 2, GY + 0.03, z), lineCol)
-			ln2.CanCollide = false
+			local b0 = X0 + j * PITCH + STREET + 8
+			local midx = b0 + l / 2
+			if avenue then
+				mark(x - 0.55, mid, 0.4, l, yellow); mark(x + 0.55, mid, 0.4, l, yellow)
+				mark(x - STREET / 4, mid, 0.35, l, lineCol); mark(x + STREET / 4, mid, 0.35, l, lineCol)
+				mark(midx, z - 0.55, l, 0.4, yellow); mark(midx, z + 0.55, l, 0.4, yellow)
+				mark(midx, z - STREET / 4, l, 0.35, lineCol); mark(midx, z + STREET / 4, l, 0.35, lineCol)
+			else
+				mark(x, mid, 0.45, l, lineCol)
+				mark(midx, z, l, 0.45, lineCol)
+			end
 		end
 		breathe()
 	end
-
 	local function district(x, z)
 		local d = math.max(math.abs(x - cx), math.abs(z - cz)) / (SIZE / 2)
 		return d
@@ -254,8 +267,15 @@ function City.build(ctx)
 			local bz0 = Z0 + STREET + j * PITCH
 			local bx1, bz1 = bx0 + BLOCK, bz0 + BLOCK
 			-- sidewalk / block base
-			local base = part(ground, Vector3.new(BLOCK, CURB + 0.6, BLOCK), CFrame.new(bx0 + BLOCK / 2, GY + CURB / 2 - 0.3, bz0 + BLOCK / 2), Color3.fromRGB(118, 118, 122), Enum.Material.Concrete)
+			local base = part(ground, Vector3.new(BLOCK, CURB + 0.6, BLOCK), CFrame.new(bx0 + BLOCK / 2, GY + CURB / 2 - 0.3, bz0 + BLOCK / 2), Color3.fromRGB(128, 126, 122), Enum.Material.Pavement)
 			base.Name = "Block"
+			-- kerb stones around the block
+			local kc = Color3.fromRGB(190, 188, 182)
+			for _, k in { { 0, -1 }, { 0, 1 }, { -1, 0 }, { 1, 0 } } do
+				local kx, kz = bx0 + BLOCK / 2 + k[1] * (BLOCK / 2 - 0.6), bz0 + BLOCK / 2 + k[2] * (BLOCK / 2 - 0.6)
+				local kp = part(deco, if k[1] == 0 then Vector3.new(BLOCK, CURB + 0.66, 1.2) else Vector3.new(1.2, CURB + 0.66, BLOCK), CFrame.new(kx, GY + CURB / 2 - 0.27, kz), kc, Enum.Material.Concrete)
+				kp.CanCollide, kp.CanQuery = false, false
+			end
 			local d = district(bx0 + BLOCK / 2, bz0 + BLOCK / 2)
 			if i == centreI - 1 and j == centreJ - 1 then
 				-- the tower plaza
@@ -335,14 +355,30 @@ function City.build(ctx)
 			local l = Instance.new("PointLight")
 			l.Color, l.Range, l.Brightness, l.Shadows = Color3.fromRGB(255, 214, 160), 48, 2.2, false
 			l.Parent = head
-			if math.abs(i - centreI) <= 3 and math.abs(j - centreJ) <= 3 then
+			local jd = district(x, z)
+			if jd < 0.48 then
+				-- zebra crossings on all four sides and stop lines before them
 				for side = -1, 1, 2 do
 					for k = -3, 3 do
-						local s1 = part(deco, Vector3.new(3, 0.07, 10), CFrame.new(x + k * 6.5, GY + 0.04, z + side * (STREET / 2 + 6)), lineCol)
-						s1.CanCollide = false
-						local s2 = part(deco, Vector3.new(10, 0.07, 3), CFrame.new(x + side * (STREET / 2 + 6), GY + 0.04, z + k * 6.5), lineCol)
-						s2.CanCollide = false
+						mark(x + k * 6.2, z + side * (STREET / 2 + 6), 3, 10, lineCol)
+						mark(x + side * (STREET / 2 + 6), z + k * 6.2, 10, 3, lineCol)
 					end
+					mark(x + side * STREET / 4, z + side * (STREET / 2 + 13), STREET / 2 - 2, 0.8, lineCol)
+					mark(x - side * (STREET / 2 + 13), z + side * STREET / 4, 0.8, STREET / 2 - 2, lineCol)
+				end
+			end
+			if i % 4 == 0 and j % 4 == 0 then
+				-- traffic lights on the corners of avenue junctions
+				for _, c in { { 1, 1 }, { -1, 1 }, { 1, -1 }, { -1, -1 } } do
+					local px2, pz2 = x + c[1] * (STREET / 2 + 3), z + c[2] * (STREET / 2 + 3)
+					part(solid, Vector3.new(0.9, 16, 0.9), CFrame.new(px2, GY + CURB + 8, pz2), Color3.fromRGB(70, 72, 76), Enum.Material.Metal).Name = "Pole"
+					local arm = part(deco, Vector3.new(0.6, 0.6, 12), CFrame.new(px2, GY + CURB + 15.4, pz2 - c[2] * 6), Color3.fromRGB(70, 72, 76), Enum.Material.Metal)
+					arm.CanCollide, arm.CanQuery = false, false
+					local box = part(deco, Vector3.new(6.5, 2.2, 1.4), CFrame.new(px2, GY + CURB + 14.6, pz2 - c[2] * 11), Color3.fromRGB(30, 32, 36), Enum.Material.Metal)
+					box.CanCollide, box.CanQuery = false, false
+					local lamp = part(deco, Vector3.new(1.6, 1.6, 0.3), CFrame.new(px2 + (((i + j) // 4) % 2 == 0 and -2 or 2), GY + CURB + 14.6, pz2 - c[2] * 11 - c[2] * 0.75), ((i + j) // 4) % 2 == 0 and Color3.fromRGB(60, 255, 150) or Color3.fromRGB(255, 50, 40), Enum.Material.Neon)
+					lamp.CanCollide, lamp.CanQuery = false, false
+					lamp.Name = "Signal"
 				end
 			end
 		end
@@ -475,6 +511,8 @@ function City.build(ctx)
 		local len = (b - a).Magnitude
 		local cf = CFrame.lookAt((a + b) / 2, b)
 		part(ground, Vector3.new(HALF * 2, 1, len + 2), cf * CFrame.new(0, -0.5, 0), asphalt, Enum.Material.Asphalt).Name = "Link"
+		workspace.Terrain:FillBlock(cf * CFrame.new(0, -4.3, 0), Vector3.new(HALF * 2 + 8, 8, len + 2), Enum.Material.Asphalt)
+		workspace.Terrain:FillBlock(cf * CFrame.new(0, 14.7, 0), Vector3.new(HALF * 2 + 12, 30, len + 4), Enum.Material.Air)
 		if k > 3 then
 			for _, sd in { -1, 1 } do
 				part(solid, Vector3.new(0.5, 1.2, len + 1), cf * CFrame.new(sd * (HALF + 0.9), 1.6, 0), Color3.fromRGB(172, 174, 178), Enum.Material.DiamondPlate).Name = "Rail"

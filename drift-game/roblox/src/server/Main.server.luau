@@ -2,6 +2,7 @@
 -- Kojiri village, Mt. Fuji on the horizon), keeps every player's progress and settings on Roblox's
 -- servers (DataStore), checks drift scores and laps, and relays cars between players on the public map.
 local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataStoreService = game:GetService("DataStoreService")
 local Lighting = game:GetService("Lighting")
@@ -33,6 +34,8 @@ local Bank = remote("RemoteEvent", "Bank")
 local Lap = remote("RemoteEvent", "Lap")
 local State = remote("UnreliableRemoteEvent", "State")
 local Others = remote("UnreliableRemoteEvent", "Others")
+local ProfileChanged = remote("RemoteEvent", "Profile")
+local BuySpecial = remote("RemoteEvent", "BuySpecial")
 remotes.Parent = ReplicatedStorage
 
 -- ===================== lighting (each player can change the time of day for themselves) =====================
@@ -153,6 +156,10 @@ while i <= N do
 	local len = (b - a).Magnitude + 1.2 + HALF * 2 * turnBetween(((j - 2) % N) + 1, jj)
 	local cf = CFrame.lookAt(mid, b)
 	block(road, Vector3.new(HALF * 2, 1, len), cf * CFrame.new(0, -0.5, 0), asphalt, Enum.Material.Asphalt).Name = "Road"
+	-- no grass through the road: clear the terrain above the surface, and make the ground right under it
+	-- asphalt (terrain grass grows blades that would poke up through the road)
+	terrain:FillBlock(cf * CFrame.new(0, -4.3, 0), Vector3.new(HALF * 2 + 8, 8, len + 2), Enum.Material.Asphalt)
+	terrain:FillBlock(cf * CFrame.new(0, 14.7, 0), Vector3.new(HALF * 2 + 12, 30, len + 4), Enum.Material.Air)
 	for _, side in { -1, 1 } do
 		if side == junctionSide and (nearJunction(i) or nearJunction(jj)) then continue end
 		local ra = a + Vector3.new(Track.RX[i], 0, Track.RZ[i]) * side * (HALF + 0.9)
@@ -360,9 +367,10 @@ local function load(player)
 			p.best = math.max(0, math.floor(tonumber(data.best) or 0))
 			p.laps = math.max(0, math.floor(tonumber(data.laps) or 0))
 			if type(data.owned) == "table" then
-				for id, v in data.owned do if v and Config.car(id).id == id then p.owned[id] = true end end
+				-- special cars come only from owning their game pass (checked below), never from saved data
+				for id, v in data.owned do if v and Config.car(id).id == id and not Config.car(id).premium then p.owned[id] = true end end
 			end
-			if type(data.selected) == "string" and p.owned[data.selected] then p.selected = data.selected end
+			if type(data.selected) == "string" then p.wantSelected = data.selected end
 			if type(data.paint) == "table" then
 				for id, v in data.paint do
 					if Config.car(id).id == id and type(v) == "number" and v >= 0 and v <= #Config.Paints then p.paint[id] = math.floor(v) end
@@ -371,6 +379,14 @@ local function load(player)
 			p.settings = Config.cleanSettings(data.settings)
 		end
 	end
+	for _, car in Config.Premium do
+		if car.pass and car.pass > 0 then
+			local ok, has = pcall(function() return MarketplaceService:UserOwnsGamePassAsync(player.UserId, car.pass) end)
+			if ok and has then p.owned[car.id] = true end
+		end
+	end
+	if p.wantSelected and p.owned[p.wantSelected] then p.selected = p.wantSelected end
+	p.wantSelected = nil
 	profiles[player] = p
 	stats(player, p)
 end
@@ -414,7 +430,7 @@ Buy.OnServerInvoke = function(player, id)
 	local p = profiles[player]
 	if not p or type(id) ~= "string" then return nil end
 	local car = Config.car(id)
-	if car.id == id and not p.owned[id] and p.credits >= car.price then
+	if car.id == id and not car.premium and not p.owned[id] and p.credits >= car.price then
 		p.credits -= car.price
 		p.owned[id] = true
 		p.selected = id
@@ -423,6 +439,27 @@ Buy.OnServerInvoke = function(player, id)
 	end
 	return view(p)
 end
+
+-- special cars: the client asks, Roblox shows its own purchase window with the real Robux price
+BuySpecial.OnServerEvent:Connect(function(player, id)
+	if type(id) ~= "string" then return end
+	local car = Config.car(id)
+	if car.id == id and car.premium and car.pass and car.pass > 0 then
+		MarketplaceService:PromptGamePassPurchase(player, car.pass)
+	end
+end)
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, bought)
+	local p = profiles[player]
+	if not (p and bought) then return end
+	for _, car in Config.Premium do
+		if car.pass == passId then
+			p.owned[car.id] = true
+			p.selected = car.id
+			dirty[player] = true
+			ProfileChanged:FireClient(player, view(p))
+		end
+	end
+end)
 
 SelectCar.OnServerInvoke = function(player, id)
 	local p = profiles[player]
@@ -447,9 +484,11 @@ end)
 Erase.OnServerInvoke = function(player)
 	local p = profiles[player]
 	if not p then return nil end
-	local keep = p.settings
+	local keep, old = p.settings, p.owned
 	p = newProfile()
 	p.settings = keep
+	-- paid cars stay: erasing progress never takes away something bought with Robux
+	for _, car in Config.Premium do if old[car.id] then p.owned[car.id] = true end end
 	profiles[player] = p
 	stats(player, p)
 	task.spawn(save, player)
