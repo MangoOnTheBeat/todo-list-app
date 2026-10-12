@@ -1,0 +1,37 @@
+{
+  "name": "KaidoDrift",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Kaido": { "$path": "src/shared" }
+    },
+    "ServerScriptService": {
+      "KaidoServer": { "$path": "src/server" }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "KaidoClient": { "$path": "src/client" }
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "Gravity": 52
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "Future",
+        "ClockTime": 0,
+        "GlobalShadows": true,
+        "Brightness": 1.2,
+        "Ambient": [0.07, 0.078, 0.133],
+        "OutdoorAmbient": [0.157, 0.18, 0.282]
+      }
+    },
+    "TextChatService": {
+      "$properties": {
+        "ChatVersion": "TextChatService"
+      }
+    }
+  }
+}

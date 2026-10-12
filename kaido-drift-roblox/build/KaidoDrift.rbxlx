@@ -1,0 +1,3855 @@
+<roblox version="4">
+  <Item class="Lighting" referent="0">
+    <Properties>
+      <string name="Name">Lighting</string>
+      <Color3 name="Ambient">
+        <R>0.07</R>
+        <G>0.078</G>
+        <B>0.133</B>
+      </Color3>
+      <float name="Brightness">1.2</float>
+      <float name="ClockTime">0</float>
+      <bool name="GlobalShadows">true</bool>
+      <Color3 name="OutdoorAmbient">
+        <R>0.157</R>
+        <G>0.18</G>
+        <B>0.282</B>
+      </Color3>
+      <token name="Technology">4</token>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedStorage" referent="1">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="2">
+      <Properties>
+        <string name="Name">Kaido</string>
+      </Properties>
+      <Item class="ModuleScript" referent="3">
+        <Properties>
+          <string name="Name">CarBuilder</string>
+          <string name="Source"><![CDATA[--!strict
+-- Builds a 1990s-JDM-style coupe out of parts from a Cars entry. Used by the server (real cars)
+-- and the client (garage preview). Model space: origin on the ground under the car centre, nose = -Z.
+local Config = require(script.Parent.Config)
+local Cars = require(script.Parent.Cars)
+
+local CarBuilder = {}
+
+local S = Config.STUDS_PER_M
+
+export type Geometry = {
+	radius: number,
+	ride: number,
+	chassisY: number, -- chassis centre height above ground
+	originY: number, -- suspension ray origin, relative to chassis centre
+	restLen: number, -- origin -> wheel centre at full droop
+	wheels: { { name: string, x: number, z: number, front: boolean } },
+	seat: Vector3, -- driver head position relative to chassis centre (cockpit cam)
+	length: number,
+	width: number,
+}
+
+function CarBuilder.geometry(car: Cars.Car): Geometry
+	local L, W, WB = car.b.len * S, car.b.wid * S, car.b.wb * S
+	local R = Config.WHEEL_RADIUS_M * S
+	local ride = 0.13 * S
+	local belt = car.b.h * S * 0.6
+	local chassisY = (ride + belt) / 2
+	local ww = 0.22 * S
+	local wx = W / 2 - ww / 2 - 0.05
+	local originAbs = ride + 1.0
+	return {
+		radius = R,
+		ride = ride,
+		chassisY = chassisY,
+		originY = originAbs - chassisY,
+		restLen = originAbs - R + 0.45,
+		wheels = {
+			{ name = "FL", x = -wx, z = -WB / 2, front = true },
+			{ name = "FR", x = wx, z = -WB / 2, front = true },
+			{ name = "RL", x = -wx, z = WB / 2, front = false },
+			{ name = "RR", x = wx, z = WB / 2, front = false },
+		},
+		-- right-hand drive
+		seat = Vector3.new(W * 0.2, car.b.h * S * 0.84 - chassisY, 0.15 * S + 0.2),
+		length = L,
+		width = W,
+	}
+end
+
+local function part(model: Model, name: string, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?, class: string?): any
+	local p = Instance.new((class or "Part") :: any) :: Part
+	p.Name = name
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.Anchored = false
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	p.CastShadow = false
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Parent = model
+	return p
+end
+
+-- Returns an unparented model whose PrimaryPart is "Chassis", pivoted at `at` (ground point under the car).
+function CarBuilder.build(car: Cars.Car, at: CFrame?, paint: Color3?): Model
+	local g = CarBuilder.geometry(car)
+	local model = Instance.new("Model")
+	model.Name = car.id
+	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	local body = paint or car.color
+	local L, W, H = car.b.len * S, car.b.wid * S, car.b.h * S
+	local ride = g.ride
+	local belt = car.b.h * S * 0.6
+	local dark = Color3.fromRGB(28, 29, 34)
+	local glass = Color3.fromRGB(18, 22, 30)
+	local style = car.b.style
+
+	-- Chassis: the only physical part. Mass ≈ the car's real kerb weight.
+	local chassis = part(model, "Chassis", Vector3.new(W, belt - ride, L), CFrame.new(0, g.chassisY, 0), body)
+	chassis.CanCollide = true
+	chassis.CanQuery = true
+	chassis.CanTouch = true
+	chassis.Massless = false
+	chassis.CastShadow = true
+	chassis.RootPriority = 127
+	local vol = W * (belt - ride) * L
+	chassis.CustomPhysicalProperties = PhysicalProperties.new(math.clamp(car.mass / vol, 0.1, 100), 0.15, 0.05, 100, 1)
+	chassis.Reflectance = 0.08
+	model.PrimaryPart = chassis
+
+	local function weldAll()
+		for _, d in model:GetChildren() do
+			if d:IsA("BasePart") and d ~= chassis and not d:GetAttribute("Wheel") and not d:GetAttribute("Jointed") then
+				local w = Instance.new("WeldConstraint")
+				w.Part0 = chassis
+				w.Part1 = d
+				w.Parent = d
+			end
+		end
+	end
+
+	-- greenhouse span along Z (front -> rear)
+	local zf, zr
+	if style == "notch" or style == "sedan" then
+		zf, zr = -L * 0.16, L * 0.26
+	elseif style == "roadster" then
+		zf, zr = -L * 0.08, L * 0.12
+	else -- hatch / fast
+		zf, zr = -L * 0.14, L * (style == "hatch" and 0.44 or 0.40)
+	end
+	local cabH = H - belt
+	local cw = W * 0.84
+	if style ~= "roadster" then
+		local ws = 0.55 * S * 1.4
+		local rw = (style == "notch" or style == "sedan") and 0.45 * S * 1.3 or (zr - zf) * 0.45
+		local boxLen = (zr - zf) - ws - rw
+		local midZ = zf + ws + boxLen / 2
+		part(model, "Glass", Vector3.new(cw, cabH - 0.15, boxLen), CFrame.new(0, belt + (cabH - 0.15) / 2, midZ), glass, Enum.Material.Glass).Transparency = 0.15
+		part(model, "Roof", Vector3.new(cw * 0.98, 0.18, boxLen + 0.3), CFrame.new(0, H - 0.09, midZ), body).Reflectance = 0.08
+		-- Pillars
+		for _, sx in { -1, 1 } do
+			part(model, "BPillar", Vector3.new(0.12, cabH - 0.15, 0.35), CFrame.new(sx * (cw / 2 - 0.03), belt + (cabH - 0.15) / 2, midZ + boxLen * 0.1), body)
+		end
+		-- Wedges slope down toward -Z by default: windscreen as-is, rear glass turned around.
+		local wsPart = part(model, "Windscreen", Vector3.new(cw, cabH - 0.15, ws), CFrame.new(0, belt + (cabH - 0.15) / 2, zf + ws / 2), glass, Enum.Material.Glass, "WedgePart")
+		wsPart.Transparency = 0.35
+		local rwPart = part(model, "RearGlass", Vector3.new(cw, cabH - 0.15, rw), CFrame.new(0, belt + (cabH - 0.15) / 2, zr - rw / 2) * CFrame.Angles(0, math.pi, 0), glass, Enum.Material.Glass, "WedgePart")
+		rwPart.Transparency = 0.2
+	else
+		-- roadster: low windscreen frame and a roll hoop
+		local wsPart = part(model, "Windscreen", Vector3.new(cw, cabH * 0.55, 0.9), CFrame.new(0, belt + cabH * 0.275, zf + 0.45), glass, Enum.Material.Glass, "WedgePart")
+		wsPart.Transparency = 0.35
+		part(model, "Interior", Vector3.new(cw, 0.3, zr - zf), CFrame.new(0, belt - 0.1, (zf + zr) / 2), Color3.fromRGB(40, 30, 28), Enum.Material.Fabric)
+		for _, sx in { -1, 1 } do
+			part(model, "Hoop", Vector3.new(0.18, cabH * 0.6, 0.18), CFrame.new(sx * cw * 0.3, belt + cabH * 0.3, zr - 0.2), dark, Enum.Material.Metal)
+		end
+	end
+
+	-- hood / bonnet line and lower trim
+	part(model, "Hood", Vector3.new(W * 0.96, 0.12, L / 2 + zf - 0.2), CFrame.new(0, belt + 0.02, (-L / 2 + zf) / 2 + 0.1), body).Reflectance = 0.1
+	part(model, "BumperF", Vector3.new(W * 1.01, 0.55, 0.4), CFrame.new(0, ride + 0.3, -L / 2 - 0.05), dark)
+	part(model, "BumperR", Vector3.new(W * 1.01, 0.55, 0.4), CFrame.new(0, ride + 0.3, L / 2 + 0.05), dark)
+	part(model, "SideSkirtL", Vector3.new(0.1, 0.35, car.b.wb * S * 0.7), CFrame.new(-W / 2 - 0.03, ride + 0.2, 0), dark)
+	part(model, "SideSkirtR", Vector3.new(0.1, 0.35, car.b.wb * S * 0.7), CFrame.new(W / 2 + 0.03, ride + 0.2, 0), dark)
+	if car.b.duck then
+		part(model, "Ducktail", Vector3.new(W * 0.9, 0.2, 0.5), CFrame.new(0, belt + 0.1, L / 2 - 0.3) * CFrame.Angles(math.rad(-12), 0, 0), body)
+	end
+	if car.b.wing then
+		for _, sx in { -1, 1 } do
+			part(model, "WingPost", Vector3.new(0.15, 0.7, 0.3), CFrame.new(sx * W * 0.32, belt + 0.35, L / 2 - 0.5), dark)
+		end
+		part(model, "Wing", Vector3.new(W * 0.95, 0.12, 0.9), CFrame.new(0, belt + 0.75, L / 2 - 0.45) * CFrame.Angles(math.rad(-6), 0, 0), body)
+	end
+
+	-- lights
+	local warmWhite = Color3.fromRGB(255, 244, 214)
+	local headY = ride + (belt - ride) * 0.62
+	if car.b.popups then
+		for _, sx in { -1, 1 } do
+			local pod = part(model, "PopUp", Vector3.new(W * 0.24, 0.55, 0.8), CFrame.new(sx * W * 0.3, belt + 0.3, -L / 2 + 0.75), body)
+			pod.Reflectance = 0.08
+			part(model, "HeadLamp", Vector3.new(W * 0.2, 0.4, 0.05), CFrame.new(sx * W * 0.3, belt + 0.3, -L / 2 + 0.34), warmWhite, Enum.Material.Neon)
+		end
+	else
+		for _, sx in { -1, 1 } do
+			part(model, "HeadLamp", Vector3.new(W * 0.24, 0.32, 0.06), CFrame.new(sx * W * 0.32, headY, -L / 2 - 0.02), warmWhite, Enum.Material.Neon)
+		end
+	end
+	part(model, "TailLamps", Vector3.new(W * 0.92, 0.3, 0.06), CFrame.new(0, headY, L / 2 + 0.02), Color3.fromRGB(200, 20, 30), Enum.Material.Neon)
+	part(model, "Exhaust", Vector3.new(0.6, 0.35, 0.35), CFrame.new(W * 0.3, ride + 0.25, L / 2 + 0.2) * CFrame.Angles(0, math.pi / 2, 0), Color3.fromRGB(150, 150, 150), Enum.Material.Metal, "Part").Shape = Enum.PartType.Cylinder
+
+	local beam = Instance.new("SpotLight")
+	beam.Name = "Headlights"
+	beam.Face = Enum.NormalId.Front
+	beam.Angle = 80
+	beam.Range = 60
+	beam.Brightness = 4
+	beam.Color = warmWhite
+	beam.Shadows = false
+	beam.Parent = chassis
+	local tail = Instance.new("PointLight")
+	tail.Name = "TailGlow"
+	tail.Color = Color3.fromRGB(255, 40, 40)
+	tail.Range = 8
+	tail.Brightness = 0.6
+	tail.Parent = model:FindFirstChild("TailLamps")
+
+	-- driver seat (touch disabled so passers-by are never auto-seated; the server calls Seat:Sit)
+	local seat = Instance.new("Seat")
+	seat.Name = "DriverSeat"
+	seat.Size = Vector3.new(1.6, 0.3, 1.6)
+	seat.CFrame = CFrame.new(W * 0.2, ride + 0.75, 0.15 * S)
+	seat.Transparency = 1
+	seat.Anchored = false
+	seat.CanCollide = false
+	seat.CanTouch = false
+	seat.CanQuery = false
+	seat.Massless = true
+	seat.Parent = model
+
+	-- steering wheel (rotated by the client via its Weld)
+	local swCF = CFrame.new(W * 0.2, belt + 0.1, 0.15 * S - 1.6) * CFrame.Angles(math.rad(-25), math.rad(90), 0)
+	local sw = part(model, "SteeringWheel", Vector3.new(0.12, 1.1, 1.1), swCF, dark, Enum.Material.SmoothPlastic)
+	sw.Shape = Enum.PartType.Cylinder
+	sw:SetAttribute("Jointed", true)
+	local swWeld = Instance.new("Weld")
+	swWeld.Name = "SteerWeld"
+	swWeld.Part0 = chassis
+	swWeld.Part1 = sw
+	swWeld.C0 = chassis.CFrame:ToObjectSpace(swCF)
+	swWeld.Parent = sw
+	sw:SetAttribute("BaseC0", swWeld.C0)
+
+	-- wheels: tyre + rim, joined to the chassis by a Weld the client moves for suspension/steer/spin
+	local R = g.radius
+	local ww = 0.22 * S
+	for _, w in g.wheels do
+		local cf = CFrame.new(w.x, R, w.z)
+		local tyre = part(model, w.name, Vector3.new(ww, R * 2, R * 2), cf, Color3.fromRGB(22, 22, 24), Enum.Material.SmoothPlastic)
+		tyre.Shape = Enum.PartType.Cylinder
+		tyre:SetAttribute("Wheel", true)
+		tyre:SetAttribute("Front", w.front)
+		local side = w.x < 0 and -1 or 1
+		local rim = part(model, w.name .. "Rim", Vector3.new(ww + 0.08, R * 1.35, R * 1.35), cf * CFrame.new(side * 0.02, 0, 0), car.rim, Enum.Material.Metal)
+		rim.Shape = Enum.PartType.Cylinder
+		rim:SetAttribute("Jointed", true)
+		local spoke = part(model, w.name .. "Spoke", Vector3.new(ww + 0.1, R * 1.2, 0.25), cf * CFrame.new(side * 0.02, 0, 0), car.rim:Lerp(Color3.new(0, 0, 0), 0.4), Enum.Material.Metal)
+		spoke:SetAttribute("Jointed", true)
+		for _, p in { rim, spoke } do
+			local wc = Instance.new("WeldConstraint")
+			wc.Part0 = tyre
+			wc.Part1 = p
+			wc.Parent = p
+		end
+		local joint = Instance.new("Weld")
+		joint.Name = "Joint"
+		joint.Part0 = chassis
+		joint.Part1 = tyre
+		joint.C0 = chassis.CFrame:ToObjectSpace(cf)
+		joint.Parent = tyre
+	end
+
+	-- tyre smoke emitters at the rear contact patches
+	for _, w in g.wheels do
+		if not w.front then
+			local a = Instance.new("Attachment")
+			a.Name = "Smoke" .. w.name
+			a.Position = Vector3.new(w.x, R * 0.5 - g.chassisY, w.z + 0.4)
+			a.Parent = chassis
+			local pe = Instance.new("ParticleEmitter")
+			pe.Name = "TyreSmoke"
+			pe.Texture = Config.SMOKE_TEXTURE
+			pe.Color = ColorSequence.new(Color3.fromRGB(225, 225, 230))
+			pe.LightInfluence = 0.6
+			pe.LightEmission = 0.05
+			pe.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.5), NumberSequenceKeypoint.new(1, 9) })
+			pe.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.45), NumberSequenceKeypoint.new(1, 1) })
+			pe.Lifetime = NumberRange.new(1.4, 2.4)
+			pe.Speed = NumberRange.new(2, 5)
+			pe.SpreadAngle = Vector2.new(35, 35)
+			pe.Acceleration = Vector3.new(0, 3, 0)
+			pe.Drag = 1.5
+			pe.Rotation = NumberRange.new(0, 360)
+			pe.RotSpeed = NumberRange.new(-40, 40)
+			pe.Rate = 0
+			pe.Enabled = true
+			pe.Parent = a
+		end
+	end
+
+	local engine = Instance.new("Sound")
+	engine.Name = "Engine"
+	engine.SoundId = Config.ENGINE_SOUND_ID
+	engine.Looped = true
+	engine.Volume = 0.5
+	engine.RollOffMaxDistance = 250
+	engine.RollOffMinDistance = 12
+	engine.Parent = chassis
+	local skid = Instance.new("Sound")
+	skid.Name = "Skid"
+	skid.SoundId = Config.SKID_SOUND_ID
+	skid.Looped = true
+	skid.Volume = 0
+	skid.RollOffMaxDistance = 200
+	skid.Parent = chassis
+
+	weldAll()
+	model:SetAttribute("CarId", car.id)
+	model:SetAttribute("OriginY", g.originY)
+	model:SetAttribute("RestLen", g.restLen)
+	model:SetAttribute("Radius", R)
+
+	if at then
+		model:PivotTo(at * CFrame.new(0, g.chassisY, 0))
+	end
+	return model
+end
+
+return CarBuilder
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="4">
+        <Properties>
+          <string name="Name">Cars</string>
+          <string name="Source"><![CDATA[--!strict
+-- Garage catalogue. Numbers come from the browser game's car list (kaido-drift.html).
+-- torque Nm, peak/red rpm, mass kg, mu = tyre grip, lock = max steering degrees, CdA = drag area.
+export type Body = {
+	len: number, wid: number, h: number, wb: number,
+	style: string, popups: boolean, wing: boolean, duck: boolean,
+}
+export type Car = {
+	id: string, name: string, tag: string, price: number, color: Color3, rim: Color3,
+	hp: number, torque: number, peak: number, red: number, mass: number, front: number,
+	gears: { number }, final: number, mu: number, lock: number, CdA: number, turbo: boolean,
+	b: Body,
+}
+
+local function rgb(hex: string): Color3
+	return Color3.fromHex(hex)
+end
+
+local list: { Car } = {
+	{
+		id = "ps13", name = "Hoshi PS13 Spirit", tag = "Starter · 1.8 turbo four · pop-up lamps",
+		price = 0, color = rgb("#e9e6df"), rim = rgb("#c3c6cc"),
+		hp = 205, torque = 255, peak = 4000, red = 7200, mass = 1240, front = 0.53,
+		gears = { 3.32, 1.9, 1.31, 1, 0.76 }, final = 4.08, mu = 1.03, lock = 48, CdA = 0.68, turbo = true,
+		b = { len = 4.52, wid = 1.69, h = 1.29, wb = 2.47, style = "notch", popups = true, wing = false, duck = false },
+	},
+	{
+		id = "ae8", name = "Kaze AE8 Hachi", tag = "Featherweight · revvy 1.6 · very agile",
+		price = 8000, color = rgb("#f4f4f4"), rim = rgb("#2a2b30"),
+		hp = 130, torque = 155, peak = 6000, red = 8200, mass = 925, front = 0.52,
+		gears = { 3.59, 2.02, 1.38, 1, 0.86 }, final = 4.78, mu = 1.04, lock = 52, CdA = 0.64, turbo = false,
+		b = { len = 4.2, wid = 1.63, h = 1.33, wb = 2.4, style = "hatch", popups = true, wing = false, duck = true },
+	},
+	{
+		id = "na5", name = "Akagi NA-5 Roadster", tag = "Tiny roadster · 960 kg · pop-up lamps",
+		price = 12000, color = rgb("#c81e2c"), rim = rgb("#c3c6cc"),
+		hp = 120, torque = 150, peak = 5500, red = 7200, mass = 960, front = 0.5,
+		gears = { 3.14, 1.89, 1.33, 1, 0.81 }, final = 4.3, mu = 0.98, lock = 50, CdA = 0.6, turbo = false,
+		b = { len = 3.97, wid = 1.68, h = 1.22, wb = 2.27, style = "roadster", popups = true, wing = false, duck = false },
+	},
+	{
+		id = "r32", name = "Hoshi R-32 Raijin", tag = "Twin-turbo six · big boost, heavy nose",
+		price = 20000, color = rgb("#2b303b"), rim = rgb("#b8b8b8"),
+		hp = 280, torque = 410, peak = 4600, red = 7800, mass = 1430, front = 0.56,
+		gears = { 3.21, 1.93, 1.3, 1, 0.75 }, final = 4.11, mu = 1.08, lock = 50, CdA = 0.7, turbo = true,
+		b = { len = 4.55, wid = 1.76, h = 1.34, wb = 2.62, style = "notch", popups = false, wing = true, duck = false },
+	},
+	{
+		id = "fc3", name = "Akagi FC-3 Rotor", tag = "Turbo rotary · light and balanced",
+		price = 25000, color = rgb("#f2f0ea"), rim = rgb("#2a2b30"),
+		hp = 215, torque = 270, peak = 5000, red = 8000, mass = 1220, front = 0.51,
+		gears = { 3.48, 2.02, 1.39, 1, 0.76 }, final = 4.1, mu = 1.06, lock = 52, CdA = 0.62, turbo = true,
+		b = { len = 4.33, wid = 1.69, h = 1.27, wb = 2.43, style = "fast", popups = true, wing = false, duck = true },
+	},
+	{
+		id = "jzx", name = "Kaze JZX-100 Marque", tag = "Turbo six drift sedan · big angle",
+		price = 45000, color = rgb("#e9e6df"), rim = rgb("#c9a227"),
+		hp = 330, torque = 450, peak = 4000, red = 7200, mass = 1450, front = 0.55,
+		gears = { 3.25, 1.96, 1.31, 1, 0.75 }, final = 3.9, mu = 1.1, lock = 58, CdA = 0.7, turbo = true,
+		b = { len = 4.76, wid = 1.76, h = 1.4, wb = 2.73, style = "sedan", popups = false, wing = false, duck = true },
+	},
+	{
+		id = "z33", name = "Hoshi Z-33 Zenith", tag = "Big non-turbo V6 · instant torque",
+		price = 55000, color = rgb("#b3121f"), rim = rgb("#2a2b30"),
+		hp = 300, torque = 400, peak = 4800, red = 7200, mass = 1450, front = 0.53,
+		gears = { 3.79, 2.32, 1.62, 1.27, 1, 0.79 }, final = 3.7, mu = 1.12, lock = 54, CdA = 0.66, turbo = false,
+		b = { len = 4.32, wid = 1.82, h = 1.3, wb = 2.65, style = "fast", popups = false, wing = false, duck = true },
+	},
+	{
+		id = "jza", name = "Kaze JZA-80 Apex", tag = "Built twin-turbo six · fastest car here",
+		price = 80000, color = rgb("#ff6a00"), rim = rgb("#c3c6cc"),
+		hp = 520, torque = 620, peak = 4500, red = 7400, mass = 1490, front = 0.54,
+		gears = { 3.83, 2.36, 1.69, 1.31, 1, 0.79 }, final = 3.5, mu = 1.16, lock = 55, CdA = 0.64, turbo = true,
+		b = { len = 4.52, wid = 1.81, h = 1.27, wb = 2.55, style = "fast", popups = false, wing = true, duck = false },
+	},
+}
+
+local byId: { [string]: Car } = {}
+for _, c in list do
+	byId[c.id] = c
+end
+
+local Cars = {}
+Cars.list = list
+Cars.byId = byId
+Cars.DEFAULT = "ps13"
+
+function Cars.get(id: string?): Car
+	return (id and byId[id]) or byId[Cars.DEFAULT]
+end
+
+return Cars
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="5">
+        <Properties>
+          <string name="Name">Config</string>
+          <string name="Source"><![CDATA[--!strict
+-- Tunables shared by server and client.
+local Config = {}
+
+Config.METERS_PER_STUD = 0.28
+Config.STUDS_PER_M = 1 / 0.28
+Config.KMH_PER_SPS = 0.28 * 3.6 -- km/h per stud/s (≈ 1.0)
+
+-- Gravity for the whole place. 9.81 m/s² would be 35 studs/s²; a little extra makes the cars feel planted.
+Config.GRAVITY = 52
+-- studs/s² per m/s² for engine, brake and drag forces (same arcade boost as gravity so grip vs power stays realistic)
+Config.ACC = Config.GRAVITY / 9.81
+
+Config.WHEEL_RADIUS_M = 0.31
+
+-- Drift scoring (matches the browser game)
+Config.DRIFT_MIN_ANGLE = 10 -- degrees of slide before it counts
+Config.DRIFT_MIN_KMH = 25
+Config.DRIFT_END_IDLE = 1.4 -- seconds of not sliding before the drift banks
+Config.DRIFT_MULT_STEP = 1.6 -- seconds held per +0.5 multiplier
+Config.DRIFT_MULT_MAX = 5
+Config.CREDITS_PER_POINT = 1 / 10
+Config.DRIFT_MIN_BANK = 50
+Config.TIERS = ({
+	{ 0, "DRIFT" },
+	{ 3000, "GREAT DRIFT" },
+	{ 8000, "AWESOME DRIFT" },
+	{ 15000, "INSANE DRIFT" },
+	{ 30000, "UNBELIEVABLE DRIFT" },
+} :: { { any } })
+
+-- Audio. Paste a looping engine sample's asset id (Creator Store → Audio → search "engine loop"), e.g. "rbxassetid://1234567".
+-- Empty = silent engine; everything else (pitch/volume following RPM) is already wired up.
+Config.ENGINE_SOUND_ID = ""
+Config.ENGINE_BASE_RPM = 3000 -- RPM at which the sample plays at its natural pitch
+Config.SKID_SOUND_ID = ""
+
+Config.SMOKE_TEXTURE = "rbxasset://textures/particles/smoke_main.dds"
+
+Config.DATASTORE_NAME = "KaidoDrift_v1"
+Config.BEST_STORE_NAME = "KaidoDrift_Best_v1"
+Config.START_CREDITS = 0
+
+-- Colours (from the browser game's palette)
+Config.COLORS = {
+	ink = Color3.fromRGB(12, 13, 22),
+	panel = Color3.fromRGB(21, 22, 38),
+	text = Color3.fromRGB(243, 239, 231),
+	dim = Color3.fromRGB(169, 166, 184),
+	sakura = Color3.fromRGB(255, 126, 182),
+	neon = Color3.fromRGB(89, 227, 255),
+	gold = Color3.fromRGB(255, 201, 77),
+	danger = Color3.fromRGB(255, 90, 90),
+	lamp = Color3.fromRGB(255, 184, 110),
+}
+
+function Config.tierFor(score: number): string
+	local name = Config.TIERS[1][2] :: string
+	for _, t in Config.TIERS do
+		if score >= (t[1] :: number) then
+			name = t[2] :: string
+		end
+	end
+	return name
+end
+
+return Config
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="6">
+        <Properties>
+          <string name="Name">Track</string>
+          <string name="Source"><![CDATA[--!strict
+-- Kaido pass centreline. Pure Luau (no Roblox API at module level) so the server map builder,
+-- the client minimap and offline tests all derive the exact same road from the same numbers.
+-- Units are studs (1 stud = 0.28 m). +X = east, -Z = north, +Y = up.
+
+export type Pt = { x: number, y: number, z: number }
+export type TrackData = {
+	x: { number },
+	y: { number },
+	z: { number },
+	tx: { number }, -- unit tangent (horizontal), per point
+	tz: { number },
+	curv: { number }, -- signed horizontal curvature (1/studs)
+	n: number,
+	length: number,
+	segment: number,
+}
+
+local Track = {}
+
+Track.WIDTH = 32 -- road width (≈ 9 m)
+Track.SEGMENT = 10 -- resample spacing
+
+local cp: { Pt } = {}
+local function P(x: number, y: number, z: number)
+	table.insert(cp, { x = x, y = y, z = z })
+end
+
+-- Arc helper for hairpins: centre (cx, cz), radius r, angle a0 -> a1 (radians, 0 = +X, pi/2 = +Z).
+local function arc(cx: number, cz: number, r: number, a0: number, a1: number, y0: number, y1: number, steps: number)
+	for i = 0, steps do
+		local t = i / steps
+		local a = a0 + (a1 - a0) * t
+		P(cx + math.cos(a) * r, y0 + (y1 - y0) * t, cz + math.sin(a) * r)
+	end
+end
+
+local pi = math.pi
+local R = 55 -- hairpin radius
+
+-- Kojiri village start line, heading north along the lake shore
+P(0, 4, 0)
+P(-25, 5, -260)
+P(15, 6, -560)
+P(-15, 8, -840)
+-- right-hand sweeper away from the lake
+P(30, 10, -1060)
+P(150, 13, -1190)
+-- S-bends heading east, climbing
+P(300, 16, -1200)
+P(430, 20, -1120)
+P(570, 25, -1210)
+P(700, 30, -1120)
+P(830, 36, -1210)
+P(950, 40, -1305)
+-- hairpin ladder up the hillside (legs run east/west, 110 studs apart)
+P(1100, 46, -1305)
+P(1220, 52, -1305)
+arc(1300, -1360, R, pi / 2, -pi / 2, 56, 62, 8) -- H1 (left)
+P(1180, 66, -1415)
+P(1060, 72, -1415)
+arc(1000, -1470, R, pi / 2, 3 * pi / 2, 76, 82, 8) -- H2 (right)
+P(1120, 86, -1525)
+P(1240, 92, -1525)
+arc(1300, -1580, R, pi / 2, -pi / 2, 96, 102, 8) -- H3 (left)
+P(1180, 106, -1635)
+P(1060, 112, -1635)
+arc(1000, -1690, R, pi / 2, 3 * pi / 2, 116, 122, 8) -- H4 (right)
+-- summit run east, then a long fast right-hander to the south
+P(1150, 128, -1745)
+P(1320, 133, -1790)
+P(1480, 135, -1780)
+P(1610, 133, -1700)
+P(1680, 128, -1560)
+-- descent south: S-bends and sweepers
+P(1660, 120, -1380)
+P(1580, 112, -1220)
+P(1640, 102, -1040)
+P(1740, 94, -880)
+P(1720, 85, -700)
+P(1620, 76, -540)
+P(1560, 66, -360)
+P(1620, 56, -180)
+P(1700, 46, -20)
+P(1660, 36, 150)
+-- tight right onto the valley road back west
+P(1560, 30, 280)
+P(1400, 26, 320)
+P(1220, 22, 280)
+P(1060, 18, 340)
+P(880, 15, 290)
+P(700, 12, 350)
+P(520, 9, 300)
+P(340, 7, 340)
+P(180, 5, 330)
+-- last right-hander into the village
+P(60, 4, 280)
+P(5, 4, 170)
+
+-- centripetal Catmull-Rom (closed loop)
+local function cr(p0: Pt, p1: Pt, p2: Pt, p3: Pt, t: number): Pt
+	local function tj(ti: number, a: Pt, b: Pt): number
+		local d = math.sqrt((b.x - a.x) ^ 2 + (b.y - a.y) ^ 2 + (b.z - a.z) ^ 2)
+		return ti + math.sqrt(math.max(d, 1e-4))
+	end
+	local t0 = 0
+	local t1 = tj(t0, p0, p1)
+	local t2 = tj(t1, p1, p2)
+	local t3 = tj(t2, p2, p3)
+	local tt = t1 + (t2 - t1) * t
+	local function lerp(a: Pt, b: Pt, ta: number, tb: number): Pt
+		local u = (tt - ta) / (tb - ta)
+		return { x = a.x + (b.x - a.x) * u, y = a.y + (b.y - a.y) * u, z = a.z + (b.z - a.z) * u }
+	end
+	local a1 = lerp(p0, p1, t0, t1)
+	local a2 = lerp(p1, p2, t1, t2)
+	local a3 = lerp(p2, p3, t2, t3)
+	local b1 = lerp(a1, a2, t0, t2)
+	local b2 = lerp(a2, a3, t1, t3)
+	return lerp(b1, b2, t1, t2)
+end
+
+local cached: TrackData? = nil
+
+function Track.build(): TrackData
+	if cached then
+		return cached
+	end
+	local n = #cp
+	-- dense sample
+	local dense: { Pt } = {}
+	for i = 1, n do
+		local p0 = cp[(i - 2) % n + 1]
+		local p1 = cp[i]
+		local p2 = cp[i % n + 1]
+		local p3 = cp[(i + 1) % n + 1]
+		for s = 0, 39 do
+			table.insert(dense, cr(p0, p1, p2, p3, s / 40))
+		end
+	end
+	-- resample at even spacing along the horizontal arc length
+	local seg = Track.SEGMENT
+	local xs, ys, zs = {}, {}, {}
+	local acc = 0
+	local nd = #dense
+	table.insert(xs, dense[1].x)
+	table.insert(ys, dense[1].y)
+	table.insert(zs, dense[1].z)
+	local total = 0
+	for i = 1, nd do
+		local a = dense[i]
+		local b = dense[i % nd + 1]
+		local d = math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
+		total += d
+		local start = 0
+		while acc + (d - start) >= seg do
+			local need = seg - acc
+			start += need
+			local u = start / d
+			table.insert(xs, a.x + (b.x - a.x) * u)
+			table.insert(ys, a.y + (b.y - a.y) * u)
+			table.insert(zs, a.z + (b.z - a.z) * u)
+			acc = 0
+		end
+		acc += d - start
+	end
+	-- drop a final point that lands on top of the first
+	local m = #xs
+	if (xs[m] - xs[1]) ^ 2 + (zs[m] - zs[1]) ^ 2 < (seg * 0.5) ^ 2 then
+		table.remove(xs)
+		table.remove(ys)
+		table.remove(zs)
+		m -= 1
+	end
+	local tx, tz, curv = {}, {}, {}
+	for i = 1, m do
+		local ip = (i - 2) % m + 1
+		local inx = i % m + 1
+		local dx, dz = xs[inx] - xs[ip], zs[inx] - zs[ip]
+		local l = math.sqrt(dx * dx + dz * dz)
+		tx[i], tz[i] = dx / l, dz / l
+	end
+	for i = 1, m do
+		local ip = (i - 2) % m + 1
+		local inx = i % m + 1
+		-- heading change per stud; positive = turning right (clockwise seen from above)
+		local a0 = math.atan2(tz[ip], tx[ip])
+		local a1 = math.atan2(tz[inx], tx[inx])
+		local da = (a1 - a0 + pi) % (2 * pi) - pi
+		curv[i] = da / (2 * seg)
+	end
+	local data: TrackData = {
+		x = xs,
+		y = ys,
+		z = zs,
+		tx = tx,
+		tz = tz,
+		curv = curv,
+		n = m,
+		length = total,
+		segment = seg,
+	}
+	cached = data
+	return data
+end
+
+-- Index of the closest centreline point to (x, z) (linear scan; ~800 points, call sparingly).
+function Track.nearest(x: number, z: number): number
+	local d = Track.build()
+	local best, bi = math.huge, 1
+	for i = 1, d.n do
+		local dd = (d.x[i] - x) ^ 2 + (d.z[i] - z) ^ 2
+		if dd < best then
+			best, bi = dd, i
+		end
+	end
+	return bi
+end
+
+return Track
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="7">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Folder" referent="8">
+      <Properties>
+        <string name="Name">KaidoServer</string>
+      </Properties>
+      <Item class="ModuleScript" referent="9">
+        <Properties>
+          <string name="Name">Leaderboard</string>
+          <string name="Source"><![CDATA[--!strict
+-- Best-drift leaderboards: in-server leaderstats (player list) plus a global top-10 board in the village.
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local Shared = ReplicatedStorage:WaitForChild("Kaido")
+local Config = require(Shared:WaitForChild("Config"))
+
+local Leaderboard = {}
+
+local ordered: OrderedDataStore? = nil
+pcall(function()
+	ordered = DataStoreService:GetOrderedDataStore(Config.BEST_STORE_NAME)
+end)
+
+local rows: { TextLabel } = {}
+local pendingSubmit: { [number]: number } = {}
+
+local function fmt(n: number): string
+	local s = tostring(math.floor(n))
+	return (s:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""))
+end
+Leaderboard.fmt = fmt
+
+function Leaderboard.setup(player: Player, best: number, credits: number)
+	local stats = Instance.new("Folder")
+	stats.Name = "leaderstats"
+	local b = Instance.new("IntValue")
+	b.Name = "Best Drift"
+	b.Value = best
+	b.Parent = stats
+	local c = Instance.new("IntValue")
+	c.Name = "Credits"
+	c.Value = credits
+	c.Parent = stats
+	stats.Parent = player
+end
+
+function Leaderboard.update(player: Player, best: number, credits: number)
+	local stats = player:FindFirstChild("leaderstats")
+	if not stats then
+		return
+	end
+	local b = stats:FindFirstChild("Best Drift") :: IntValue?
+	local c = stats:FindFirstChild("Credits") :: IntValue?
+	if b then
+		b.Value = best
+	end
+	if c then
+		c.Value = credits
+	end
+end
+
+function Leaderboard.submit(player: Player, best: number)
+	pendingSubmit[player.UserId] = best
+end
+
+local function buildBoard(boardPos: Vector3)
+	local map = Workspace:WaitForChild("KaidoMap")
+	local board = map:FindFirstChild("LeaderboardBoard", true) :: BasePart?
+	if not board then
+		return
+	end
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.LightInfluence = 0
+	gui.Brightness = 1.6
+	gui.Parent = board
+	local bg = Instance.new("Frame")
+	bg.Size = UDim2.fromScale(1, 1)
+	bg.BackgroundColor3 = Config.COLORS.ink
+	bg.BackgroundTransparency = 0.1
+	bg.Parent = gui
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, 0, 0.16, 0)
+	title.BackgroundTransparency = 1
+	title.Text = "峠  BEST DRIFTS"
+	title.TextColor3 = Config.COLORS.sakura
+	title.Font = Enum.Font.GothamBlack
+	title.TextScaled = true
+	title.Parent = bg
+	for i = 1, 10 do
+		local r = Instance.new("TextLabel")
+		r.Size = UDim2.new(0.9, 0, 0.075, 0)
+		r.Position = UDim2.new(0.05, 0, 0.18 + (i - 1) * 0.08, 0)
+		r.BackgroundTransparency = 1
+		r.TextXAlignment = Enum.TextXAlignment.Left
+		r.TextColor3 = if i == 1 then Config.COLORS.gold else Config.COLORS.text
+		r.Font = Enum.Font.GothamBold
+		r.TextScaled = true
+		r.Text = ""
+		r.Parent = bg
+		rows[i] = r
+	end
+	local _ = boardPos
+end
+
+local function refresh()
+	local entries: { { name: string, score: number } } = {}
+	local ok = false
+	local store = ordered
+	if store then
+		-- flush pending submissions first
+		for userId, best in pendingSubmit do
+			pcall(function()
+				store:UpdateAsync(tostring(userId), function(old: number?)
+					return math.max(old or 0, best)
+				end)
+			end)
+			pendingSubmit[userId] = nil
+		end
+		local success, pages = pcall(function()
+			return store:GetSortedAsync(false, 10)
+		end)
+		if success and pages then
+			ok = true
+			for _, item in pages:GetCurrentPage() do
+				local id = tonumber(item.key) or 0
+				local nameOk, name = pcall(Players.GetNameFromUserIdAsync, Players, id)
+				table.insert(entries, { name = if nameOk then name else ("#" .. item.key), score = item.value })
+			end
+		end
+	end
+	if not ok then
+		-- session-only fallback: everyone in this server
+		for _, p in Players:GetPlayers() do
+			local stats = p:FindFirstChild("leaderstats")
+			local b = stats and stats:FindFirstChild("Best Drift") :: IntValue?
+			if b and b.Value > 0 then
+				table.insert(entries, { name = p.DisplayName, score = b.Value })
+			end
+		end
+		table.sort(entries, function(a, b)
+			return a.score > b.score
+		end)
+	end
+	for i, r in rows do
+		local e = entries[i]
+		r.Text = if e then string.format("%d.  %s   %s", i, e.name, fmt(e.score)) else ""
+	end
+end
+
+function Leaderboard.start(boardPos: Vector3)
+	buildBoard(boardPos)
+	task.spawn(function()
+		while true do
+			pcall(refresh)
+			task.wait(60)
+		end
+	end)
+end
+
+function Leaderboard.flush(player: Player)
+	local store = ordered
+	local best = pendingSubmit[player.UserId]
+	if store and best then
+		pendingSubmit[player.UserId] = nil
+		pcall(function()
+			store:UpdateAsync(tostring(player.UserId), function(old: number?)
+				return math.max(old or 0, best)
+			end)
+		end)
+	end
+end
+
+return Leaderboard
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="10">
+        <Properties>
+          <string name="Name">Main</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[--!strict
+-- Kaido Drift server: lighting, map, player data, car spawning, drift banking, leaderboard.
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local Shared = ReplicatedStorage:WaitForChild("Kaido")
+local Config = require(Shared:WaitForChild("Config"))
+local Cars = require(Shared:WaitForChild("Cars"))
+local Track = require(Shared:WaitForChild("Track"))
+local CarBuilder = require(Shared:WaitForChild("CarBuilder"))
+
+local MapBuilder = require(script.Parent:WaitForChild("MapBuilder"))
+local PlayerData = require(script.Parent:WaitForChild("PlayerData"))
+local Leaderboard = require(script.Parent:WaitForChild("Leaderboard"))
+
+-- ---------------------------------------------------------------- world settings
+Workspace.Gravity = Config.GRAVITY
+Lighting.ClockTime = 0
+Lighting.GeographicLatitude = 35
+Lighting.Brightness = 1.2
+Lighting.Ambient = Color3.fromRGB(18, 20, 34)
+Lighting.OutdoorAmbient = Color3.fromRGB(40, 46, 72)
+Lighting.EnvironmentDiffuseScale = 0.35
+Lighting.EnvironmentSpecularScale = 0.6
+Lighting.ExposureCompensation = 0.25
+Lighting.GlobalShadows = true
+-- Lighting.Technology cannot be set from a script; default.project.json sets it to Future.
+for _, c in Lighting:GetChildren() do
+	if c:IsA("Sky") or c:IsA("Atmosphere") or c:IsA("PostEffect") then
+		c:Destroy()
+	end
+end
+local sky = Instance.new("Sky")
+sky.StarCount = 5000
+sky.CelestialBodiesShown = true
+sky.MoonAngularSize = 14
+sky.Parent = Lighting
+local atmosphere = Instance.new("Atmosphere")
+atmosphere.Density = 0.32
+atmosphere.Offset = 0.12
+atmosphere.Color = Color3.fromRGB(60, 70, 110)
+atmosphere.Decay = Color3.fromRGB(20, 22, 40)
+atmosphere.Glare = 0
+atmosphere.Haze = 1.4
+atmosphere.Parent = Lighting
+local bloom = Instance.new("BloomEffect")
+bloom.Intensity = 0.6
+bloom.Size = 30
+bloom.Threshold = 1.4
+bloom.Parent = Lighting
+local cc = Instance.new("ColorCorrectionEffect")
+cc.Contrast = 0.08
+cc.Saturation = 0.05
+cc.TintColor = Color3.fromRGB(235, 236, 255)
+cc.Parent = Lighting
+
+-- ---------------------------------------------------------------- remotes
+local remotes = Instance.new("Folder")
+remotes.Name = "Remotes"
+local function rf(name: string): RemoteFunction
+	local r = Instance.new("RemoteFunction")
+	r.Name = name
+	r.Parent = remotes
+	return r
+end
+local function re(name: string): RemoteEvent
+	local r = Instance.new("RemoteEvent")
+	r.Name = name
+	r.Parent = remotes
+	return r
+end
+local GetProfile = rf("GetProfile")
+local BuyCar = rf("BuyCar")
+local SelectCar = rf("SelectCar")
+local SetEasyDrift = re("SetEasyDrift")
+local RequestSpawn = re("RequestSpawn")
+local Despawn = re("Despawn")
+local CarState = re("CarState")
+local BankDrift = re("BankDrift")
+local ProfileChanged = re("ProfileChanged")
+local Notify = re("Notify")
+
+
+local carsFolder = Instance.new("Folder")
+carsFolder.Name = "Cars"
+carsFolder.Parent = Workspace
+
+-- ---------------------------------------------------------------- map
+Players.CharacterAutoLoads = false
+Workspace:SetAttribute("MapReady", false)
+local mapInfo = MapBuilder.build()
+Workspace:SetAttribute("MapReady", true)
+Players.CharacterAutoLoads = true
+Leaderboard.start(mapInfo.boardPos)
+
+-- ---------------------------------------------------------------- players
+local activeCar: { [Player]: Model } = {}
+local lastBank: { [Player]: number } = {}
+
+local function snapshot(p: PlayerData.Profile): { [string]: any }
+	local owned = {}
+	for id in p.owned do
+		table.insert(owned, id)
+	end
+	return { credits = p.credits, owned = owned, selected = p.selected, best = p.best, total = p.total, easyDrift = p.easyDrift }
+end
+
+local function pushProfile(player: Player)
+	local p = PlayerData.get(player)
+	if p then
+		Leaderboard.update(player, p.best, p.credits)
+		ProfileChanged:FireClient(player, snapshot(p))
+	end
+end
+
+local function removeCar(player: Player)
+	local car = activeCar[player]
+	activeCar[player] = nil
+	if car then
+		car:Destroy()
+	end
+end
+
+local function spawnSlot(): CFrame
+	local d = Track.build()
+	for row = 0, 7 do
+		local i = (d.n - 3 - row * 2 - 1) % d.n + 1
+		local p = Vector3.new(d.x[i], d.y[i], d.z[i])
+		local t = Vector3.new(d.tx[i], 0, d.tz[i])
+		local r = Vector3.new(-t.Z, 0, t.X)
+		for _, lane in { -6.5, 6.5 } do
+			local pos = p + r * lane
+			local free = true
+			for _, c in carsFolder:GetChildren() do
+				if c:IsA("Model") and (c:GetPivot().Position - pos).Magnitude < 14 then
+					free = false
+				end
+			end
+			if free then
+				return CFrame.lookAt(pos + Vector3.new(0, 0.3, 0), pos + t + Vector3.new(0, 0.3, 0))
+			end
+		end
+	end
+	local p = Vector3.new(d.x[1], d.y[1] + 6, d.z[1])
+	return CFrame.lookAt(p, p + Vector3.new(d.tx[1], 0, d.tz[1]))
+end
+
+local function spawnCar(player: Player)
+	if not Workspace:GetAttribute("MapReady") then
+		return
+	end
+	local profile = PlayerData.get(player)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not profile or not character or not humanoid or humanoid.Health <= 0 then
+		return
+	end
+	removeCar(player)
+	local spec = Cars.get(profile.selected)
+	local model = CarBuilder.build(spec, spawnSlot())
+	model.Name = player.Name
+	model:SetAttribute("Owner", player.UserId)
+	model:SetAttribute("Steer", 0)
+	model:SetAttribute("Rpm", 900)
+	model:SetAttribute("Drift", false)
+	model.Parent = carsFolder
+	activeCar[player] = model
+	local seat = model:FindFirstChild("DriverSeat") :: Seat
+	humanoid.Sit = false
+	character:PivotTo(seat.CFrame * CFrame.new(0, 3, 0))
+	seat:Sit(humanoid)
+	local chassis = model.PrimaryPart :: BasePart
+	task.defer(function()
+		if chassis.Parent and player.Parent then
+			pcall(function()
+				chassis:SetNetworkOwner(player)
+			end)
+		end
+	end)
+end
+
+local function onCharacter(player: Player, character: Model)
+	removeCar(player)
+	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+	humanoid.UseJumpPower = true
+	humanoid.JumpPower = 0
+	humanoid.Died:Connect(function()
+		removeCar(player)
+	end)
+end
+
+local function onPlayer(player: Player)
+	local profile = PlayerData.load(player)
+	if player.Parent ~= Players then
+		PlayerData.release(player)
+		return
+	end
+	Leaderboard.setup(player, profile.best, profile.credits)
+	player.CharacterAdded:Connect(function(c)
+		onCharacter(player, c)
+	end)
+	if player.Character then
+		onCharacter(player, player.Character)
+	end
+	pushProfile(player)
+end
+
+Players.PlayerAdded:Connect(onPlayer)
+for _, p in Players:GetPlayers() do
+	task.spawn(onPlayer, p)
+end
+-- characters that were held back while the map was building
+for _, p in Players:GetPlayers() do
+	task.spawn(function()
+		p:LoadCharacter()
+	end)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	removeCar(player)
+	Leaderboard.flush(player)
+	PlayerData.release(player)
+	lastBank[player] = nil
+end)
+
+game:BindToClose(function()
+	PlayerData.saveAll()
+end)
+
+-- ---------------------------------------------------------------- remote handlers
+GetProfile.OnServerInvoke = function(player)
+	local p = PlayerData.get(player)
+	while not p and player.Parent do
+		task.wait(0.2)
+		p = PlayerData.get(player)
+	end
+	return if p then snapshot(p) else nil
+end
+
+BuyCar.OnServerInvoke = function(player, id)
+	local p = PlayerData.get(player)
+	if not p or type(id) ~= "string" then
+		return false, "Not ready"
+	end
+	local spec = Cars.byId[id]
+	if not spec then
+		return false, "Unknown car"
+	end
+	if p.owned[id] then
+		return false, "Already owned"
+	end
+	if p.credits < spec.price then
+		return false, "Not enough credits"
+	end
+	p.credits -= spec.price
+	p.owned[id] = true
+	p.selected = id
+	PlayerData.markDirty(player)
+	task.spawn(PlayerData.save, player)
+	pushProfile(player)
+	return true, snapshot(p)
+end
+
+SelectCar.OnServerInvoke = function(player, id)
+	local p = PlayerData.get(player)
+	if not p or type(id) ~= "string" or not p.owned[id] then
+		return false, "Not owned"
+	end
+	p.selected = id
+	PlayerData.markDirty(player)
+	pushProfile(player)
+	return true, snapshot(p)
+end
+
+SetEasyDrift.OnServerEvent:Connect(function(player, on)
+	local p = PlayerData.get(player)
+	if p and type(on) == "boolean" then
+		p.easyDrift = on
+		PlayerData.markDirty(player)
+	end
+end)
+
+RequestSpawn.OnServerEvent:Connect(function(player)
+	spawnCar(player)
+end)
+
+Despawn.OnServerEvent:Connect(function(player)
+	removeCar(player)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if character and humanoid then
+		humanoid.Sit = false
+		local spawn = Workspace:FindFirstChild("VillageSpawn", true) :: BasePart?
+		if spawn then
+			character:PivotTo(spawn.CFrame * CFrame.new(0, 4, 0))
+		end
+	end
+end)
+
+local lastState: { [Player]: number } = {}
+CarState.OnServerEvent:Connect(function(player, steer, rpm, drifting)
+	local now = os.clock()
+	if (lastState[player] or 0) > now - 0.05 then
+		return
+	end
+	lastState[player] = now
+	local car = activeCar[player]
+	if not car or type(steer) ~= "number" or type(rpm) ~= "number" then
+		return
+	end
+	car:SetAttribute("Steer", math.clamp(steer, -1.2, 1.2))
+	car:SetAttribute("Rpm", math.clamp(rpm, 0, 10000))
+	car:SetAttribute("Drift", drifting == true)
+end)
+
+BankDrift.OnServerEvent:Connect(function(player, score, duration)
+	local p = PlayerData.get(player)
+	if not p or type(score) ~= "number" or type(duration) ~= "number" or score ~= score then
+		return
+	end
+	if not activeCar[player] then
+		return
+	end
+	local now = os.clock()
+	local since = now - (lastBank[player] or 0)
+	duration = math.clamp(duration, 0, math.min(since + 2, 180))
+	-- generous plausibility cap: ~30k points per second at the 5x multiplier ceiling
+	score = math.clamp(math.floor(score), 0, math.floor(duration * 30000 * Config.DRIFT_MULT_MAX))
+	if score < Config.DRIFT_MIN_BANK then
+		return
+	end
+	lastBank[player] = now
+	local credits = math.floor(score * Config.CREDITS_PER_POINT)
+	p.credits += credits
+	p.total += score
+	local newBest = score > p.best
+	if newBest then
+		p.best = score
+		Leaderboard.submit(player, score)
+		if score >= 3000 then
+			Notify:FireAllClients(string.format("%s set a new best drift: %s", player.DisplayName, Leaderboard.fmt(score)))
+		end
+	end
+	PlayerData.markDirty(player)
+	pushProfile(player)
+end)
+
+-- parent last so clients only see the remotes once every handler is connected
+remotes.Parent = ReplicatedStorage
+print("[Kaido] server ready")
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="11">
+        <Properties>
+          <string name="Name">MapBuilder</string>
+          <string name="Source"><![CDATA[--!strict
+-- Builds the midnight mountain pass at server start from the shared Track centreline:
+-- terrain hillsides + lake + Mt. Fuji, asphalt road, guardrails, street lamps, cedar forest,
+-- and the lantern-lit village at the start line. Everything lives in workspace.KaidoMap.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local Shared = ReplicatedStorage:WaitForChild("Kaido")
+local Track = require(Shared:WaitForChild("Track"))
+local Config = require(Shared:WaitForChild("Config"))
+
+local MapBuilder = {}
+
+local terrain = Workspace.Terrain
+local W = Track.WIDTH
+local rng = Random.new(1989)
+
+local ROAD_COLOR = Color3.fromRGB(46, 46, 52)
+local RAIL_COLOR = Color3.fromRGB(196, 198, 204)
+local POST_COLOR = Color3.fromRGB(110, 112, 118)
+local WOOD = Color3.fromRGB(96, 62, 40)
+local DARK_WOOD = Color3.fromRGB(58, 38, 26)
+local ROOF = Color3.fromRGB(44, 46, 54)
+local SHOJI = Color3.fromRGB(255, 214, 150)
+local LANTERN = Color3.fromRGB(226, 70, 40)
+local TORII = Color3.fromRGB(196, 38, 28)
+
+local budget = 0
+local function breathe()
+	budget += 1
+	if budget % 200 == 0 then
+		task.wait()
+	end
+end
+
+local function newPart(parent: Instance, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?, collide: boolean?): Part
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.CanCollide = collide == true
+	p.CanTouch = collide == true
+	p.CanQuery = collide == true
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Parent = parent
+	breathe()
+	return p
+end
+
+local function folder(parent: Instance, name: string): Folder
+	local f = Instance.new("Folder")
+	f.Name = name
+	f.Parent = parent
+	return f
+end
+
+local function v3(d: Track.TrackData, i: number): Vector3
+	return Vector3.new(d.x[i], d.y[i], d.z[i])
+end
+
+local function right(d: Track.TrackData, i: number): Vector3
+	return Vector3.new(-d.tz[i], 0, d.tx[i])
+end
+
+-- ---------------------------------------------------------------- terrain
+local function buildTerrain(d: Track.TrackData)
+	terrain:Clear()
+	-- base valley floor (split so each fill stays modest)
+	for _, b in { { -1600, 500 }, { 500, 2600 } } do
+		for _, zz in { { -2600, -750 }, { -750, 1100 } } do
+			local cx, sx = (b[1] + b[2]) / 2, b[2] - b[1]
+			local cz, sz = (zz[1] + zz[2]) / 2, zz[2] - zz[1]
+			terrain:FillBlock(CFrame.new(cx, -12, cz), Vector3.new(sx, 24, sz), Enum.Material.Grass)
+			task.wait()
+		end
+	end
+	-- Lake Ashi stand-in, west of the lakeside road
+	terrain:FillBlock(CFrame.new(-150, -2, -400), Vector3.new(70, 6, 2300), Enum.Material.Sand)
+	terrain:FillBlock(CFrame.new(-860, -8, -400), Vector3.new(1420, 14, 2300), Enum.Material.Water)
+	task.wait()
+
+	-- Distant Mt. Fuji across the lake (stacked cylinders, snow cap)
+	local fuji = Vector3.new(-1500, -10, -3400)
+	for k = 0, 13 do
+		local r = 760 * (1 - k / 14) ^ 1.25 + 30
+		local mat = k >= 10 and Enum.Material.Snow or Enum.Material.Rock
+		terrain:FillCylinder(CFrame.new(fuji + Vector3.new(0, k * 42 + 21, 0)), 42, r, mat)
+		task.wait()
+	end
+
+	-- Rolling hills, kept clear of the road surface
+	local function clearOfRoad(c: Vector3, r: number): boolean
+		for i = 1, d.n, 2 do
+			local dx, dz = d.x[i] - c.X, d.z[i] - c.Z
+			local hd = math.sqrt(dx * dx + dz * dz)
+			local reach = math.max(hd - (W / 2 + 14), 0)
+			if reach < r then
+				local surf = c.Y + math.sqrt(r * r - reach * reach)
+				if surf > d.y[i] - 8 then
+					return false
+				end
+			end
+		end
+		return true
+	end
+	local placed = 0
+	for _ = 1, 260 do
+		local c = Vector3.new(rng:NextNumber(-100, 2400), rng:NextNumber(-260, -60), rng:NextNumber(-2500, 1000))
+		local r = rng:NextNumber(140, 320)
+		local inLake = c.X < -60
+		if not inLake and clearOfRoad(c, r) then
+			terrain:FillBall(c, r, if rng:NextNumber() < 0.3 then Enum.Material.Ground else Enum.Material.Grass)
+			placed += 1
+			task.wait()
+		end
+		if placed >= 70 then
+			break
+		end
+	end
+
+	-- Embankments / hillsides under the road, stepped so they read as slopes
+	for i = 1, d.n do
+		local j = i % d.n + 1
+		local a, b = v3(d, i), v3(d, j)
+		local mid = (a + b) / 2
+		local yaw = CFrame.lookAt(Vector3.new(mid.X, 0, mid.Z), Vector3.new(b.X, 0, b.Z)).Rotation
+		local segLen = (Vector3.new(b.X, 0, b.Z) - Vector3.new(a.X, 0, a.Z)).Magnitude + 6
+		local top = math.min(a.Y, b.Y) - 2.5
+		for k = 0, 4 do
+			local t = top - k * 12
+			if t <= 0.5 then
+				break
+			end
+			local width = W + 10 + k * 44
+			local h = t + 12
+			terrain:FillBlock(CFrame.new(mid.X, t - h / 2, mid.Z) * yaw, Vector3.new(width, h, segLen + k * 6), if k == 0 then Enum.Material.Ground else Enum.Material.Grass)
+		end
+		if i % 20 == 0 then
+			task.wait()
+		end
+	end
+	-- carve the road corridor so no terrain sits on the asphalt
+	for i = 1, d.n do
+		local j = i % d.n + 1
+		local a, b = v3(d, i), v3(d, j)
+		local mid = (a + b) / 2
+		local yaw = CFrame.lookAt(Vector3.new(mid.X, 0, mid.Z), Vector3.new(b.X, 0, b.Z)).Rotation
+		local segLen = (Vector3.new(b.X, 0, b.Z) - Vector3.new(a.X, 0, a.Z)).Magnitude + 4
+		local bottom = math.max(a.Y, b.Y) + 0.5
+		terrain:FillBlock(CFrame.new(mid.X, bottom + 20, mid.Z) * yaw, Vector3.new(W + 8, 40, segLen), Enum.Material.Air)
+		if i % 25 == 0 then
+			task.wait()
+		end
+	end
+end
+
+-- ---------------------------------------------------------------- road + rails + lamps
+local function buildRoad(d: Track.TrackData, map: Folder)
+	local road = folder(map, "Road")
+	local marks = folder(map, "Markings")
+	local rails = folder(map, "Rails")
+	local lamps = folder(map, "Lamps")
+
+	for i = 1, d.n do
+		local j = i % d.n + 1
+		local a, b = v3(d, i), v3(d, j)
+		local mid = (a + b) / 2
+		local len = (b - a).Magnitude
+		local stretch = len * (1 + (W / 2) * math.abs(d.curv[i])) + 1.5
+		local cf = CFrame.lookAt(mid, b)
+		local p = newPart(road, Vector3.new(W, 2, stretch), cf * CFrame.new(0, -1, 0), ROAD_COLOR, Enum.Material.Asphalt, true)
+		p.Name = "Road"
+		if i % 2 == 0 then
+			local m = newPart(marks, Vector3.new(0.45, 0.06, 4.5), cf * CFrame.new(0, 0.03, 0), Color3.fromRGB(232, 226, 205))
+			m.CastShadow = false
+		end
+		-- edge lines
+		for _, s in { -1, 1 } do
+			local m = newPart(marks, Vector3.new(0.35, 0.05, stretch), cf * CFrame.new(s * (W / 2 - 1.2), 0.025, 0), Color3.fromRGB(215, 215, 210))
+			m.CastShadow = false
+		end
+	end
+	task.wait()
+
+	-- guardrails both sides, built from offset polylines so curves stay closed
+	local railOff = W / 2 + 1.5
+	for _, s in { -1, 1 } do
+		for i = 1, d.n, 2 do
+			local j = (i + 1) % d.n + 1
+			local a = v3(d, i) + right(d, i) * s * railOff
+			local b = v3(d, j) + right(d, j) * s * railOff
+			local mid = (a + b) / 2
+			local len = (b - a).Magnitude
+			local cf = CFrame.lookAt(mid, b)
+			local r = newPart(rails, Vector3.new(0.5, 1.2, len + 0.6), cf * CFrame.new(0, 2.3, 0), RAIL_COLOR, Enum.Material.DiamondPlate, true)
+			r.Name = "Rail"
+			r.Reflectance = 0.15
+			local post = newPart(rails, Vector3.new(0.45, 2.8, 0.45), CFrame.new(a + Vector3.new(0, 1.4, 0)) * cf.Rotation, POST_COLOR, Enum.Material.Metal, true)
+			post.Name = "Post"
+		end
+	end
+	task.wait()
+
+	-- street lamps, alternating sides every ~110 studs
+	local side = 1
+	for i = 1, d.n, 11 do
+		local base = v3(d, i) + right(d, i) * side * (W / 2 + 3.5)
+		local inward = -right(d, i) * side
+		local pole = newPart(lamps, Vector3.new(20, 0.8, 0.8), CFrame.new(base + Vector3.new(0, 10, 0)) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(70, 72, 78), Enum.Material.Metal, true)
+		pole.Shape = Enum.PartType.Cylinder
+		pole.Name = "Pole"
+		local armEnd = base + inward * 6 + Vector3.new(0, 19.6, 0)
+		local armMid = (base + Vector3.new(0, 19.6, 0) + armEnd) / 2
+		newPart(lamps, Vector3.new(0.5, 0.5, 6.4), CFrame.lookAt(armMid, armEnd), Color3.fromRGB(70, 72, 78), Enum.Material.Metal)
+		local head = newPart(lamps, Vector3.new(2.4, 0.5, 1.4), CFrame.lookAt(armEnd - Vector3.new(0, 0.4, 0), armEnd - Vector3.new(0, 0.4, 0) + inward), Config.COLORS.lamp, Enum.Material.Neon)
+		head.Name = "LampHead"
+		local light = Instance.new("SpotLight")
+		light.Face = Enum.NormalId.Bottom
+		light.Angle = 120
+		light.Range = 52
+		light.Brightness = 2.4
+		light.Color = Config.COLORS.lamp
+		light.Shadows = false
+		light.Parent = head
+		side = -side
+	end
+
+	-- start line
+	local s0 = CFrame.lookAt(v3(d, 1), v3(d, 2))
+	local line = newPart(marks, Vector3.new(W - 2, 0.07, 2.2), s0 * CFrame.new(0, 0.04, 0), Color3.fromRGB(240, 240, 240))
+	line.Name = "StartLine"
+	for k = 0, 7 do
+		newPart(marks, Vector3.new((W - 2) / 16, 0.08, 1.1), s0 * CFrame.new(-(W - 2) / 2 + (k * 2 + 0.5) * (W - 2) / 16, 0.045, -0.55), Color3.fromRGB(20, 20, 20))
+		newPart(marks, Vector3.new((W - 2) / 16, 0.08, 1.1), s0 * CFrame.new(-(W - 2) / 2 + (k * 2 + 1.5) * (W - 2) / 16, 0.045, 0.55), Color3.fromRGB(20, 20, 20))
+	end
+end
+
+-- ---------------------------------------------------------------- village
+local function lantern(parent: Instance, pos: Vector3, size: number?)
+	local s = size or 1.8
+	local p = newPart(parent, Vector3.new(s, s, s), CFrame.new(pos), LANTERN, Enum.Material.Neon)
+	p.Shape = Enum.PartType.Ball
+	p.Transparency = 0.08
+	p.Name = "Lantern"
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere
+	mesh.Scale = Vector3.new(0.85, 1.15, 0.85)
+	mesh.Parent = p
+	newPart(parent, Vector3.new(s * 0.75, 0.2, s * 0.75), CFrame.new(pos + Vector3.new(0, s * 0.6, 0)), Color3.fromRGB(20, 20, 20))
+	local l = Instance.new("PointLight")
+	l.Color = Color3.fromRGB(255, 150, 80)
+	l.Range = 18
+	l.Brightness = 1.3
+	l.Shadows = false
+	l.Parent = p
+end
+
+local function house(parent: Instance, cx: number, cz: number, w: number, dpt: number, h: number, ground: number)
+	local m = Instance.new("Model")
+	m.Name = "Machiya"
+	m.Parent = parent
+	-- facing -X (the road): width along Z, depth along X
+	newPart(m, Vector3.new(dpt + 1, 1.2, w + 1), CFrame.new(cx, ground + 0.6, cz), Color3.fromRGB(90, 90, 92), Enum.Material.Slate, true)
+	newPart(m, Vector3.new(dpt, h, w), CFrame.new(cx, ground + 1.2 + h / 2, cz), WOOD, Enum.Material.WoodPlanks, true)
+	-- dark timber frame posts
+	for _, sz in { -1, 1 } do
+		for _, sx in { -1, 1 } do
+			newPart(m, Vector3.new(0.8, h, 0.8), CFrame.new(cx + sx * (dpt / 2), ground + 1.2 + h / 2, cz + sz * (w / 2)), DARK_WOOD, Enum.Material.Wood)
+		end
+	end
+	-- glowing shoji panels + door on the road side
+	local front = cx - dpt / 2 - 0.05
+	for k = -1, 1 do
+		local panel = newPart(m, Vector3.new(0.2, h * 0.4, w * 0.22), CFrame.new(front, ground + 1.2 + h * 0.55, cz + k * w * 0.3), SHOJI, Enum.Material.Neon)
+		panel.Transparency = 0.25
+	end
+	newPart(m, Vector3.new(0.3, h * 0.05, w * 1.02), CFrame.new(front - 0.1, ground + 1.2 + h * 0.78, cz), DARK_WOOD, Enum.Material.Wood)
+	-- noren curtain over the door
+	newPart(m, Vector3.new(0.15, 2.2, w * 0.25), CFrame.new(front - 0.3, ground + 1.2 + h * 0.7, cz), Color3.fromRGB(34, 50, 98), Enum.Material.Fabric)
+	-- gable roof (ridge along Z) with deep eaves
+	local a = math.rad(28)
+	local half = dpt / 2 + 2.5
+	local slabW = half / math.cos(a)
+	local rise = math.tan(a) * half
+	for _, sx in { -1, 1 } do
+		newPart(m, Vector3.new(slabW, 0.7, w + 4), CFrame.new(cx + sx * half / 2, ground + 1.2 + h + rise / 2, cz) * CFrame.Angles(0, 0, -sx * a), ROOF, Enum.Material.Slate, true)
+	end
+	newPart(m, Vector3.new(1, 1, w + 4.4), CFrame.new(cx, ground + 1.2 + h + rise, cz), Color3.fromRGB(30, 30, 36), Enum.Material.Slate)
+	lantern(m, Vector3.new(front - 1.4, ground + 1.2 + h * 0.62, cz - w * 0.32))
+	lantern(m, Vector3.new(front - 1.4, ground + 1.2 + h * 0.62, cz + w * 0.32))
+end
+
+local function buildVillage(d: Track.TrackData, map: Folder): Vector3
+	local village = folder(map, "Village")
+	local ground = 3
+	terrain:FillBlock(CFrame.new(118, ground - 6, 0), Vector3.new(200, 12, 330), Enum.Material.Ground)
+	terrain:FillBlock(CFrame.new(118, ground - 0.5, 0), Vector3.new(200, 1, 330), Enum.Material.Cobblestone)
+	terrain:FillBlock(CFrame.new(118, ground + 20, 0), Vector3.new(200, 40, 330), Enum.Material.Air)
+
+	for _, h in {
+		{ 62, -122, 22, 18, 12 }, { 62, -80, 20, 16, 11 }, { 62, 80, 20, 16, 11 }, { 62, 122, 22, 18, 12 },
+		{ 160, -112, 26, 20, 14 }, { 160, -55, 20, 18, 12 }, { 160, 55, 22, 18, 12 }, { 160, 112, 26, 20, 14 },
+	} do
+		house(village, h[1], h[2], h[3], h[4], h[5], ground)
+	end
+
+	-- lantern posts along the village road edge
+	for z = -125, 125, 25 do
+		newPart(village, Vector3.new(0.6, 10, 0.6), CFrame.new(26, ground + 5, z), DARK_WOOD, Enum.Material.Wood, true)
+		newPart(village, Vector3.new(3, 0.4, 0.4), CFrame.new(24.8, ground + 9.8, z), DARK_WOOD, Enum.Material.Wood)
+		lantern(village, Vector3.new(23.6, ground + 8.2, z), 1.6)
+	end
+
+	-- vending machines, the true light source of rural Japan
+	for k, col in { Color3.fromRGB(220, 230, 255), Color3.fromRGB(255, 240, 220) } do
+		local x = 78 + (k - 1) * 3.6
+		newPart(village, Vector3.new(3.2, 7, 2.8), CFrame.new(x, ground + 3.5, -38), Color3.fromRGB(200, 40, 40), Enum.Material.SmoothPlastic, true)
+		local face = newPart(village, Vector3.new(2.6, 4.4, 0.1), CFrame.new(x, ground + 4.2, -36.55), col, Enum.Material.Neon)
+		local l = Instance.new("SurfaceLight")
+		l.Face = Enum.NormalId.Back
+		l.Range = 14
+		l.Brightness = 1.5
+		l.Color = col
+		l.Parent = face
+	end
+
+	-- torii gate over the start line
+	local s0 = CFrame.lookAt(v3(d, 1), v3(d, 2))
+	local gate = s0 * CFrame.new(0, 0, -30)
+	for _, sx in { -1, 1 } do
+		local pillar = newPart(village, Vector3.new(26, 1.8, 1.8), gate * CFrame.new(sx * (W / 2 + 4), 13, 0) * CFrame.Angles(0, 0, math.pi / 2), TORII, Enum.Material.SmoothPlastic, true)
+		pillar.Shape = Enum.PartType.Cylinder
+		newPart(village, Vector3.new(2.6, 1.4, 2.6), gate * CFrame.new(sx * (W / 2 + 4), 0.7, 0), Color3.fromRGB(25, 25, 25), Enum.Material.SmoothPlastic, true)
+	end
+	newPart(village, Vector3.new(W + 18, 2, 3), gate * CFrame.new(0, 27, 0), TORII)
+	newPart(village, Vector3.new(W + 22, 0.8, 3.6), gate * CFrame.new(0, 28.3, 0), Color3.fromRGB(25, 25, 25))
+	newPart(village, Vector3.new(W + 10, 1.4, 1.6), gate * CFrame.new(0, 22.5, 0), TORII)
+	newPart(village, Vector3.new(1.4, 4.5, 1.4), gate * CFrame.new(0, 24.8, 0), TORII)
+	-- string of lanterns under the gate
+	for k = -3, 3 do
+		lantern(village, (gate * CFrame.new(k * 4.2, 20.4, 0)).Position, 1.5)
+	end
+
+	-- leaderboard board facing the road/plaza
+	local boardPos = Vector3.new(132, ground + 9, 0)
+	local board = newPart(village, Vector3.new(22, 13, 1), CFrame.lookAt(boardPos, boardPos + Vector3.new(-1, 0, 0)), DARK_WOOD, Enum.Material.Wood, true)
+	board.Name = "LeaderboardBoard"
+	for _, sz in { -1, 1 } do
+		newPart(village, Vector3.new(1, 15, 1), CFrame.new(boardPos + Vector3.new(0.8, -1.5, sz * 10.5)), DARK_WOOD, Enum.Material.Wood, true)
+	end
+
+	-- spawn point in the plaza
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Name = "VillageSpawn"
+	spawn.Anchored = true
+	spawn.Size = Vector3.new(8, 1, 8)
+	spawn.CFrame = CFrame.lookAt(Vector3.new(104, ground + 0.5, 0), Vector3.new(0, ground + 0.5, 0))
+	spawn.Material = Enum.Material.Slate
+	spawn.Color = Color3.fromRGB(70, 70, 74)
+	spawn.Duration = 0
+	spawn.Neutral = true
+	spawn.Parent = village
+	return boardPos
+end
+
+-- ---------------------------------------------------------------- forest
+local function cedarTemplate(): Model
+	local m = Instance.new("Model")
+	m.Name = "Cedar"
+	local trunk = Instance.new("Part")
+	trunk.Name = "Trunk"
+	trunk.Shape = Enum.PartType.Cylinder
+	trunk.Size = Vector3.new(30, 1.4, 1.4)
+	trunk.CFrame = CFrame.new(0, 15, 0) * CFrame.Angles(0, 0, math.pi / 2)
+	trunk.Color = Color3.fromRGB(70, 44, 30)
+	trunk.Material = Enum.Material.Wood
+	trunk.Anchored = true
+	trunk.Parent = m
+	local green = Color3.fromRGB(26, 52, 34)
+	for k, s in { { 10, 16, 13 }, { 8, 13, 21 }, { 5.5, 10, 28 }, { 3, 6, 33 } } do
+		local f = Instance.new("Part")
+		f.Name = "Foliage" .. k
+		f.Size = Vector3.new(s[1], s[2], s[1])
+		f.CFrame = CFrame.new(0, s[3], 0)
+		f.Color = green:Lerp(Color3.fromRGB(16, 36, 24), k / 5)
+		f.Material = Enum.Material.Grass
+		f.Anchored = true
+		f.CanCollide = false
+		f.CanQuery = false
+		f.CanTouch = false
+		f.CastShadow = false
+		local mesh = Instance.new("SpecialMesh")
+		mesh.MeshType = Enum.MeshType.Sphere
+		mesh.Parent = f
+		f.Parent = m
+	end
+	m.WorldPivot = CFrame.new(0, 0, 0)
+	return m
+end
+
+local function buildForest(d: Track.TrackData, map: Folder)
+	local trees = folder(map, "Trees")
+	local template = cedarTemplate()
+	-- spatial hash of road points for clearance checks
+	local cell = 40
+	local grid: { [number]: { number } } = {}
+	local function key(x: number, z: number): number
+		return math.floor(x / cell) * 100000 + math.floor(z / cell)
+	end
+	for i = 1, d.n do
+		local k = key(d.x[i], d.z[i])
+		grid[k] = grid[k] or {}
+		table.insert(grid[k], i)
+	end
+	local function clear(x: number, z: number, r: number): boolean
+		local cx, cz = math.floor(x / cell), math.floor(z / cell)
+		for gx = cx - 1, cx + 1 do
+			for gz = cz - 1, cz + 1 do
+				local list = grid[gx * 100000 + gz]
+				if list then
+					for _, i in list do
+						if (d.x[i] - x) ^ 2 + (d.z[i] - z) ^ 2 < r * r then
+							return false
+						end
+					end
+				end
+			end
+		end
+		return true
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { terrain }
+
+	local count = 0
+	for i = 1, d.n, 2 do
+		for _, s in { -1, 1 } do
+			if rng:NextNumber() < 0.75 then
+				local off = W / 2 + rng:NextNumber(16, 170)
+				local p = v3(d, i) + right(d, i) * s * off + Vector3.new(rng:NextNumber(-12, 12), 0, rng:NextNumber(-12, 12))
+				local inVillage = p.X > 15 and p.X < 225 and p.Z > -170 and p.Z < 175
+				local inLake = p.X < -110
+				if not inVillage and not inLake and clear(p.X, p.Z, W / 2 + 12) then
+					local hit = Workspace:Raycast(Vector3.new(p.X, 600, p.Z), Vector3.new(0, -800, 0), params)
+					if hit and hit.Material ~= Enum.Material.Water and hit.Normal.Y > 0.6 then
+						local t = template:Clone()
+						t:PivotTo(CFrame.new(hit.Position - Vector3.new(0, 1, 0)) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0))
+						t:ScaleTo(rng:NextNumber(0.75, 1.35))
+						t.Parent = trees
+						count += 1
+						breathe()
+					end
+				end
+			end
+		end
+	end
+	-- a darker band of forest further out for the skyline
+	for _ = 1, 500 do
+		local p = Vector3.new(rng:NextNumber(-100, 2300), 0, rng:NextNumber(-2300, 800))
+		if p.X > 15 and p.X < 225 and p.Z > -170 and p.Z < 175 then
+			continue
+		end
+		if clear(p.X, p.Z, W / 2 + 60) then
+			local hit = Workspace:Raycast(Vector3.new(p.X, 600, p.Z), Vector3.new(0, -800, 0), params)
+			if hit and hit.Material ~= Enum.Material.Water and hit.Normal.Y > 0.6 then
+				local t = template:Clone()
+				t:PivotTo(CFrame.new(hit.Position - Vector3.new(0, 1, 0)) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0))
+				t:ScaleTo(rng:NextNumber(0.9, 1.6))
+				t.Parent = trees
+				count += 1
+				breathe()
+			end
+		end
+	end
+	template:Destroy()
+	return count
+end
+
+-- ---------------------------------------------------------------- entry
+export type MapInfo = { boardPos: Vector3, trees: number, length: number }
+
+function MapBuilder.build(): MapInfo
+	local old = Workspace:FindFirstChild("KaidoMap")
+	if old then
+		old:Destroy()
+	end
+	local t0 = os.clock()
+	local d = Track.build()
+	local map = folder(Workspace, "KaidoMap")
+	buildTerrain(d)
+	buildRoad(d, map)
+	local boardPos = buildVillage(d, map)
+	local trees = buildForest(d, map)
+	print(string.format("[Kaido] map built in %.1fs: %d road segments, %.0f studs (%.2f km), %d trees",
+		os.clock() - t0, d.n, d.length, d.length * Config.METERS_PER_STUD / 1000, trees))
+	return { boardPos = boardPos, trees = trees, length = d.length }
+end
+
+return MapBuilder
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="12">
+        <Properties>
+          <string name="Name">PlayerData</string>
+          <string name="Source"><![CDATA[--!strict
+-- Credits, owned cars, selected car and best drift, persisted with DataStoreService.
+-- Falls back to session-only data (with a warning) when API access is off, e.g. an unpublished Studio place.
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Kaido")
+local Config = require(Shared:WaitForChild("Config"))
+local Cars = require(Shared:WaitForChild("Cars"))
+
+export type Profile = {
+	credits: number,
+	owned: { [string]: boolean },
+	selected: string,
+	best: number,
+	total: number,
+	easyDrift: boolean,
+}
+
+local PlayerData = {}
+
+local store: DataStore? = nil
+do
+	local ok, result = pcall(function()
+		return DataStoreService:GetDataStore(Config.DATASTORE_NAME)
+	end)
+	if ok then
+		store = result
+	else
+		warn("[Kaido] DataStore unavailable, progress will not be saved this session:", result)
+	end
+end
+
+local profiles: { [Player]: Profile } = {}
+local loaded: { [Player]: boolean } = {}
+local dirty: { [Player]: boolean } = {}
+
+local function default(): Profile
+	return {
+		credits = Config.START_CREDITS,
+		owned = { [Cars.DEFAULT] = true },
+		selected = Cars.DEFAULT,
+		best = 0,
+		total = 0,
+		easyDrift = true,
+	}
+end
+
+local function sanitize(raw: any): Profile
+	local p = default()
+	if type(raw) ~= "table" then
+		return p
+	end
+	if type(raw.credits) == "number" then
+		p.credits = math.max(0, math.floor(raw.credits))
+	end
+	if type(raw.owned) == "table" then
+		for id, v in raw.owned do
+			if Cars.byId[id] and v == true then
+				p.owned[id] = true
+			end
+		end
+	end
+	if type(raw.selected) == "string" and p.owned[raw.selected] then
+		p.selected = raw.selected
+	end
+	if type(raw.best) == "number" then
+		p.best = math.max(0, math.floor(raw.best))
+	end
+	if type(raw.total) == "number" then
+		p.total = math.max(0, math.floor(raw.total))
+	end
+	if type(raw.easyDrift) == "boolean" then
+		p.easyDrift = raw.easyDrift
+	end
+	return p
+end
+
+local function retry<T>(fn: () -> T): (boolean, T | string)
+	local lastErr: any
+	for attempt = 1, 3 do
+		local ok, res = pcall(fn)
+		if ok then
+			return true, res
+		end
+		lastErr = res
+		task.wait(attempt)
+	end
+	return false, tostring(lastErr)
+end
+
+function PlayerData.load(player: Player): Profile
+	local profile = default()
+	local st = store
+	if st then
+		local ok, res = retry(function()
+			return st:GetAsync("u" .. player.UserId)
+		end)
+		if ok then
+			profile = sanitize(res)
+		else
+			warn("[Kaido] load failed for", player.Name, res)
+		end
+	end
+	profiles[player] = profile
+	loaded[player] = true
+	return profile
+end
+
+function PlayerData.get(player: Player): Profile?
+	return profiles[player]
+end
+
+function PlayerData.markDirty(player: Player)
+	dirty[player] = true
+end
+
+function PlayerData.save(player: Player)
+	local profile = profiles[player]
+	local st = store
+	if not profile or not st or not loaded[player] then
+		return
+	end
+	dirty[player] = nil
+	local ok, err = retry(function()
+		st:UpdateAsync("u" .. player.UserId, function()
+			return profile
+		end)
+		return true
+	end)
+	if not ok then
+		warn("[Kaido] save failed for", player.Name, err)
+		dirty[player] = true
+	end
+end
+
+function PlayerData.release(player: Player)
+	PlayerData.save(player)
+	profiles[player] = nil
+	loaded[player] = nil
+	dirty[player] = nil
+end
+
+function PlayerData.saveAll()
+	local threads = {}
+	for player in profiles do
+		table.insert(threads, task.spawn(PlayerData.save, player))
+	end
+	-- give the saves a few seconds to finish (BindToClose allows ~30s)
+	local t = os.clock()
+	while os.clock() - t < 8 do
+		local busy = false
+		for player in profiles do
+			if dirty[player] then
+				busy = true
+			end
+		end
+		if not busy then
+			break
+		end
+		task.wait(0.5)
+	end
+end
+
+-- autosave
+task.spawn(function()
+	while true do
+		task.wait(90)
+		for player in profiles do
+			if dirty[player] and player.Parent == Players then
+				task.spawn(PlayerData.save, player)
+			end
+		end
+	end
+end)
+
+return PlayerData
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="StarterPlayer" referent="13">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="14">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="Folder" referent="15">
+        <Properties>
+          <string name="Name">KaidoClient</string>
+        </Properties>
+        <Item class="ModuleScript" referent="16">
+          <Properties>
+            <string name="Name">CameraRig</string>
+            <string name="Source"><![CDATA[--!strict
+-- Title orbit, chase cam (leans toward the direction of travel while sliding) and cockpit cam.
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local CameraRig = {}
+
+CameraRig.mode = "title" -- "title" | "chase" | "cockpit"
+CameraRig.target = nil :: Model?
+CameraRig.seat = Vector3.new(1, 2, 0) -- driver head, chassis space
+
+local camera = Workspace.CurrentCamera
+local smoothCF: CFrame? = nil
+local orbit = 0
+local lookYaw = 0
+local camParams = RaycastParams.new()
+camParams.FilterType = Enum.RaycastFilterType.Include
+
+local function setCharacterHidden(hidden: boolean)
+	local char = Players.LocalPlayer.Character
+	if not char then
+		return
+	end
+	for _, d in char:GetDescendants() do
+		if d:IsA("BasePart") or d:IsA("Decal") then
+			d.LocalTransparencyModifier = if hidden then 1 else 0
+		end
+	end
+end
+
+function CameraRig.setMode(mode: string)
+	CameraRig.mode = mode
+	smoothCF = nil
+	setCharacterHidden(mode == "cockpit")
+end
+
+function CameraRig.toggle()
+	if CameraRig.mode == "chase" then
+		CameraRig.setMode("cockpit")
+	elseif CameraRig.mode == "cockpit" then
+		CameraRig.setMode("chase")
+	end
+end
+
+local function update(dt: number)
+	camera = Workspace.CurrentCamera
+	camera.CameraType = Enum.CameraType.Scriptable
+	local mode = CameraRig.mode
+	local car = CameraRig.target
+	local chassis = car and car.PrimaryPart
+	if mode == "title" or not chassis then
+		orbit += dt * 0.06
+		local centre = Vector3.new(40, 18, 0)
+		local pos = centre + Vector3.new(math.cos(orbit) * 150, 42, math.sin(orbit) * 150)
+		camera.CFrame = CFrame.lookAt(pos, centre)
+		camera.FieldOfView = 60
+		return
+	end
+	local cf = chassis.CFrame
+	local v = chassis.AssemblyLinearVelocity
+	local speed = Vector3.new(v.X, 0, v.Z).Magnitude
+	if mode == "cockpit" then
+		setCharacterHidden(true)
+		-- glance a little into the slide
+		local vLocal = cf:VectorToObjectSpace(v)
+		local slip = if -vLocal.Z > 3 then math.atan2(vLocal.X, -vLocal.Z) else 0
+		lookYaw += (math.clamp(-slip * 0.5, -0.6, 0.6) - lookYaw) * math.min(1, dt * 4)
+		camera.CFrame = cf * CFrame.new(CameraRig.seat) * CFrame.Angles(0, lookYaw, 0) * CFrame.Angles(math.rad(-4), 0, 0)
+		camera.FieldOfView = 72 + math.min(speed * 0.06, 12)
+		return
+	end
+	-- chase: blend car heading with velocity heading so drifts show the car's angle
+	local flatLook = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+	if flatLook.Magnitude < 0.1 then
+		flatLook = Vector3.new(0, 0, -1)
+	end
+	flatLook = flatLook.Unit
+	local dir = flatLook
+	if speed > 6 then
+		local vel = Vector3.new(v.X, 0, v.Z).Unit
+		if vel:Dot(flatLook) > -0.2 then
+			dir = (flatLook * 0.45 + vel * 0.55).Unit
+		end
+	end
+	local base = chassis.Position
+	local camPos = base - dir * 15 + Vector3.new(0, 5.2, 0)
+	local map = Workspace:FindFirstChild("KaidoMap")
+	if map then
+		camParams.FilterDescendantsInstances = { Workspace.Terrain, map:FindFirstChild("Village") or map }
+		local from = base + Vector3.new(0, 2.5, 0)
+		local hit = Workspace:Raycast(from, camPos - from, camParams)
+		if hit then
+			camPos = hit.Position + (from - camPos).Unit * 0.8
+		end
+	end
+	local desired = CFrame.lookAt(camPos, base + dir * 6 + Vector3.new(0, 1.6, 0))
+	local prev = smoothCF or desired
+	local a = 1 - math.exp(-dt * 7)
+	local pos = prev.Position:Lerp(desired.Position, a)
+	local look = prev.LookVector:Lerp(desired.LookVector, 1 - math.exp(-dt * 9))
+	smoothCF = CFrame.lookAt(pos, pos + look)
+	camera.CFrame = smoothCF :: CFrame
+	camera.FieldOfView = 70 + math.min(speed * 0.1, 18)
+end
+
+function CameraRig.start()
+	RunService:BindToRenderStep("KaidoCamera", Enum.RenderPriority.Camera.Value + 1, update)
+end
+
+return CameraRig
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="17">
+          <Properties>
+            <string name="Name">Drift</string>
+            <string name="Source"><![CDATA[--!strict
+-- Drift scoring, same rules as the browser game: while sliding > 10° above 25 km/h,
+-- score += km/h × angle × 0.5 per second (× bonus tags); the multiplier grows +0.5 every 1.6 s
+-- held (max ×5). The drift banks as credits after 1.4 s of not sliding, and is lost on a wall hit.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Kaido")
+local Config = require(Shared:WaitForChild("Config"))
+
+local Drift = {}
+
+Drift.active = false
+Drift.score = 0
+Drift.time = 0
+Drift.idle = 0
+Drift.mult = 1
+Drift.tags = {} :: { string }
+
+export type Result = { kind: "bank" | "lost", points: number, credits: number, tier: string, duration: number }
+
+local function reset()
+	Drift.active = false
+	Drift.score = 0
+	Drift.time = 0
+	Drift.idle = 0
+	Drift.mult = 1
+	table.clear(Drift.tags)
+end
+
+function Drift.total(): number
+	return math.floor(Drift.score * Drift.mult)
+end
+
+-- Returns a Result when a drift ends this frame.
+function Drift.update(dt: number, kmh: number, slipDeg: number, forward: number, nearWall: boolean, tandem: boolean): Result?
+	local angle = math.min(math.abs(slipDeg), 90)
+	local drifting = angle > Config.DRIFT_MIN_ANGLE and kmh > Config.DRIFT_MIN_KMH and forward > 0
+	if drifting then
+		if not Drift.active then
+			reset()
+			Drift.active = true
+		end
+		Drift.idle = 0
+		Drift.time += dt
+		local bonus = 1
+		table.clear(Drift.tags)
+		if tandem then
+			bonus *= 1.5
+			table.insert(Drift.tags, "TANDEM")
+		end
+		if nearWall then
+			bonus *= 1.35
+			table.insert(Drift.tags, "NEAR WALL")
+		end
+		if angle > 45 then
+			bonus *= 1.15
+			table.insert(Drift.tags, "ANGLE")
+		end
+		if kmh > 110 then
+			bonus *= 1.15
+			table.insert(Drift.tags, "SPEED")
+		end
+		Drift.mult = math.min(Config.DRIFT_MULT_MAX, 1 + math.floor(Drift.time / Config.DRIFT_MULT_STEP) * 0.5)
+		Drift.score += kmh * angle * 0.5 * dt * bonus
+	elseif Drift.active then
+		Drift.idle += dt
+		if Drift.idle > Config.DRIFT_END_IDLE then
+			return Drift.finish()
+		end
+	end
+	return nil
+end
+
+function Drift.finish(): Result?
+	if not Drift.active then
+		return nil
+	end
+	local points = Drift.total()
+	local duration = Drift.time + Drift.idle
+	reset()
+	if points < Config.DRIFT_MIN_BANK then
+		return nil
+	end
+	return {
+		kind = "bank",
+		points = points,
+		credits = math.floor(points * Config.CREDITS_PER_POINT),
+		tier = Config.tierFor(points),
+		duration = duration,
+	}
+end
+
+function Drift.crash(): Result?
+	if not Drift.active then
+		return nil
+	end
+	local points = Drift.total()
+	reset()
+	return { kind = "lost", points = points, credits = 0, tier = "CRASH", duration = 0 }
+end
+
+function Drift.cancel()
+	reset()
+end
+
+return Drift
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="18">
+          <Properties>
+            <string name="Name">Drive</string>
+            <string name="Source"><![CDATA[--!strict
+-- Client-side raycast-suspension drift physics for the local player's car.
+-- The client owns the car's network physics, so impulses applied here replicate to everyone.
+--
+-- Model: 4 raycast springs; each tyre gets a longitudinal + lateral force limited by a friction
+-- circle (mu × load). Rear tyres spend grip on drive force first, so power (or the handbrake)
+-- leaves little lateral grip and the tail steps out. Easy Drift adds a yaw "kick" on hard steer
+-- with gas, eases throttle past ~30° of slide and damps yaw so slides don't turn into spins.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local Shared = ReplicatedStorage:WaitForChild("Kaido")
+local Config = require(Shared:WaitForChild("Config"))
+local Cars = require(Shared:WaitForChild("Cars"))
+local Track = require(Shared:WaitForChild("Track"))
+local CarBuilder = require(Shared:WaitForChild("CarBuilder"))
+local Input = require(script.Parent:WaitForChild("Input"))
+
+local Drive = {}
+
+export type Telemetry = {
+	kmh: number,
+	forward: number, -- signed forward speed, studs/s
+	rpm: number,
+	red: number,
+	gear: string,
+	slipDeg: number, -- signed slide angle
+	sliding: boolean,
+	grounded: number,
+	steerAngle: number, -- radians, + = right
+	steerNorm: number,
+	throttle: number,
+	handbrake: boolean,
+	contacts: { Vector3? },
+}
+
+Drive.telemetry = {
+	kmh = 0, forward = 0, rpm = 900, red = 7000, gear = "N", slipDeg = 0, sliding = false,
+	grounded = 0, steerAngle = 0, steerNorm = 0, throttle = 0, handbrake = false, contacts = {},
+} :: Telemetry
+Drive.easyDrift = true
+Drive.model = nil :: Model?
+
+local M_PER_STUD = Config.METERS_PER_STUD
+local ACC = Config.ACC
+local IDLE = 900
+local LAT_GRIP = 0.6 -- fraction of a corner's lateral velocity a gripping tyre removes per frame
+
+local conn: RBXScriptConnection? = nil
+local spec: Cars.Car
+local geo: CarBuilder.Geometry
+local chassis: BasePart
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Include
+
+local gear = 1
+local rpm = IDLE
+local shiftTimer = 0
+local steerAngle = 0
+local kickTimer = 0
+local kickCooldown = 0
+local flipTimer = 0
+local offTrackTimer = 0
+local reversing = false
+
+local function torqueAt(r: number): number
+	local peak, red = spec.peak, spec.red
+	if r <= peak then
+		return spec.torque * (0.55 + 0.45 * math.clamp(r / peak, 0, 1))
+	end
+	local u = math.clamp((r - peak) / math.max(red - peak, 1), 0, 1)
+	return spec.torque * (1 - 0.38 * u * u)
+end
+
+local function rpmForSpeed(vF: number, g: number): number
+	local wheelRps = math.abs(vF) * M_PER_STUD / Config.WHEEL_RADIUS_M / (2 * math.pi)
+	return wheelRps * 60 * spec.gears[g] * spec.final
+end
+
+function Drive.respawn()
+	if not chassis or not chassis.Parent then
+		return
+	end
+	local d = Track.build()
+	local p = chassis.Position
+	local i = Track.nearest(p.X, p.Z)
+	local pos = Vector3.new(d.x[i], d.y[i] + geo.chassisY + 1.5, d.z[i])
+	local look = pos + Vector3.new(d.tx[i], 0, d.tz[i])
+	local model = Drive.model
+	if model then
+		model:PivotTo(CFrame.lookAt(pos, look))
+	end
+	chassis.AssemblyLinearVelocity = Vector3.zero
+	chassis.AssemblyAngularVelocity = Vector3.zero
+	gear, rpm, steerAngle = 1, IDLE, 0
+	flipTimer, offTrackTimer = 0, 0
+end
+
+local function step(dt: number)
+	if not chassis or not chassis.Parent then
+		return
+	end
+	dt = math.min(dt, 1 / 20)
+	local inp = Input.update(dt)
+	local tel = Drive.telemetry
+	local easy = Drive.easyDrift
+
+	local cf = chassis.CFrame
+	local up, fwd, rgt = cf.UpVector, cf.LookVector, cf.RightVector
+	local M = chassis.AssemblyMass
+	local G = Workspace.Gravity
+	local com = chassis.AssemblyCenterOfMass
+	local v = chassis.AssemblyLinearVelocity
+	local w = chassis.AssemblyAngularVelocity
+
+	local vF = v:Dot(fwd)
+	local vL = v:Dot(rgt)
+	local planar = math.sqrt(vF * vF + vL * vL)
+	local kmh = planar * Config.KMH_PER_SPS
+	local beta = if vF > 1 and planar > 4 then math.atan2(vL, vF) else 0 -- + = velocity points right of the nose
+	local slipDeg = math.deg(beta)
+	local absSlip = math.abs(slipDeg)
+
+	-- ------------------------------------------------ steering
+	local lock = math.rad(spec.lock)
+	local sliding = absSlip > 8 and kmh > 15
+	local speedFactor = if sliding then 1 else 1 - 0.7 * math.clamp(kmh / 150, 0, 1)
+	local assist = if easy then 0.9 else 0.7
+	local steerTarget = inp.steer * lock * speedFactor + beta * assist
+	steerTarget = math.clamp(steerTarget, -lock, lock)
+	local steerRate = if math.sign(steerTarget - steerAngle) ~= math.sign(steerAngle) then 7 else 4.5
+	steerAngle += math.clamp(steerTarget - steerAngle, -steerRate * dt, steerRate * dt)
+
+	-- ------------------------------------------------ easy drift helpers
+	local throttle = inp.throttle
+	kickCooldown = math.max(0, kickCooldown - dt)
+	kickTimer = math.max(0, kickTimer - dt)
+	if easy and throttle > 0.5 and math.abs(inp.steer) > 0.6 and kmh > 30 and absSlip < 12 and kickCooldown <= 0 and tel.grounded >= 3 then
+		-- flick the tail out: yaw toward the steer direction (+Y rotation = left)
+		local kick = -math.sign(inp.steer) * (0.7 + 0.3 * math.clamp((kmh - 30) / 80, 0, 1))
+		w += up * kick
+		kickTimer = 0.35
+		kickCooldown = 1.0
+	end
+	if easy and absSlip > 30 then
+		throttle *= math.clamp(1 - (absSlip - 30) / 30, 0.4, 1)
+	end
+	if inp.handbrake then
+		throttle = 0 -- clutch in
+	end
+
+	-- ------------------------------------------------ stability: damp roll/pitch, limit spin
+	local rollRate, pitchRate, yawRate = w:Dot(fwd), w:Dot(rgt), w:Dot(up)
+	w -= fwd * rollRate * math.min(1, 5 * dt) + rgt * pitchRate * math.min(1, 2.5 * dt)
+	local spinLimit = if easy then 55 else 75
+	if absSlip > spinLimit then
+		w -= up * yawRate * math.min(1, dt * 4 * (absSlip - spinLimit) / 20)
+	elseif easy and absSlip > 20 and math.sign(yawRate) == -math.sign(beta) then
+		-- yaw that grows the slide angle gets gently resisted, so angle is held, not spun
+		w -= up * yawRate * math.min(1, dt * 1.2)
+	end
+	chassis.AssemblyAngularVelocity = w
+
+	-- ------------------------------------------------ engine & gearbox
+	local nG = #spec.gears
+	shiftTimer = math.max(0, shiftTimer - dt)
+	if inp.brake > 0.1 and throttle < 0.1 and vF < 1.5 then
+		reversing = true
+	elseif throttle > 0.1 or vF > 3 then
+		reversing = false
+	end
+	local wheelRpm = rpmForSpeed(vF, gear)
+	if not reversing and shiftTimer <= 0 then
+		local upAt = spec.red * (if sliding then 0.985 else 0.93)
+		if wheelRpm > upAt and gear < nG then
+			gear += 1
+			shiftTimer = 0.2
+		elseif gear > 1 then
+			local lower = rpmForSpeed(vF, gear - 1)
+			if lower < spec.red * 0.78 and wheelRpm < spec.peak * 0.7 then
+				gear -= 1
+				shiftTimer = 0.15
+			end
+		end
+	end
+	wheelRpm = rpmForSpeed(vF, gear)
+	local rpmTarget = math.max(IDLE, wheelRpm)
+	if throttle > 0.05 and (sliding or kmh < 12) then
+		-- wheelspin / clutch slip lets the engine rev past road speed
+		rpmTarget = math.max(rpmTarget, IDLE + (spec.red * 0.92 - IDLE) * throttle * (if sliding then 0.85 else 0.55))
+	end
+	if inp.handbrake and throttle == 0 and inp.throttle > 0.05 then
+		rpmTarget = math.max(rpmTarget, spec.red * 0.8 * inp.throttle)
+	end
+	rpm += (rpmTarget - rpm) * math.min(1, dt * 10)
+	rpm = math.clamp(rpm, IDLE * 0.9, spec.red)
+
+	local driveN = 0 -- Newtons at the rear axle (real units)
+	if reversing then
+		if math.abs(vF) * Config.KMH_PER_SPS < 25 then
+			driveN = -inp.brake * spec.torque * 3.4 * spec.final * 0.85 / Config.WHEEL_RADIUS_M * 0.6
+		end
+	elseif shiftTimer <= 0 and throttle > 0 then
+		local limiter = wheelRpm >= spec.red * 0.995
+		if not limiter then
+			local effRpm = math.max(wheelRpm, math.min(rpm, spec.peak))
+			driveN = torqueAt(effRpm) * spec.gears[gear] * spec.final * 0.85 / Config.WHEEL_RADIUS_M * throttle
+			if spec.turbo then
+				driveN *= 0.85 + 0.15 * math.clamp((rpm - 2500) / 2000, 0, 1)
+			end
+		end
+	end
+	local driveAccel = driveN / spec.mass -- m/s²
+	local driveForce = driveAccel * ACC * M -- Roblox force units, whole axle
+
+	-- aero drag + rolling resistance at the centre of mass
+	local vFm = vF * M_PER_STUD
+	local dragA = 0.5 * 1.2 * spec.CdA * vFm * math.abs(vFm) / spec.mass + 0.12 * math.sign(vF) * math.min(1, math.abs(vF))
+	chassis:ApplyImpulse(-fwd * dragA * ACC * M * dt)
+
+	local brakeForce = if reversing then 0 else inp.brake * 11 * ACC * M -- whole car
+
+	-- momentum assist: sliding sideways scrubs speed; a push along the direction of travel keeps
+	-- held drifts flowing (arcade, tuned offline against a planar port of this model)
+	if sliding and throttle > 0.1 and vF > 0 and planar > 0 then
+		local flatV = Vector3.new(v.X, 0, v.Z)
+		if flatV.Magnitude > 0.1 then
+			local push = throttle * math.min(1, absSlip / 25) * (if easy then 1.5 else 0.9)
+			chassis:ApplyImpulse(flatV.Unit * push * ACC * M * dt)
+		end
+	end
+
+	-- ------------------------------------------------ tyres
+	local mu = spec.mu
+	local rearGrip = 1
+	if inp.handbrake then
+		rearGrip *= 0.42
+	end
+	if kickTimer > 0 then
+		rearGrip *= 0.65
+	end
+	if sliding and throttle > 0.3 then
+		rearGrip *= 0.9
+	elseif not sliding and not inp.handbrake and kickTimer <= 0 then
+		rearGrip *= 1.08 -- a touch of stability when gripping, so plain cornering understeers instead of spinning
+	end
+	local excess = driveAccel / (mu * 9.81)
+	rearGrip *= 1 - throttle * math.clamp(excess * 0.35, 0, 0.3)
+	local frontGrip = 1 + (spec.front - 0.5) * 0.6
+
+	local restLen, R = geo.restLen, geo.radius
+	local k = M * G / 4 / 0.45
+	local c = 2 * 0.55 * math.sqrt(k * M / 4)
+	local quarter = M / 4
+	-- same grip per second at any frame rate (0.6 of the slip removed per 60 Hz frame)
+	local latFrac = 1 - (1 - LAT_GRIP) ^ (dt * 60)
+	local grounded = 0
+	local parked = throttle == 0 and inp.brake == 0 and not inp.handbrake and planar < 1.2
+
+	for i, wd in geo.wheels do
+		local origin = cf:PointToWorldSpace(Vector3.new(wd.x, geo.originY, wd.z))
+		local hit = Workspace:Raycast(origin, -up * (restLen + R), rayParams)
+		if not hit then
+			tel.contacts[i] = nil
+			continue
+		end
+		grounded += 1
+		tel.contacts[i] = hit.Position
+		local dist = (hit.Position - origin).Magnitude
+		local comp = restLen + R - dist
+		local pv = v + w:Cross(hit.Position - com)
+		local compVel = -pv:Dot(up)
+		local Fs = k * comp + c * compVel
+		if dist < R * 0.75 then
+			Fs += k * 3 * (R * 0.75 - dist) -- bump stop
+		end
+		Fs = math.max(Fs, 0)
+		chassis:ApplyImpulseAtPosition(up * Fs * dt, origin)
+
+		-- tyre frame on the ground plane
+		local n = hit.Normal
+		local wf = fwd
+		if wd.front then
+			wf = CFrame.fromAxisAngle(up, -steerAngle) * fwd
+		end
+		wf = (wf - n * wf:Dot(n)).Unit
+		local wr = wf:Cross(n)
+		local vx, vy = pv:Dot(wf), pv:Dot(wr)
+
+		local maxF = mu * Fs * (if wd.front then frontGrip else rearGrip)
+		local fx = 0
+		local fy = -vy * quarter / dt * latFrac
+		if parked then
+			fx = -vx * quarter / dt * 0.5
+		else
+			fx -= math.sign(vx) * math.min(brakeForce * (if wd.front then 0.3 else 0.2), math.abs(vx) * quarter / dt)
+		end
+		if not wd.front then
+			fx += driveForce / 2
+			if inp.handbrake and math.abs(vx) > 0.5 then
+				fx -= math.sign(vx) * maxF * 0.8
+			end
+			-- rear: drive first, lateral gets what is left of the friction circle
+			fx = math.clamp(fx, -maxF * 0.95, maxF * 0.95)
+			-- keep some side grip even at full wheelspin so the angle stays controllable
+			local fyCap = math.max(math.sqrt(math.max(maxF * maxF - fx * fx, 0)), maxF * (if inp.handbrake then 0.3 else 0.55))
+			fy = math.clamp(fy, -fyCap, fyCap)
+		else
+			local total = math.sqrt(fx * fx + fy * fy)
+			if total > maxF and total > 0 then
+				fx *= maxF / total
+				fy *= maxF / total
+			end
+		end
+		-- apply near centre-of-mass height so cornering doesn't roll the car over
+		local at = hit.Position + up * ((com - hit.Position):Dot(up) * 0.7)
+		chassis:ApplyImpulseAtPosition((wf * fx + wr * fy) * dt, at)
+	end
+
+	-- ------------------------------------------------ recovery
+	if up.Y < 0.25 and planar < 8 then
+		flipTimer += dt
+	else
+		flipTimer = 0
+	end
+	if chassis.Position.Y < -30 then
+		offTrackTimer += dt * 3
+	else
+		offTrackTimer = 0
+	end
+	if flipTimer > 2 or offTrackTimer > 3 then
+		Drive.respawn()
+	end
+	if grounded == 0 and up.Y < 0.97 then
+		-- gently self-level in the air
+		local axis = up:Cross(Vector3.yAxis)
+		chassis.AssemblyAngularVelocity += axis * math.min(1, dt * 3) * 2
+	end
+
+	-- ------------------------------------------------ telemetry
+	tel.kmh = kmh
+	tel.forward = vF
+	tel.rpm = rpm
+	tel.red = spec.red
+	tel.gear = if reversing then "R" elseif planar < 0.5 and throttle == 0 then "N" else tostring(gear)
+	tel.slipDeg = slipDeg
+	tel.sliding = sliding
+	tel.grounded = grounded
+	tel.steerAngle = steerAngle
+	tel.steerNorm = steerAngle / lock
+	tel.throttle = inp.throttle
+	tel.handbrake = inp.handbrake
+end
+
+function Drive.start(model: Model, easy: boolean)
+	Drive.stop()
+	Drive.model = model
+	spec = Cars.get(model:GetAttribute("CarId") :: string?)
+	geo = CarBuilder.geometry(spec)
+	chassis = (model.PrimaryPart or model:WaitForChild("Chassis")) :: BasePart
+	Drive.easyDrift = easy
+	local map = Workspace:WaitForChild("KaidoMap")
+	rayParams.FilterDescendantsInstances = { map:WaitForChild("Road"), Workspace.Terrain }
+	gear, rpm, steerAngle, shiftTimer, kickTimer, kickCooldown = 1, IDLE, 0, 0, 0, 0
+	flipTimer, offTrackTimer, reversing = 0, 0, false
+	Input.reset()
+	conn = RunService.PreSimulation:Connect(step)
+end
+
+function Drive.stop()
+	if conn then
+		conn:Disconnect()
+		conn = nil
+	end
+	Drive.model = nil
+	local tel = Drive.telemetry
+	tel.kmh, tel.rpm, tel.slipDeg, tel.sliding, tel.throttle = 0, IDLE, 0, false, 0
+end
+
+return Drive
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="19">
+          <Properties>
+            <string name="Name">Input</string>
+            <string name="Source"><![CDATA[--!strict
+-- Merges keyboard, gamepad and on-screen touch controls into one analog driving input.
+local UserInputService = game:GetService("UserInputService")
+
+local Input = {}
+
+export type State = { throttle: number, brake: number, steer: number, handbrake: boolean }
+
+Input.state = { throttle = 0, brake = 0, steer = 0, handbrake = false } :: State
+-- written by the touch UI
+Input.touch = { throttle = 0, brake = 0, steer = 0, handbrake = false, steerActive = false }
+Input.lastDevice = "keyboard" -- "keyboard" | "gamepad" | "touch"
+
+local kbSteer = 0
+
+local function key(k: Enum.KeyCode): boolean
+	return UserInputService:IsKeyDown(k)
+end
+
+local function deadzone(x: number, dz: number): number
+	if math.abs(x) < dz then
+		return 0
+	end
+	return math.sign(x) * (math.abs(x) - dz) / (1 - dz)
+end
+
+UserInputService.LastInputTypeChanged:Connect(function(t: Enum.UserInputType)
+	if t == Enum.UserInputType.Touch then
+		Input.lastDevice = "touch"
+	elseif string.sub(t.Name, 1, 7) == "Gamepad" then
+		Input.lastDevice = "gamepad"
+	elseif t == Enum.UserInputType.Keyboard or t == Enum.UserInputType.MouseButton1 or t == Enum.UserInputType.MouseMovement then
+		Input.lastDevice = "keyboard"
+	end
+end)
+
+function Input.update(dt: number): State
+	local typing = UserInputService:GetFocusedTextBox() ~= nil
+
+	-- keyboard
+	local kThrottle, kBrake, kHand, kTarget = 0, 0, false, 0
+	if not typing then
+		if key(Enum.KeyCode.W) or key(Enum.KeyCode.Up) then
+			kThrottle = 1
+		end
+		if key(Enum.KeyCode.S) or key(Enum.KeyCode.Down) then
+			kBrake = 1
+		end
+		if key(Enum.KeyCode.A) or key(Enum.KeyCode.Left) then
+			kTarget -= 1
+		end
+		if key(Enum.KeyCode.D) or key(Enum.KeyCode.Right) then
+			kTarget += 1
+		end
+		kHand = key(Enum.KeyCode.Space)
+	end
+	-- digital steering ramps in, snaps back faster
+	local rate = if kTarget == 0 or math.sign(kTarget) ~= math.sign(kbSteer) then 7 else 3.2
+	kbSteer += math.clamp(kTarget - kbSteer, -rate * dt, rate * dt)
+
+	-- gamepad
+	local gThrottle, gBrake, gSteer, gHand = 0, 0, 0, false
+	if UserInputService.GamepadEnabled then
+		for _, io in UserInputService:GetGamepadState(Enum.UserInputType.Gamepad1) do
+			local kc = io.KeyCode
+			if kc == Enum.KeyCode.ButtonR2 then
+				gThrottle = io.Position.Z
+			elseif kc == Enum.KeyCode.ButtonL2 then
+				gBrake = io.Position.Z
+			elseif kc == Enum.KeyCode.Thumbstick1 then
+				gSteer = deadzone(io.Position.X, 0.12)
+			elseif (kc == Enum.KeyCode.ButtonB or kc == Enum.KeyCode.ButtonX or kc == Enum.KeyCode.ButtonR1) and io.UserInputState == Enum.UserInputState.Begin then
+				gHand = true
+			elseif kc == Enum.KeyCode.ButtonA and io.UserInputState == Enum.UserInputState.Begin then
+				gThrottle = math.max(gThrottle, 1)
+			end
+		end
+	end
+
+	local t = Input.touch
+	local s = Input.state
+	s.throttle = math.clamp(math.max(kThrottle, gThrottle, t.throttle), 0, 1)
+	s.brake = math.clamp(math.max(kBrake, gBrake, t.brake), 0, 1)
+	local steer = kbSteer
+	if math.abs(gSteer) > math.abs(steer) then
+		steer = gSteer
+	end
+	if t.steerActive then
+		steer = t.steer
+	end
+	s.steer = math.clamp(steer, -1, 1)
+	s.handbrake = kHand or gHand or t.handbrake
+	return s
+end
+
+function Input.reset()
+	kbSteer = 0
+	local s = Input.state
+	s.throttle, s.brake, s.steer, s.handbrake = 0, 0, 0, false
+end
+
+return Input
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="LocalScript" referent="20">
+          <Properties>
+            <string name="Name">Main</string>
+            <string name="Source"><![CDATA[--!strict
+-- Kaido Drift client entry: menu flow, driving loop, drift banking, camera and HUD updates.
+local ContextActionService = game:GetService("ContextActionService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local Shared = ReplicatedStorage:WaitForChild("Kaido")
+local Config = require(Shared:WaitForChild("Config"))
+local CarBuilder = require(Shared:WaitForChild("CarBuilder"))
+local Cars = require(Shared:WaitForChild("Cars"))
+
+local here = script.Parent
+local Input = require(here:WaitForChild("Input"))
+local Drive = require(here:WaitForChild("Drive"))
+local Drift = require(here:WaitForChild("Drift"))
+local CameraRig = require(here:WaitForChild("CameraRig"))
+local Visuals = require(here:WaitForChild("Visuals"))
+local UI = require(here:WaitForChild("UI"))
+
+-- the game drives the character itself; keep Roblox's walk/jump controls (and touch jump button) off
+task.spawn(function()
+	local ok, err = pcall(function()
+		local PlayerModule = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule") :: ModuleScript) :: any
+		PlayerModule:GetControls():Disable()
+	end)
+	if not ok then
+		warn("[Kaido] could not disable default controls:", err)
+	end
+end)
+pcall(function()
+	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+end)
+
+CameraRig.start()
+Visuals.start()
+UI.showTitle()
+UI.setMapReady(Workspace:GetAttribute("MapReady") == true)
+Workspace:GetAttributeChangedSignal("MapReady"):Connect(function()
+	UI.setMapReady(Workspace:GetAttribute("MapReady") == true)
+end)
+
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local GetProfile = remotes:WaitForChild("GetProfile") :: RemoteFunction
+local BuyCar = remotes:WaitForChild("BuyCar") :: RemoteFunction
+local SelectCar = remotes:WaitForChild("SelectCar") :: RemoteFunction
+local SetEasyDrift = remotes:WaitForChild("SetEasyDrift") :: RemoteEvent
+local RequestSpawn = remotes:WaitForChild("RequestSpawn") :: RemoteEvent
+local Despawn = remotes:WaitForChild("Despawn") :: RemoteEvent
+local CarState = remotes:WaitForChild("CarState") :: RemoteEvent
+local BankDrift = remotes:WaitForChild("BankDrift") :: RemoteEvent
+local ProfileChanged = remotes:WaitForChild("ProfileChanged") :: RemoteEvent
+local Notify = remotes:WaitForChild("Notify") :: RemoteEvent
+
+local profile: any = GetProfile:InvokeServer()
+if profile then
+	UI.setProfile(profile)
+end
+ProfileChanged.OnClientEvent:Connect(function(p)
+	profile = p
+	UI.setProfile(p)
+end)
+Notify.OnClientEvent:Connect(function(text)
+	if type(text) == "string" then
+		UI.notice(text)
+	end
+end)
+
+local mode: string = "title" -- "title" | "garage" | "spawning" | "driving"
+local myCar: Model? = nil
+local carsFolder = Workspace:WaitForChild("Cars")
+local wallFolders: { Instance } = {}
+local wallParams = RaycastParams.new()
+wallParams.FilterType = Enum.RaycastFilterType.Include
+local touchConn: RBXScriptConnection? = nil
+local lastCrash = 0
+local lastSpeed = 0
+
+local function bank(result: Drift.Result?)
+	if not result then
+		return
+	end
+	if result.kind == "bank" then
+		BankDrift:FireServer(result.points, result.duration)
+		UI.toast(string.format("%s  +%s  ·  CR +%s", result.tier, UI.fmt(result.points), UI.fmt(result.credits)), Config.COLORS.gold)
+	else
+		UI.toast(string.format("CRASH  ·  %s lost", UI.fmt(result.points)), Config.COLORS.danger)
+	end
+end
+
+local function crash()
+	local now = os.clock()
+	if now - lastCrash < 0.5 then
+		return
+	end
+	lastCrash = now
+	bank(Drift.crash())
+end
+
+local function stopDriving()
+	bank(Drift.finish())
+	Drive.stop()
+	if touchConn then
+		touchConn:Disconnect()
+		touchConn = nil
+	end
+	myCar = nil
+	CameraRig.target = nil
+	CameraRig.setMode("title")
+end
+
+local function startDriving(model: Model)
+	myCar = model
+	mode = "driving"
+	local chassis = model:WaitForChild("Chassis") :: BasePart
+	Drive.start(model, profile == nil or profile.easyDrift ~= false)
+	local spec = Cars.get(model:GetAttribute("CarId") :: string?)
+	CameraRig.seat = CarBuilder.geometry(spec).seat
+	CameraRig.target = model
+	CameraRig.setMode("chase")
+	UI.showHUD()
+	local map = Workspace:WaitForChild("KaidoMap")
+	wallFolders = {}
+	for _, name in { "Rails", "Lamps", "Trees", "Village" } do
+		local f = map:FindFirstChild(name)
+		if f then
+			table.insert(wallFolders, f)
+		end
+	end
+	wallParams.FilterDescendantsInstances = { map:FindFirstChild("Rails") :: Instance }
+	touchConn = chassis.Touched:Connect(function(hit)
+		for _, f in wallFolders do
+			if hit:IsDescendantOf(f) then
+				crash()
+				return
+			end
+		end
+	end)
+	UI.toast("GO", Config.COLORS.sakura)
+end
+
+-- our car shows up in workspace.Cars after RequestSpawn
+carsFolder.ChildAdded:Connect(function(child: Instance)
+	if mode == "spawning" and child:IsA("Model") and child:GetAttribute("Owner") == player.UserId then
+		startDriving(child)
+	end
+end)
+carsFolder.ChildRemoved:Connect(function(child)
+	if child == myCar then
+		stopDriving()
+		mode = "title"
+		UI.showTitle()
+	end
+end)
+
+-- ---------------------------------------------------------------- menu callbacks
+UI.callbacks.play = function()
+	if mode ~= "title" then
+		return
+	end
+	mode = "spawning"
+	RequestSpawn:FireServer()
+	task.delay(5, function()
+		if (mode :: string) == "spawning" then
+			mode = "title"
+			UI.toast("Could not spawn, try again", Config.COLORS.danger)
+		end
+	end)
+end
+UI.callbacks.garage = function()
+	mode = "garage"
+	UI.showGarage()
+end
+UI.callbacks.back = function()
+	mode = "title"
+	UI.showTitle()
+end
+UI.callbacks.buy = function(id)
+	local ok, res = BuyCar:InvokeServer(id)
+	if ok then
+		profile = res
+		UI.setProfile(res)
+		UI.garageMessage("")
+	else
+		UI.garageMessage(tostring(res))
+	end
+end
+UI.callbacks.select = function(id)
+	local ok, res = SelectCar:InvokeServer(id)
+	if ok then
+		profile = res
+		UI.setProfile(res)
+	end
+end
+UI.callbacks.easy = function()
+	if not profile then
+		return
+	end
+	profile.easyDrift = not profile.easyDrift
+	SetEasyDrift:FireServer(profile.easyDrift)
+	Drive.easyDrift = profile.easyDrift
+	UI.setProfile(profile)
+end
+UI.callbacks.menu = function()
+	if mode == "driving" then
+		stopDriving()
+		Despawn:FireServer()
+	end
+	mode = "title"
+	UI.showTitle()
+end
+UI.callbacks.camera = function()
+	CameraRig.toggle()
+end
+UI.callbacks.reset = function()
+	if mode == "driving" then
+		Drift.cancel()
+		Drive.respawn()
+	end
+end
+
+-- keyboard / gamepad shortcuts (sunk so the default camera/character don't react)
+ContextActionService:BindAction("KaidoCamera", function(_, state)
+	if state == Enum.UserInputState.Begin and mode == "driving" then
+		CameraRig.toggle()
+	end
+	return Enum.ContextActionResult.Sink
+end, false, Enum.KeyCode.C, Enum.KeyCode.ButtonY)
+ContextActionService:BindAction("KaidoReset", function(_, state)
+	if state == Enum.UserInputState.Begin then
+		UI.callbacks.reset()
+	end
+	return Enum.ContextActionResult.Sink
+end, false, Enum.KeyCode.R, Enum.KeyCode.ButtonSelect)
+ContextActionService:BindActionAtPriority("KaidoSinkJump", function()
+	return if mode == "driving" then Enum.ContextActionResult.Sink else Enum.ContextActionResult.Pass
+end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
+
+-- ---------------------------------------------------------------- per-frame
+local stateTimer = 0
+RunService.Heartbeat:Connect(function(dt)
+	if mode ~= "driving" or not myCar or not myCar.PrimaryPart then
+		return
+	end
+	local tel = Drive.telemetry
+	local chassis = myCar.PrimaryPart :: BasePart
+
+	-- crash by sudden stop (walls the touch event may miss)
+	if lastSpeed > 40 and tel.kmh < lastSpeed * 0.55 then
+		crash()
+	end
+	lastSpeed = tel.kmh
+
+	local cf = chassis.CFrame
+	local nearWall = false
+	if Drift.active then
+		for _, s in { -1, 1 } do
+			if Workspace:Raycast(cf.Position, cf.RightVector * s * 9, wallParams) then
+				nearWall = true
+			end
+		end
+	end
+	local tandem = Drift.active and Visuals.tandem(cf.Position, 30)
+	bank(Drift.update(dt, tel.kmh, tel.slipDeg, tel.forward, nearWall, tandem))
+	UI.updateHUD(tel, Drift, myCar)
+
+	stateTimer += dt
+	if stateTimer > 0.1 then
+		stateTimer = 0
+		CarState:FireServer(tel.steerNorm, tel.rpm, Drift.active)
+	end
+	local _ = Input
+end)
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="21">
+          <Properties>
+            <string name="Name">UI</string>
+            <string name="Source"><![CDATA[--!strict
+-- All 2D interface, built in code: title screen, garage, driving HUD (drift score, speedometer,
+-- minimap, buttons) and on-screen touch controls for phones/tablets.
+local GuiService = game:GetService("GuiService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local Shared = ReplicatedStorage:WaitForChild("Kaido")
+local Config = require(Shared:WaitForChild("Config"))
+local Cars = require(Shared:WaitForChild("Cars"))
+local Track = require(Shared:WaitForChild("Track"))
+local CarBuilder = require(Shared:WaitForChild("CarBuilder"))
+local Input = require(script.Parent:WaitForChild("Input"))
+
+local C = Config.COLORS
+local UI = {}
+
+export type Profile = { credits: number, owned: { string }, selected: string, best: number, total: number, easyDrift: boolean }
+
+UI.callbacks = {
+	play = function() end,
+	garage = function() end,
+	back = function() end,
+	buy = function(_id: string) end,
+	select = function(_id: string) end,
+	menu = function() end,
+	camera = function() end,
+	reset = function() end,
+	easy = function() end,
+}
+
+local player = Players.LocalPlayer
+local isTouch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+local function fmt(n: number): string
+	local s = tostring(math.floor(n))
+	return (s:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""))
+end
+UI.fmt = fmt
+
+local function make(class: string, props: { [string]: any }, children: { any }?): any
+	local inst = Instance.new(class :: any)
+	for k, v in props do
+		if k ~= "Parent" then
+			(inst :: any)[k] = v
+		end
+	end
+	if children then
+		for _, ch in children do
+			ch.Parent = inst
+		end
+	end
+	if props.Parent then
+		inst.Parent = props.Parent
+	end
+	return inst
+end
+
+local function corner(r: number): any
+	return make("UICorner", { CornerRadius = UDim.new(0, r) })
+end
+
+local function stroke(color: Color3, t: number?, thick: number?): any
+	return make("UIStroke", { Color = color, Transparency = t or 0, Thickness = thick or 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+end
+
+local function label(props: { [string]: any }): TextLabel
+	local base = {
+		BackgroundTransparency = 1,
+		TextColor3 = C.text,
+		Font = Enum.Font.GothamBold,
+		TextSize = 16,
+	}
+	for k, v in props do
+		base[k] = v
+	end
+	return make("TextLabel", base)
+end
+
+local function button(text: string, primary: boolean, props: { [string]: any }): TextButton
+	local base = {
+		Text = text,
+		AutoButtonColor = true,
+		BackgroundColor3 = if primary then C.sakura else C.panel,
+		BackgroundTransparency = if primary then 0 else 0.15,
+		TextColor3 = if primary then C.ink else C.text,
+		Font = Enum.Font.GothamBlack,
+		TextSize = 20,
+	}
+	for k, v in props do
+		base[k] = v
+	end
+	local b = make("TextButton", base, { corner(10), stroke(if primary then C.sakura else C.dim, if primary then 0 else 0.6) })
+	return b
+end
+
+-- ---------------------------------------------------------------- root
+local gui: ScreenGui = make("ScreenGui", {
+	Name = "KaidoUI",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	Parent = player:WaitForChild("PlayerGui"),
+})
+
+local profile: Profile = { credits = 0, owned = { Cars.DEFAULT }, selected = Cars.DEFAULT, best = 0, total = 0, easyDrift = true }
+local function owns(id: string): boolean
+	return table.find(profile.owned, id) ~= nil
+end
+
+-- ---------------------------------------------------------------- title
+local title: Frame = make("Frame", { Name = "Title", Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.ink, BackgroundTransparency = 0.2, Parent = gui }, {
+	make("UIGradient", { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.55, 0.5), NumberSequenceKeypoint.new(1, 1) }) }),
+})
+local col: Frame = make("Frame", {
+	Size = UDim2.new(0, if isTouch then 330 else 440, 1, 0),
+	Position = UDim2.new(0, if isTouch then 28 else 72, 0, 0),
+	BackgroundTransparency = 1,
+	Parent = title,
+}, {
+	make("UIListLayout", { Padding = UDim.new(0, if isTouch then 6 else 12), VerticalAlignment = Enum.VerticalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }),
+})
+label({ Text = "峠  MIDNIGHT TOUGE", TextColor3 = C.sakura, TextSize = if isTouch then 14 else 18, Size = UDim2.new(1, 0, 0, 22), TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 1, Parent = col })
+label({ Text = "KAIDO DRIFT", Font = Enum.Font.GothamBlack, TextSize = if isTouch then 44 else 68, Size = UDim2.new(1, 0, 0, if isTouch then 48 else 74), TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 2, Parent = col })
+label({
+	Text = "Midnight on the lake pass. Slide a 90s coupe through the lantern village, up the hairpins and along the shore. Every drift earns credits for the garage.",
+	Font = Enum.Font.Gotham, TextSize = if isTouch then 13 else 16, TextColor3 = C.dim, TextWrapped = true,
+	Size = UDim2.new(1, 0, 0, if isTouch then 52 else 66), TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, LayoutOrder = 3, Parent = col,
+})
+local titleStats = label({ Text = "", TextColor3 = C.gold, TextSize = if isTouch then 15 else 18, Size = UDim2.new(1, 0, 0, 24), TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 4, Parent = col })
+local playBtn = button("PLAY", true, { Size = UDim2.new(1, 0, 0, if isTouch then 46 else 56), TextSize = if isTouch then 20 else 24, LayoutOrder = 5, Parent = col })
+local garageBtn = button("GARAGE", false, { Size = UDim2.new(1, 0, 0, if isTouch then 42 else 50), LayoutOrder = 6, Parent = col })
+local easyBtn = button("EASY DRIFT: ON", false, { Size = UDim2.new(1, 0, 0, if isTouch then 36 else 40), TextSize = 16, Font = Enum.Font.GothamBold, LayoutOrder = 7, Parent = col })
+local status = label({ Text = "Building the mountain pass…", TextColor3 = C.neon, TextSize = 14, Size = UDim2.new(1, 0, 0, 20), TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 8, Parent = col })
+label({
+	Text = if isTouch then "Stick: steer · GAS / BRAKE / HB buttons · ⟳ resets the car"
+		else "W/S gas & brake · A/D steer · Space handbrake · C camera · R reset\nGamepad: RT gas · LT brake · left stick steer · B/X handbrake · Y camera",
+	Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = C.dim, TextWrapped = true,
+	Size = UDim2.new(1, 0, 0, 36), TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, LayoutOrder = 9, Parent = col,
+})
+
+playBtn.Activated:Connect(function()
+	if Workspace:GetAttribute("MapReady") then
+		UI.callbacks.play()
+	end
+end)
+garageBtn.Activated:Connect(function()
+	UI.callbacks.garage()
+end)
+easyBtn.Activated:Connect(function()
+	UI.callbacks.easy()
+end)
+
+-- ---------------------------------------------------------------- garage
+local garage: Frame = make("Frame", { Name = "Garage", Size = UDim2.fromScale(1, 1), BackgroundColor3 = C.ink, BackgroundTransparency = 0.05, Visible = false, Parent = gui })
+local pad = if isTouch then 12 else 28
+label({ Text = "GARAGE", Font = Enum.Font.GothamBlack, TextSize = if isTouch then 26 else 36, Position = UDim2.new(0, pad, 0, pad), Size = UDim2.new(0, 300, 0, 40), TextXAlignment = Enum.TextXAlignment.Left, Parent = garage })
+local garageCredits = label({ Text = "", TextColor3 = C.gold, TextSize = if isTouch then 16 else 20, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -pad - 130, 0, pad + 6), Size = UDim2.new(0, 260, 0, 30), TextXAlignment = Enum.TextXAlignment.Right, Parent = garage })
+local backBtn = button("BACK", false, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -pad, 0, pad), Size = UDim2.new(0, 110, 0, 40), TextSize = 16, Parent = garage })
+backBtn.Activated:Connect(function()
+	UI.callbacks.back()
+end)
+local listTop = pad + 56
+local list: ScrollingFrame = make("ScrollingFrame", {
+	Position = UDim2.new(0, pad, 0, listTop), Size = UDim2.new(0.36, -pad, 1, -listTop - pad),
+	BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 4, CanvasSize = UDim2.new(),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y, Parent = garage,
+}, { make("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }) })
+local detail: Frame = make("Frame", { Position = UDim2.new(0.36, pad, 0, listTop), Size = UDim2.new(0.64, -2 * pad, 1, -listTop - pad), BackgroundTransparency = 1, Parent = garage })
+local viewport: ViewportFrame = make("ViewportFrame", {
+	Size = UDim2.new(1, 0, 0.55, 0), BackgroundColor3 = C.panel, BackgroundTransparency = 0.2,
+	Ambient = Color3.fromRGB(140, 140, 160), LightColor = Color3.fromRGB(255, 240, 220), LightDirection = Vector3.new(-1, -1, -0.5), Parent = detail,
+}, { corner(14) })
+local vpCam: Camera = make("Camera", { FieldOfView = 40, Parent = viewport })
+viewport.CurrentCamera = vpCam
+local dName = label({ Text = "", Font = Enum.Font.GothamBlack, TextSize = if isTouch then 20 else 28, Position = UDim2.new(0, 0, 0.57, 0), Size = UDim2.new(1, 0, 0, 30), TextXAlignment = Enum.TextXAlignment.Left, Parent = detail })
+local dTag = label({ Text = "", Font = Enum.Font.Gotham, TextColor3 = C.dim, TextSize = 14, Position = UDim2.new(0, 0, 0.57, 32), Size = UDim2.new(1, 0, 0, 18), TextXAlignment = Enum.TextXAlignment.Left, Parent = detail })
+local statsFrame: Frame = make("Frame", { Position = UDim2.new(0, 0, 0.57, 56), Size = UDim2.new(0.62, 0, 0, 84), BackgroundTransparency = 1, Parent = detail }, {
+	make("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }),
+})
+local function statBar(name: string, order: number): (Frame, TextLabel)
+	local row = make("Frame", { Size = UDim2.new(1, 0, 0, 22), BackgroundTransparency = 1, LayoutOrder = order, Parent = statsFrame })
+	label({ Text = name, TextSize = 13, TextColor3 = C.dim, Size = UDim2.new(0, 70, 1, 0), TextXAlignment = Enum.TextXAlignment.Left, Parent = row })
+	local track = make("Frame", { Position = UDim2.new(0, 74, 0.5, -4), Size = UDim2.new(1, -170, 0, 8), BackgroundColor3 = Color3.fromRGB(50, 52, 70), Parent = row }, { corner(4) })
+	local fill = make("Frame", { Size = UDim2.fromScale(0.5, 1), BackgroundColor3 = C.neon, Parent = track }, { corner(4) })
+	local val = label({ Text = "", TextSize = 13, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.new(0, 90, 1, 0), TextXAlignment = Enum.TextXAlignment.Right, Parent = row })
+	return fill, val
+end
+local powerFill, powerVal = statBar("POWER", 1)
+local weightFill, weightVal = statBar("WEIGHT", 2)
+local gripFill, gripVal = statBar("GRIP", 3)
+local actionBtn = button("SELECT", true, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0.57, 60), Size = UDim2.new(0.34, 0, 0, 52), Parent = detail })
+local garageMsg = label({ Text = "", TextColor3 = C.danger, TextSize = 14, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0.57, 118), Size = UDim2.new(0.34, 0, 0, 20), Parent = detail })
+
+local shownId = Cars.DEFAULT
+local cards: { [string]: TextButton } = {}
+local previewModel: Model? = nil
+
+local function refreshGarage()
+	garageCredits.Text = "CR  " .. fmt(profile.credits)
+	for id, card in cards do
+		local spec = Cars.byId[id]
+		local priceLbl = card:FindFirstChild("Price") :: TextLabel
+		if id == profile.selected then
+			priceLbl.Text = "SELECTED"
+			priceLbl.TextColor3 = C.sakura
+		elseif owns(id) then
+			priceLbl.Text = "OWNED"
+			priceLbl.TextColor3 = C.neon
+		else
+			priceLbl.Text = "CR " .. fmt(spec.price)
+			priceLbl.TextColor3 = if profile.credits >= spec.price then C.gold else C.dim
+		end
+		local s = card:FindFirstChildOfClass("UIStroke")
+		if s then
+			s.Color = if id == shownId then C.sakura else C.dim
+			s.Transparency = if id == shownId then 0 else 0.7
+		end
+	end
+	local spec = Cars.get(shownId)
+	dName.Text = spec.name
+	dTag.Text = spec.tag
+	powerFill.Size = UDim2.fromScale(math.clamp(spec.hp / 520, 0.05, 1), 1)
+	powerVal.Text = spec.hp .. " hp · " .. spec.torque .. " Nm"
+	weightFill.Size = UDim2.fromScale(math.clamp((spec.mass - 800) / 800, 0.05, 1), 1)
+	weightVal.Text = fmt(spec.mass) .. " kg"
+	gripFill.Size = UDim2.fromScale(math.clamp((spec.mu - 0.9) / 0.28, 0.05, 1), 1)
+	gripVal.Text = string.format("μ %.2f", spec.mu)
+	if spec.id == profile.selected then
+		actionBtn.Text = "SELECTED"
+		actionBtn.BackgroundColor3 = C.panel
+		actionBtn.TextColor3 = C.dim
+	elseif owns(spec.id) then
+		actionBtn.Text = "SELECT"
+		actionBtn.BackgroundColor3 = C.sakura
+		actionBtn.TextColor3 = C.ink
+	else
+		actionBtn.Text = "BUY  CR " .. fmt(spec.price)
+		local afford = profile.credits >= spec.price
+		actionBtn.BackgroundColor3 = if afford then C.gold else C.panel
+		actionBtn.TextColor3 = if afford then C.ink else C.dim
+	end
+end
+
+local function showCar(id: string)
+	shownId = id
+	garageMsg.Text = ""
+	if previewModel then
+		previewModel:Destroy()
+	end
+	local m = CarBuilder.build(Cars.get(id))
+	m.Parent = viewport
+	previewModel = m
+	refreshGarage()
+end
+
+for i, spec in Cars.list do
+	local card = button("", false, { Size = UDim2.new(1, -6, 0, if isTouch then 52 else 64), LayoutOrder = i, Parent = list, AutoButtonColor = true })
+	make("Frame", { Size = UDim2.new(0, 6, 1, -16), Position = UDim2.new(0, 10, 0, 8), BackgroundColor3 = spec.color, Parent = card }, { corner(3) })
+	label({ Name = "CarName", Text = spec.name, TextSize = if isTouch then 15 else 18, Position = UDim2.new(0, 26, 0, 6), Size = UDim2.new(1, -36, 0.5, 0), TextXAlignment = Enum.TextXAlignment.Left, Parent = card })
+	label({ Name = "Price", Text = "", TextSize = 13, Position = UDim2.new(0, 26, 0.5, 0), Size = UDim2.new(1, -36, 0.5, -6), TextXAlignment = Enum.TextXAlignment.Left, Parent = card })
+	card.Activated:Connect(function()
+		showCar(spec.id)
+	end)
+	cards[spec.id] = card
+end
+
+actionBtn.Activated:Connect(function()
+	local spec = Cars.get(shownId)
+	if spec.id == profile.selected then
+		return
+	end
+	if owns(spec.id) then
+		UI.callbacks.select(spec.id)
+	elseif profile.credits >= spec.price then
+		UI.callbacks.buy(spec.id)
+	else
+		garageMsg.Text = "Need CR " .. fmt(spec.price - profile.credits) .. " more"
+	end
+end)
+
+local vpAngle = 0
+RunService.RenderStepped:Connect(function(dt: number)
+	if garage.Visible and previewModel then
+		vpAngle += dt * 0.4
+		local spec = Cars.get(shownId)
+		local r = spec.b.len * Config.STUDS_PER_M * 1.5
+		vpCam.CFrame = CFrame.lookAt(Vector3.new(math.cos(vpAngle) * r, r * 0.38, math.sin(vpAngle) * r), Vector3.new(0, 1.6, 0))
+	end
+end)
+
+function UI.garageMessage(text: string)
+	garageMsg.Text = text
+end
+
+-- ---------------------------------------------------------------- HUD
+local hud: Frame = make("Frame", { Name = "HUD", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false, Parent = gui })
+local inset = GuiService:GetGuiInset()
+local topY = inset.Y + 8
+
+-- drift score, top centre
+local driftBox: Frame = make("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, topY), Size = UDim2.new(0, 360, 0, 110), BackgroundTransparency = 1, Parent = hud }, {
+	make("UIScale", { Scale = if isTouch then 0.6 else 1 }),
+})
+local dTier = label({ Text = "DRIFT", TextColor3 = C.sakura, TextSize = 18, Font = Enum.Font.GothamBlack, Size = UDim2.new(1, 0, 0, 22), Parent = driftBox })
+local dScore = label({ Text = "0", Font = Enum.Font.GothamBlack, TextSize = 52, Position = UDim2.new(0, 0, 0, 20), Size = UDim2.new(1, 0, 0, 54), TextStrokeTransparency = 0.6, Parent = driftBox })
+local dMult = label({ Text = "×1.0", TextColor3 = C.sakura, TextSize = 20, Position = UDim2.new(0, 0, 0, 72), Size = UDim2.new(1, 0, 0, 22), Parent = driftBox })
+local dTags = label({ Text = "", TextColor3 = C.neon, TextSize = 13, Position = UDim2.new(0, 0, 0, 94), Size = UDim2.new(1, 0, 0, 16), Parent = driftBox })
+driftBox.Visible = false
+
+-- right column: minimap + buttons + credits
+local mapSize = if isTouch then 112 else 180
+local rightCol: Frame = make("Frame", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, topY), Size = UDim2.new(0, mapSize, 0, mapSize + 90), BackgroundTransparency = 1, Parent = hud })
+local minimap: Frame = make("Frame", { Size = UDim2.new(0, mapSize, 0, mapSize), BackgroundColor3 = C.ink, BackgroundTransparency = 0.25, ClipsDescendants = true, Parent = rightCol }, {
+	corner(12), stroke(C.dim, 0.6),
+})
+local btnRow: Frame = make("Frame", { Position = UDim2.new(0, 0, 0, mapSize + 6), Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, Parent = rightCol }, {
+	make("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), HorizontalAlignment = Enum.HorizontalAlignment.Right }),
+})
+local camBtn = button("CAM", false, { Size = UDim2.new(0, if isTouch then 34 else 54, 0, 30), TextSize = if isTouch then 11 else 13, Parent = btnRow })
+local resetBtn = button("⟳", false, { Size = UDim2.new(0, if isTouch then 34 else 54, 0, 30), TextSize = 16, Parent = btnRow })
+local menuBtn = button("MENU", false, { Size = UDim2.new(0, if isTouch then 38 else 60, 0, 30), TextSize = if isTouch then 11 else 13, Parent = btnRow })
+camBtn.Activated:Connect(function()
+	UI.callbacks.camera()
+end)
+resetBtn.Activated:Connect(function()
+	UI.callbacks.reset()
+end)
+menuBtn.Activated:Connect(function()
+	UI.callbacks.menu()
+end)
+local hudCredits = label({ Text = "CR 0", TextColor3 = C.gold, TextSize = if isTouch then 13 else 17, Position = UDim2.new(0, 0, 0, mapSize + 40), Size = UDim2.new(1, 0, 0, 20), TextXAlignment = Enum.TextXAlignment.Right, TextStrokeTransparency = 0.6, Parent = rightCol })
+
+-- minimap drawing
+local trackData = Track.build()
+local minX, maxX, minZ, maxZ = math.huge, -math.huge, math.huge, -math.huge
+for i = 1, trackData.n do
+	minX, maxX = math.min(minX, trackData.x[i]), math.max(maxX, trackData.x[i])
+	minZ, maxZ = math.min(minZ, trackData.z[i]), math.max(maxZ, trackData.z[i])
+end
+local span = math.max(maxX - minX, maxZ - minZ) * 1.12
+local cx, cz = (minX + maxX) / 2, (minZ + maxZ) / 2
+local function mapPos(x: number, z: number): (number, number)
+	return 0.5 + (x - cx) / span, 0.5 + (z - cz) / span
+end
+do
+	local step = 3
+	for i = 1, trackData.n, step do
+		local j = (i + step - 1) % trackData.n + 1
+		local ax, ay = mapPos(trackData.x[i], trackData.z[i])
+		local bx, by = mapPos(trackData.x[j], trackData.z[j])
+		local len = math.sqrt((bx - ax) ^ 2 + (by - ay) ^ 2)
+		make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale((ax + bx) / 2, (ay + by) / 2),
+			Size = UDim2.new(len + 0.004, 0, 0, if isTouch then 2 else 3),
+			Rotation = math.deg(math.atan2(by - ay, bx - ax)),
+			BackgroundColor3 = Color3.fromRGB(200, 200, 215),
+			BorderSizePixel = 0,
+			Parent = minimap,
+		})
+	end
+	local sx, sy = mapPos(trackData.x[1], trackData.z[1])
+	make("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(sx, sy), Size = UDim2.new(0, 8, 0, 3), BackgroundColor3 = C.gold, BorderSizePixel = 0, Parent = minimap })
+end
+local dots: { [Model]: Frame } = {}
+local function updateMinimap(myCar: Model?)
+	local folder = Workspace:FindFirstChild("Cars")
+	if not folder then
+		return
+	end
+	for m, dot in dots do
+		if not m.Parent then
+			dot:Destroy()
+			dots[m] = nil
+		end
+	end
+	for _, m in folder:GetChildren() do
+		if m:IsA("Model") and m.PrimaryPart then
+			local dot = dots[m]
+			local mine = m == myCar
+			if not dot then
+				dot = make("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.new(0, if mine then 10 else 7, 0, if mine then 10 else 7), BackgroundColor3 = if mine then C.sakura else C.neon, ZIndex = if mine then 3 else 2, Parent = minimap }, { corner(5), stroke(C.ink, 0, 1) })
+				dots[m] = dot
+			end
+			local p = (m.PrimaryPart :: BasePart).Position
+			local x, y = mapPos(p.X, p.Z)
+			dot.Position = UDim2.fromScale(x, y)
+		end
+	end
+end
+
+-- speedometer
+local speedo: Frame = make("Frame", {
+	AnchorPoint = if isTouch then Vector2.new(0.5, 1) else Vector2.new(1, 1),
+	Position = if isTouch then UDim2.new(0.5, 0, 1, -10) else UDim2.new(1, -16, 1, -16),
+	Size = UDim2.new(0, 236, 0, 104), BackgroundColor3 = C.ink, BackgroundTransparency = 0.3, Parent = hud,
+}, { corner(14), stroke(C.dim, 0.7), make("UIScale", { Scale = if isTouch then 0.7 else 1 }) })
+local speedLbl = label({ Text = "0", Font = Enum.Font.GothamBlack, TextSize = 56, Position = UDim2.new(0, 14, 0, 4), Size = UDim2.new(0, 130, 0, 60), TextXAlignment = Enum.TextXAlignment.Right, Parent = speedo })
+label({ Text = "km/h", TextColor3 = C.dim, TextSize = 14, Position = UDim2.new(0, 148, 0, 38), Size = UDim2.new(0, 40, 0, 20), TextXAlignment = Enum.TextXAlignment.Left, Parent = speedo })
+local gearBox: Frame = make("Frame", { Position = UDim2.new(1, -54, 0, 10), Size = UDim2.new(0, 42, 0, 48), BackgroundColor3 = C.panel, Parent = speedo }, { corner(8), stroke(C.sakura, 0.3) })
+local gearLbl = label({ Text = "N", Font = Enum.Font.GothamBlack, TextSize = 32, TextColor3 = C.sakura, Size = UDim2.fromScale(1, 1), Parent = gearBox })
+local rpmTrack: Frame = make("Frame", { Position = UDim2.new(0, 14, 0, 72), Size = UDim2.new(1, -28, 0, 10), BackgroundColor3 = Color3.fromRGB(40, 42, 60), Parent = speedo }, { corner(5) })
+local rpmFill: Frame = make("Frame", { Size = UDim2.fromScale(0.1, 1), BackgroundColor3 = C.neon, Parent = rpmTrack }, { corner(5) })
+make("Frame", { Position = UDim2.fromScale(0.88, 0), Size = UDim2.new(0.12, 0, 1, 0), BackgroundColor3 = C.danger, BackgroundTransparency = 0.6, Parent = rpmTrack }, { corner(5) })
+local rpmLbl = label({ Text = "0 rpm", TextColor3 = C.dim, TextSize = 12, Position = UDim2.new(0, 14, 0, 84), Size = UDim2.new(1, -28, 0, 16), TextXAlignment = Enum.TextXAlignment.Left, Parent = speedo })
+
+-- toast
+local toast = label({ Text = "", Font = Enum.Font.GothamBlack, TextSize = if isTouch then 20 else 28, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.26, 0), Size = UDim2.new(0.8, 0, 0, 34), TextStrokeTransparency = 0.5, TextTransparency = 1, TextStrokeColor3 = C.ink, Parent = gui })
+local toastSmall = label({ Text = "", Font = Enum.Font.GothamBold, TextSize = 14, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, if isTouch then -90 else -24), Size = UDim2.new(0.8, 0, 0, 20), TextColor3 = C.neon, TextTransparency = 1, TextStrokeTransparency = 1, Parent = gui })
+local toastId = 0
+function UI.toast(text: string, color: Color3?)
+	toastId += 1
+	local id = toastId
+	toast.Text = text
+	toast.TextColor3 = color or C.gold
+	toast.TextTransparency = 0
+	toast.TextStrokeTransparency = 0.5
+	task.delay(2.2, function()
+		if toastId == id then
+			toast.TextTransparency = 1
+			toast.TextStrokeTransparency = 1
+		end
+	end)
+end
+local smallId = 0
+function UI.notice(text: string)
+	smallId += 1
+	local id = smallId
+	toastSmall.Text = text
+	toastSmall.TextTransparency = 0
+	task.delay(4, function()
+		if smallId == id then
+			toastSmall.TextTransparency = 1
+		end
+	end)
+end
+
+-- ---------------------------------------------------------------- touch controls
+local touchLayer: Frame = make("Frame", { Name = "Touch", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false, Parent = hud })
+local stickBase: Frame = make("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 28, 1, -28), Size = UDim2.new(0, 150, 0, 150), BackgroundColor3 = C.ink, BackgroundTransparency = 0.45, Active = true, Parent = touchLayer }, {
+	corner(75), stroke(C.dim, 0.5, 2),
+})
+local knob: Frame = make("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(0, 62, 0, 62), BackgroundColor3 = C.text, BackgroundTransparency = 0.2, Parent = stickBase }, { corner(31) })
+local function pedal(text: string, size: Vector2, pos: UDim2, color: Color3): TextButton
+	return button(text, false, { AnchorPoint = Vector2.new(1, 1), Position = pos, Size = UDim2.new(0, size.X, 0, size.Y), BackgroundColor3 = color, BackgroundTransparency = 0.35, TextSize = 16, AutoButtonColor = false, Parent = touchLayer })
+end
+local gasBtn = pedal("GAS", Vector2.new(104, 120), UDim2.new(1, -24, 1, -24), Color3.fromRGB(40, 140, 90))
+local brakeBtn = pedal("BRAKE", Vector2.new(86, 92), UDim2.new(1, -140, 1, -24), Color3.fromRGB(150, 50, 60))
+local hbBtn = pedal("HB", Vector2.new(104, 62), UDim2.new(1, -24, 1, -156), C.panel)
+
+local stickInput: InputObject? = nil
+local held: { [InputObject]: string } = {}
+local function recomputePedals()
+	local t = Input.touch
+	t.throttle, t.brake, t.handbrake = 0, 0, false
+	for _, what in held do
+		if what == "gas" then
+			t.throttle = 1
+		elseif what == "brake" then
+			t.brake = 1
+		elseif what == "hb" then
+			t.handbrake = true
+		end
+	end
+	gasBtn.BackgroundTransparency = if t.throttle > 0 then 0.05 else 0.35
+	brakeBtn.BackgroundTransparency = if t.brake > 0 then 0.05 else 0.35
+	hbBtn.BackgroundTransparency = if t.handbrake then 0.05 else 0.35
+end
+local function bindPedal(b: GuiObject, what: string)
+	b.InputBegan:Connect(function(io)
+		if io.UserInputType == Enum.UserInputType.Touch or io.UserInputType == Enum.UserInputType.MouseButton1 then
+			held[io] = what
+			recomputePedals()
+		end
+	end)
+end
+bindPedal(gasBtn, "gas")
+bindPedal(brakeBtn, "brake")
+bindPedal(hbBtn, "hb")
+local function setStick(pos: Vector3)
+	local centre = stickBase.AbsolutePosition + stickBase.AbsoluteSize / 2
+	local r = stickBase.AbsoluteSize.X / 2
+	local dx = math.clamp((pos.X - centre.X) / r, -1, 1)
+	local dy = math.clamp((pos.Y - centre.Y) / r, -1, 1)
+	knob.Position = UDim2.new(0.5, dx * r * 0.7, 0.5, dy * r * 0.35)
+	Input.touch.steer = if math.abs(dx) < 0.08 then 0 else dx
+	Input.touch.steerActive = true
+end
+stickBase.InputBegan:Connect(function(io)
+	if io.UserInputType == Enum.UserInputType.Touch or io.UserInputType == Enum.UserInputType.MouseButton1 then
+		stickInput = io
+		setStick(io.Position)
+	end
+end)
+UserInputService.InputChanged:Connect(function(io)
+	if io == stickInput then
+		setStick(io.Position)
+	elseif stickInput and stickInput.UserInputType == Enum.UserInputType.MouseButton1 and io.UserInputType == Enum.UserInputType.MouseMovement then
+		setStick(io.Position)
+	end
+end)
+UserInputService.TouchMoved:Connect(function(io)
+	if io == stickInput then
+		setStick(io.Position)
+	end
+end)
+local function release(io: InputObject)
+	if io == stickInput or (stickInput and stickInput.UserInputType == io.UserInputType and io.UserInputType == Enum.UserInputType.MouseButton1) then
+		stickInput = nil
+		knob.Position = UDim2.fromScale(0.5, 0.5)
+		Input.touch.steer = 0
+		Input.touch.steerActive = false
+	end
+	for h in held do
+		if h == io or (h.UserInputType == Enum.UserInputType.MouseButton1 and io.UserInputType == Enum.UserInputType.MouseButton1) then
+			held[h] = nil
+		end
+	end
+	recomputePedals()
+end
+UserInputService.InputEnded:Connect(release)
+UserInputService.TouchEnded:Connect(function(io)
+	release(io)
+end)
+
+-- ---------------------------------------------------------------- screens
+local function selectFor(obj: GuiObject?)
+	if Input.lastDevice == "gamepad" then
+		GuiService.SelectedObject = obj
+	end
+end
+
+function UI.showTitle()
+	title.Visible, garage.Visible, hud.Visible = true, false, false
+	selectFor(playBtn)
+end
+
+function UI.showGarage()
+	title.Visible, garage.Visible, hud.Visible = false, true, false
+	showCar(profile.selected)
+	selectFor(cards[profile.selected])
+end
+
+function UI.showHUD()
+	title.Visible, garage.Visible, hud.Visible = false, false, true
+	touchLayer.Visible = isTouch or Input.lastDevice == "touch"
+	GuiService.SelectedObject = nil
+end
+
+function UI.setProfile(p: Profile)
+	profile = p
+	titleStats.Text = string.format("CR %s   ·   BEST %s", fmt(p.credits), fmt(p.best))
+	hudCredits.Text = "CR " .. fmt(p.credits)
+	easyBtn.Text = if p.easyDrift then "EASY DRIFT: ON" else "EASY DRIFT: OFF"
+	easyBtn.TextColor3 = if p.easyDrift then C.neon else C.dim
+	if garage.Visible then
+		refreshGarage()
+	end
+end
+
+function UI.setMapReady(ready: boolean)
+	status.Text = if ready then "" else "Building the mountain pass…"
+	playBtn.AutoButtonColor = ready
+	playBtn.BackgroundTransparency = if ready then 0 else 0.6
+end
+
+export type DriftView = { active: boolean, score: number, mult: number, tags: { string } }
+function UI.updateHUD(tel: any, drift: DriftView, myCar: Model?)
+	speedLbl.Text = tostring(math.floor(tel.kmh + 0.5))
+	gearLbl.Text = tel.gear
+	local frac = math.clamp(tel.rpm / tel.red, 0, 1)
+	rpmFill.Size = UDim2.fromScale(frac, 1)
+	rpmFill.BackgroundColor3 = if frac > 0.88 then C.danger elseif frac > 0.7 then C.gold else C.neon
+	rpmLbl.Text = fmt(math.floor(tel.rpm / 50) * 50) .. " rpm"
+	driftBox.Visible = drift.active
+	if drift.active then
+		local total = math.floor(drift.score * drift.mult)
+		dTier.Text = Config.tierFor(total)
+		dScore.Text = fmt(drift.score)
+		dMult.Text = string.format("×%.1f", drift.mult)
+		dTags.Text = table.concat(drift.tags, "  ·  ")
+	end
+	updateMinimap(myCar)
+end
+
+return UI
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="22">
+          <Properties>
+            <string name="Name">Visuals</string>
+            <string name="Source"><![CDATA[--!strict
+-- Per-frame cosmetics for every car on the server (not just ours): wheel suspension/steer/spin,
+-- steering wheel, tyre smoke, skid marks, engine pitch and tyre squeal. Runs on each client.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local Shared = ReplicatedStorage:WaitForChild("Kaido")
+local Config = require(Shared:WaitForChild("Config"))
+local Cars = require(Shared:WaitForChild("Cars"))
+local CarBuilder = require(Shared:WaitForChild("CarBuilder"))
+local Drive = require(script.Parent:WaitForChild("Drive"))
+
+local Visuals = {}
+
+type WheelVis = { part: BasePart, joint: Weld, x: number, z: number, front: boolean, spin: number, last: Vector3? }
+type CarVis = {
+	model: Model,
+	chassis: BasePart,
+	spec: Cars.Car,
+	geo: CarBuilder.Geometry,
+	wheels: { WheelVis },
+	emitters: { ParticleEmitter },
+	engine: Sound?,
+	skid: Sound?,
+	steerWeld: Weld?,
+	steerBase: CFrame?,
+	steer: number,
+}
+
+local tracked: { [Model]: CarVis } = {}
+local localPlayer = Players.LocalPlayer
+
+local skidFolder = Instance.new("Folder")
+skidFolder.Name = "KaidoSkids"
+skidFolder.Parent = Workspace
+local skidPool: { BasePart } = {}
+local skidIndex = 0
+local MAX_SKIDS = 700
+
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Include
+
+local function skidMark(a: Vector3, b: Vector3, normal: Vector3, alpha: number)
+	local len = (b - a).Magnitude
+	if len < 0.2 or len > 8 then
+		return
+	end
+	skidIndex = skidIndex % MAX_SKIDS + 1
+	local p = skidPool[skidIndex]
+	if not p then
+		local np = Instance.new("Part")
+		np.Anchored = true
+		np.CanCollide = false
+		np.CanQuery = false
+		np.CanTouch = false
+		np.CastShadow = false
+		np.Material = Enum.Material.SmoothPlastic
+		np.Color = Color3.fromRGB(12, 12, 12)
+		np.Parent = skidFolder
+		skidPool[skidIndex] = np
+		p = np
+	end
+	local mid = (a + b) / 2 + normal * 0.04
+	p.Size = Vector3.new(0.75, 0.04, len + 0.1)
+	p.CFrame = CFrame.lookAt(mid, mid + (b - a), normal)
+	p.Transparency = 1 - alpha
+end
+
+local function track(model: Model)
+	if tracked[model] then
+		return
+	end
+	local chassis = model:WaitForChild("Chassis", 5) :: BasePart?
+	if not chassis then
+		return
+	end
+	local id = model:GetAttribute("CarId") :: string?
+	local spec = Cars.get(id)
+	local geo = CarBuilder.geometry(spec)
+	local vis: CarVis = {
+		model = model,
+		chassis = chassis,
+		spec = spec,
+		geo = geo,
+		wheels = {},
+		emitters = {},
+		engine = chassis:FindFirstChild("Engine") :: Sound?,
+		skid = chassis:FindFirstChild("Skid") :: Sound?,
+		steer = 0,
+	}
+	for _, wd in geo.wheels do
+		local part = model:WaitForChild(wd.name, 5) :: BasePart?
+		local joint = part and part:WaitForChild("Joint", 5) :: Weld?
+		if part and joint then
+			table.insert(vis.wheels, { part = part, joint = joint, x = wd.x, z = wd.z, front = wd.front, spin = 0 })
+		end
+	end
+	for _, d in chassis:GetDescendants() do
+		if d:IsA("ParticleEmitter") then
+			table.insert(vis.emitters, d)
+		end
+	end
+	local sw = model:FindFirstChild("SteeringWheel")
+	if sw then
+		vis.steerWeld = sw:FindFirstChild("SteerWeld") :: Weld?
+		vis.steerBase = sw:GetAttribute("BaseC0") :: CFrame?
+	end
+	local engine = vis.engine
+	if engine and engine.SoundId ~= "" then
+		engine:Play()
+	end
+	local skid = vis.skid
+	if skid and skid.SoundId ~= "" then
+		skid:Play()
+	end
+	tracked[model] = vis
+end
+
+local function update(dt: number)
+	local map = Workspace:FindFirstChild("KaidoMap")
+	local road = map and map:FindFirstChild("Road")
+	if not road then
+		return
+	end
+	rayParams.FilterDescendantsInstances = { road, Workspace.Terrain }
+	local camPos = Workspace.CurrentCamera.CFrame.Position
+
+	for model, vis in tracked do
+		if not model.Parent or not vis.chassis.Parent then
+			tracked[model] = nil
+			continue
+		end
+		local chassis = vis.chassis
+		local cf = chassis.CFrame
+		local far = (cf.Position - camPos).Magnitude > 600
+		local v = chassis.AssemblyLinearVelocity
+		local vF = v:Dot(cf.LookVector)
+		local vL = v:Dot(cf.RightVector)
+		local planar = math.sqrt(vF * vF + vL * vL)
+		local kmh = planar * Config.KMH_PER_SPS
+		local slip = if vF > 1 and planar > 4 then math.abs(math.deg(math.atan2(vL, vF))) else 0
+		local mine = model == Drive.model
+		local steerAngle, rpm, handbrake, throttle
+		if mine then
+			local tel = Drive.telemetry
+			steerAngle, rpm, handbrake, throttle = tel.steerAngle, tel.rpm, tel.handbrake, tel.throttle
+		else
+			local s = (model:GetAttribute("Steer") :: number?) or 0
+			vis.steer += (s - vis.steer) * math.min(1, dt * 10)
+			steerAngle = vis.steer * math.rad(vis.spec.lock)
+			rpm = (model:GetAttribute("Rpm") :: number?) or 900
+			handbrake, throttle = false, 0.5
+		end
+		local sliding = kmh > 20 and (slip > 12 or (handbrake and kmh > 25))
+		local intensity = if sliding then math.clamp((slip - 8) / 30, 0.35, 1) else 0
+
+		-- wheels
+		local geo = vis.geo
+		local R = geo.radius
+		for _, wv in vis.wheels do
+			local yLocal = geo.originY - geo.restLen
+			local contact: Vector3? = nil
+			local normal = Vector3.yAxis
+			if not far then
+				local origin = cf:PointToWorldSpace(Vector3.new(wv.x, geo.originY, wv.z))
+				local hit = Workspace:Raycast(origin, -cf.UpVector * (geo.restLen + R), rayParams)
+				if hit then
+					yLocal = geo.originY - (hit.Position - origin).Magnitude + R
+					contact = hit.Position
+					normal = hit.Normal
+				end
+			end
+			wv.spin = (wv.spin - vF / R * dt) % (2 * math.pi)
+			local rot = CFrame.Angles(wv.spin, 0, 0)
+			if wv.front then
+				rot = CFrame.Angles(0, -steerAngle, 0) * rot
+			end
+			wv.joint.C0 = CFrame.new(wv.x, yLocal, wv.z) * rot
+			-- skid marks from the rear tyres (and fronts at big angle)
+			if contact and sliding and (not wv.front or slip > 30) then
+				local last = wv.last
+				if last then
+					skidMark(last, contact, normal, 0.35 + 0.45 * intensity)
+				end
+				wv.last = contact
+			else
+				wv.last = nil
+			end
+		end
+
+		-- steering wheel
+		local sw, base = vis.steerWeld, vis.steerBase
+		if sw and base then
+			sw.C0 = base * CFrame.Angles(-steerAngle * 6, 0, 0)
+		end
+
+		-- smoke
+		for _, e in vis.emitters do
+			e.Rate = if sliding then 25 + 70 * intensity else 0
+		end
+
+		-- sound
+		local engine = vis.engine
+		if engine and engine.IsPlaying then
+			engine.PlaybackSpeed = math.clamp(rpm / Config.ENGINE_BASE_RPM, 0.35, 3)
+			engine.Volume = (if mine then 0.35 else 0.25) + 0.3 * throttle
+		end
+		local skid = vis.skid
+		if skid and skid.IsPlaying then
+			skid.Volume += ((if sliding then 0.25 + 0.35 * intensity else 0) - skid.Volume) * math.min(1, dt * 8)
+		end
+	end
+end
+
+function Visuals.start()
+	local folder = Workspace:WaitForChild("Cars")
+	folder.ChildAdded:Connect(function(c)
+		if c:IsA("Model") then
+			task.spawn(track, c)
+		end
+	end)
+	for _, c in folder:GetChildren() do
+		if c:IsA("Model") then
+			task.spawn(track, c)
+		end
+	end
+	RunService.RenderStepped:Connect(update)
+	local _ = localPlayer
+end
+
+-- other cars currently drifting within `radius` of `pos` (for the TANDEM bonus)
+function Visuals.tandem(pos: Vector3, radius: number): boolean
+	for model, vis in tracked do
+		if model ~= Drive.model and model:GetAttribute("Drift") and (vis.chassis.Position - pos).Magnitude < radius then
+			return true
+		end
+	end
+	return false
+end
+
+return Visuals
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="TextChatService" referent="23">
+    <Properties>
+      <string name="Name">TextChatService</string>
+      <token name="ChatVersion">1</token>
+    </Properties>
+  </Item>
+  <Item class="Workspace" referent="24">
+    <Properties>
+      <string name="Name">Workspace</string>
+      <float name="Gravity">52</float>
+      <bool name="NeedsPivotMigration">false</bool>
+    </Properties>
+  </Item>
+</roblox>
