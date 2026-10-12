@@ -85,6 +85,11 @@ end
 ANY.__call = function(f, ...) return any(rawget(f, "__name") .. "()") end
 ANY.__tostring = function(t) return rawget(t, "__name") end
 ANY.__iter = function() return next, {} end
+for _, op in { "__add", "__sub", "__mul", "__div", "__unm", "__mod", "__pow", "__concat" } do
+	ANY[op] = function(a, b) return any("arith") end
+end
+ANY.__lt = function() return false end
+ANY.__le = function() return false end
 local enumMeta = { __index = function(t, k) local e = setmetatable({}, { __index = function(_, m) return "Enum." .. k .. "." .. m end }); rawset(t, k, e); return e end }
 Enum = setmetatable({}, enumMeta)
 NumberSequence, ColorSequence, NumberSequenceKeypoint, ColorSequenceKeypoint = any("NumberSequence"), any("ColorSequence"), any("NSK"), any("CSK")
@@ -92,7 +97,7 @@ UDim, UDim2, TweenInfo, NumberRange, Font, PhysicalProperties = any("UDim"), any
 RaycastParams, OverlapParams, Region3, BrickColor, Rect = any("RaycastParams"), any("OverlapParams"), any("Region3"), any("BrickColor"), any("Rect")
 
 -- instances: store whatever is set; children by Parent
-PARTS, FILLS, SIZEBAD = 0, 0, {}
+PARTS, FILLS, SIZEBAD, ALL = 0, 0, {}, {}
 local INST = {}
 local function inst(class, name)
 	return setmetatable({ ClassName = class, Name = name or class, __kids = {}, __attr = {} }, INST)
@@ -112,6 +117,12 @@ function methods.FillBlock(self, c, size, mat) FILLS += 1; assert(getmetatable(c
 function methods.FillBall() end
 function methods.FillCylinder() end
 function methods.FillWedge() end
+LOCALPLAYER = nil
+function methods.InvokeServer(self, ...) return rawget(self, "OnServerInvoke")(LOCALPLAYER, ...) end
+function methods.FireServer(self, ...) self.OnServerEvent:Fire(LOCALPLAYER, ...) end
+function methods.FireClient(self, pl, ...) self.OnClientEvent:Fire(...) end
+function methods.GetAttributeChangedSignal() return any("Signal") end
+function methods.IsDescendantOf() return true end
 function methods.PivotTo(self, c) self.__pivot = c end
 function methods.GetPivot(self) return self.__pivot or (self.PrimaryPart and self.PrimaryPart.CFrame) or CFrame.identity end
 function methods.SetPrimaryPartCFrame(self, c) self.__pivot = c end
@@ -122,6 +133,16 @@ INST.__index = function(t, k)
 	if k == "Position" and rawget(t, "CFrame") then return rawget(t, "CFrame").p end
 	if k == "Parent" then return rawget(t, "__parent") end
 	for _, c in rawget(t, "__kids") do if c.Name == k then return c end end
+	if type(k) == "string" and (k:match("^On%u") or k:match("Added$") or k:match("Removing$") or k:match("Finished$") or k == "Error" or k:match("Stepped$") or k:match("^Input") or k == "Activated" or k == "TouchPinch") then
+		local sig = rawget(t, "__sig_" .. k)
+		if not sig then
+			sig = { fns = {} }
+			function sig.Connect(selfs, fn) table.insert(selfs.fns, fn); return any("Conn") end
+			function sig.Fire(selfs, ...) for _, fn in selfs.fns do fn(...) end end
+			rawset(t, "__sig_" .. k, sig)
+		end
+		return sig
+	end
 	return any(rawget(t, "ClassName") .. "." .. k)
 end
 INST.__newindex = function(t, k, v)
@@ -141,7 +162,7 @@ INST.__newindex = function(t, k, v)
 end
 Instance = { new = function(class, parent)
 	local o = inst(class)
-	if class == "Part" or class == "WedgePart" then PARTS += 1 end
+	if class == "Part" or class == "WedgePart" then PARTS += 1; table.insert(ALL, o) end
 	if class == "Terrain" then end
 	if parent then o.Parent = parent end
 	return o

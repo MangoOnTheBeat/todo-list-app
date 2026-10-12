@@ -177,13 +177,24 @@ function City.build(ctx)
 			every = 7
 		elseif d < 0.6 then
 			h = 34 + rng:NextNumber() ^ 1.3 * 120
-			col = ({ Color3.fromRGB(150, 146, 138), Color3.fromRGB(120, 112, 104), Color3.fromRGB(176, 170, 160), Color3.fromRGB(110, 70, 58), Color3.fromRGB(90, 96, 104) })[rng:NextInteger(1, 5)]
-			mat = ({ Enum.Material.Concrete, Enum.Material.Brick, Enum.Material.SmoothPlastic, Enum.Material.Concrete })[rng:NextInteger(1, 4)]
+			-- Japanese mid-rise: tiled apartment facades, brick, board-marked concrete, rendered plaster
+			local look = ({
+				{ Color3.fromRGB(196, 190, 178), Enum.Material.CeramicTiles }, { Color3.fromRGB(150, 120, 100), Enum.Material.CeramicTiles },
+				{ Color3.fromRGB(122, 74, 58), Enum.Material.Brick }, { Color3.fromRGB(96, 70, 60), Enum.Material.Brick },
+				{ Color3.fromRGB(150, 148, 142), Enum.Material.Concrete }, { Color3.fromRGB(112, 114, 118), Enum.Material.Concrete },
+				{ Color3.fromRGB(214, 206, 190), Enum.Material.Plaster }, { Color3.fromRGB(84, 92, 104), Enum.Material.Plaster },
+			})[rng:NextInteger(1, 8)]
+			col, mat = look[1], look[2]
 			every = 9
 		else
 			h = 12 + rng:NextNumber() * 12
-			col = ({ Color3.fromRGB(196, 186, 168), Color3.fromRGB(150, 120, 92), Color3.fromRGB(220, 214, 200), Color3.fromRGB(110, 84, 64) })[rng:NextInteger(1, 4)]
-			mat = ({ Enum.Material.Plaster, Enum.Material.WoodPlanks, Enum.Material.SmoothPlastic })[rng:NextInteger(1, 3)]
+			-- houses: rendered plaster, dark timber cladding or brick
+			local look = ({
+				{ Color3.fromRGB(224, 216, 200), Enum.Material.Plaster }, { Color3.fromRGB(200, 188, 166), Enum.Material.Plaster },
+				{ Color3.fromRGB(176, 186, 190), Enum.Material.Plaster }, { Color3.fromRGB(92, 64, 46), Enum.Material.WoodPlanks },
+				{ Color3.fromRGB(70, 54, 42), Enum.Material.WoodPlanks }, { Color3.fromRGB(140, 86, 64), Enum.Material.Brick },
+			})[rng:NextInteger(1, 6)]
+			col, mat = look[1], look[2]
 			every = 6
 		end
 		local b = Instance.new("Model")
@@ -202,6 +213,14 @@ function City.build(ctx)
 				glow.Transparency = 0.82; glow.CanCollide, glow.CanQuery = false, false; glow.Name = "Window"; glow:SetAttribute("Tier", 1)
 			end
 		end
+		-- base and top: a stone podium and metal crown on towers, a parapet on mid-rise roofs
+		if mat == Enum.Material.Glass then
+			part(b, Vector3.new(w + 1.2, 8, l + 1.2), cf * CFrame.new(0, -h / 2 + 4, 0), Color3.fromRGB(64, 66, 72), Enum.Material.Granite).CanQuery = false
+			part(b, Vector3.new(w + 0.8, 3, l + 0.8), cf * CFrame.new(0, h / 2 - 1.5, 0), Color3.fromRGB(46, 50, 58), Enum.Material.Metal).CanQuery = false
+		elseif d < 0.6 then
+			local dark = Color3.new(col.R * 0.75, col.G * 0.75, col.B * 0.75)
+			part(b, Vector3.new(w + 0.6, 1.4, l + 0.6), cf * CFrame.new(0, h / 2 + 0.7, 0), dark, Enum.Material.Concrete).CanQuery = false
+		end
 		-- roof: plant rooms and, on towers, red aviation lights
 		if d < 0.6 then
 			part(b, Vector3.new(w * 0.4, 5, l * 0.4), cf * CFrame.new(0, h / 2 + 2.5, 0), Color3.fromRGB(70, 72, 78), Enum.Material.Metal).CanQuery = false
@@ -213,7 +232,11 @@ function City.build(ctx)
 			end
 		else
 			local roof = Instance.new("WedgePart")
-			roof.Anchored, roof.Size, roof.Color, roof.Material = true, Vector3.new(w + 2, 5, l / 2 + 1), Color3.fromRGB(56, 58, 66), Enum.Material.Slate
+			-- kawara clay tiles: mostly blue-grey, some terracotta
+			local tile = if rng:NextNumber() < 0.75 then Color3.fromRGB(62, 66, 78) else Color3.fromRGB(146, 70, 48)
+			roof.Anchored, roof.Size, roof.Color, roof.Material = true, Vector3.new(w + 2, 5, l / 2 + 1), tile, Enum.Material.ClayRoofTiles
+			-- a stone plinth along the bottom of the walls
+			part(b, Vector3.new(w + 0.4, 1.6, l + 0.4), cf * CFrame.new(0, -h / 2 + 0.8, 0), Color3.fromRGB(96, 94, 90), Enum.Material.Cobblestone).CanQuery = false
 			roof.CFrame = cf * CFrame.new(0, h / 2 + 2.5, -(l / 4 + 0.5))
 			roof.Parent = b
 			local roof2 = roof:Clone()
@@ -238,9 +261,17 @@ function City.build(ctx)
 			local f = streetSides[1]
 			local off = if f == "z-" then CFrame.new(0, 1, -l / 2 - 0.08) elseif f == "z+" then CFrame.new(0, 1, l / 2 + 0.08) elseif f == "x-" then CFrame.new(-w / 2 - 0.08, 1, 0) else CFrame.new(w / 2 + 0.08, 1, 0)
 			local horiz = f == "z-" or f == "z+"
-			local win = part(b, if horiz then Vector3.new(math.min(6, w * 0.4), 3, 0.15) else Vector3.new(0.15, 3, math.min(6, l * 0.4)), cf * off, WINDOW[1], Enum.Material.Neon)
+			local ww = math.min(6, (if horiz then w else l) * 0.4)
+			local frame = part(b, if horiz then Vector3.new(ww + 0.8, 3.8, 0.12) else Vector3.new(0.12, 3.8, ww + 0.8), cf * off, Color3.fromRGB(58, 44, 34), Enum.Material.Wood)
+			frame.CanCollide, frame.CanQuery = false, false
+			local win = part(b, if horiz then Vector3.new(ww, 3, 0.15) else Vector3.new(0.15, 3, ww), cf * off * (if horiz then CFrame.new(0, 0, (f == "z-") and -0.03 or 0.03) else CFrame.new((f == "x-") and -0.03 or 0.03, 0, 0)), WINDOW[1], Enum.Material.Neon)
 			win.Name = "Window"; win.CanCollide, win.CanQuery = false, false
 			win:SetAttribute("Tier", tier)
+			-- front door beside the window
+			local along = (if horiz then w else l) * 0.36
+			local doorOff = if horiz then CFrame.new(along, -h / 2 - 1 + 3.5, 0) else CFrame.new(0, -h / 2 - 1 + 3.5, along)
+			local door = part(b, if horiz then Vector3.new(3, 7, 0.2) else Vector3.new(0.2, 7, 3), cf * off * doorOff, Color3.fromRGB(70, 48, 34), Enum.Material.WoodPlanks)
+			door.CanCollide, door.CanQuery = false, false
 		end
 		-- vertical neon signs on mid-rise and low shop fronts facing a street
 		if d >= 0.18 and d < 0.75 and rng:NextNumber() < 0.42 and #streetSides > 0 then

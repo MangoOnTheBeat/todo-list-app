@@ -5,6 +5,7 @@ local Players = game:GetService("Players")
 local MarketplaceService = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataStoreService = game:GetService("DataStoreService")
+local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -35,6 +36,7 @@ local Lap = remote("RemoteEvent", "Lap")
 local State = remote("UnreliableRemoteEvent", "State")
 local Others = remote("UnreliableRemoteEvent", "Others")
 local ProfileChanged = remote("RemoteEvent", "Profile")
+local Tune = remote("RemoteFunction", "Tune")
 local BuySpecial = remote("RemoteEvent", "BuySpecial")
 remotes.Parent = ReplicatedStorage
 
@@ -143,6 +145,7 @@ local rails = Instance.new("Folder")
 rails.Name = "Rails"
 rails.Parent = map
 local asphalt, rail, rock = Color3.fromRGB(44, 45, 50), Color3.fromRGB(172, 174, 178), Color3.fromRGB(96, 88, 78)
+local EDGE = Color3.fromRGB(89, 227, 255)
 local function turnBetween(i, j)
 	return math.abs(math.atan2(Track.TX[i] * Track.TZ[j] - Track.TZ[i] * Track.TX[j], Track.TX[i] * Track.TX[j] + Track.TZ[i] * Track.TZ[j]))
 end
@@ -167,6 +170,11 @@ while i <= N do
 		local rcf = CFrame.lookAt((ra + rb) / 2, rb)
 		block(rails, Vector3.new(0.5, 1.2, (rb - ra).Magnitude + 0.8), rcf * CFrame.new(0, 1.6, 0), rail, Enum.Material.DiamondPlate).Name = "Rail"
 		block(rails, Vector3.new(0.4, 2.2, 0.4), CFrame.new(ra + Vector3.new(0, 1.1, 0)), Color3.fromRGB(120, 122, 126), Enum.Material.Metal).Name = "Post"
+		-- glowing edge line just outside the asphalt, so the road reads at night
+		local ea = a + Vector3.new(Track.RX[i], 0, Track.RZ[i]) * side * (HALF + 0.3)
+		local eb = b + Vector3.new(Track.RX[jj], 0, Track.RZ[jj]) * side * (HALF + 0.3)
+		local edge = block(rails, Vector3.new(0.5, 0.3, (eb - ea).Magnitude + 0.6), CFrame.lookAt((ea + eb) / 2, eb) * CFrame.new(0, -0.1, 0), EDGE, Enum.Material.Neon)
+		edge.Name, edge.CanCollide, edge.CanQuery = "Edge", false, false
 	end
 	-- embankment below the road (hidden inside hills where the ground is high)
 	if mid.Y > FLOOR + 1 then
@@ -197,6 +205,47 @@ for k = 1, N do
 	if k % 200 == 0 then task.wait() end
 end
 
+-- chevron boards on the outside of the tight corners, pointing the way the road turns
+local signs = Instance.new("Folder")
+signs.Name = "Chevrons"
+signs.Parent = map
+do
+	local function turnAt(k)
+		local a, b = ((k - 4) % N) + 1, ((k + 2) % N) + 1
+		return math.asin(math.clamp(Track.TX[a] * Track.TZ[b] - Track.TZ[a] * Track.TX[b], -1, 1))
+	end
+	local k, placed = 1, 0
+	while k <= N do
+		local t = turnAt(k)
+		if 60 / math.max(math.abs(t), 1e-6) < 50 and not nearJunction(k) then
+			-- a tight corner starts here: boards from a little before it, every 20 studs, up to 5
+			local a, b = ((k - 4) % N) + 1, ((k + 2) % N) + 1
+			local inward = (Track.TX[b] - Track.TX[a]) * Track.RX[k] + (Track.TZ[b] - Track.TZ[a]) * Track.RZ[k]
+			local s = if inward > 0 then 1 else -1 -- side of the road the corner turns towards
+			for n = 0, 4 do
+				local q = ((k - 3 + n * 2 - 1) % N) + 1
+				local T = Vector3.new(Track.TX[q], 0, Track.TZ[q])
+				local Rv = Vector3.new(Track.RX[q], 0, Track.RZ[q])
+				local base = Vector3.new(X[q], Y[q], Z[q]) - Rv * s * (HALF + 4.5)
+				local board = CFrame.lookAt(base + Vector3.new(0, 3.2, 0), base + Vector3.new(0, 3.2, 0) - T)
+				block(signs, Vector3.new(0.4, 3, 0.4), CFrame.new(base + Vector3.new(0, 1.5, 0)), Color3.fromRGB(62, 64, 68), Enum.Material.Metal)
+				block(signs, Vector3.new(3.6, 2.6, 0.3), board, Color3.fromRGB(18, 18, 22), Enum.Material.SmoothPlastic)
+				local dir = if (Rv * s):Dot(board.RightVector) > 0 then 1 else -1
+				for _, up in { 1, -1 } do
+					local bar = block(signs, Vector3.new(1.7, 0.42, 0.12), board * CFrame.new(0, up * 0.42, -0.2) * CFrame.Angles(0, 0, -up * dir * math.rad(38)), Color3.fromRGB(255, 200, 40), Enum.Material.Neon)
+					bar.CanCollide, bar.CanQuery = false, false
+				end
+				placed += 1
+			end
+			k += 14 -- skip the rest of this corner
+		else
+			k += 1
+		end
+		breathe()
+	end
+	signs:SetAttribute("Count", placed)
+end
+
 -- street lamps (warm sodium light)
 local lamps = Instance.new("Folder")
 lamps.Name = "Lamps"
@@ -223,7 +272,7 @@ end
 local village = Instance.new("Folder")
 village.Name = "Village"
 village.Parent = map
-local wood, roofC = Color3.fromRGB(98, 68, 48), Color3.fromRGB(42, 44, 50)
+local wood, roofC = Color3.fromRGB(98, 68, 48), Color3.fromRGB(58, 62, 74)
 local houses = 0
 for k = 1, N, 9 do
 	if Track.ZONE[k] == 0 then
@@ -235,16 +284,21 @@ for k = 1, N, 9 do
 			local face = CFrame.lookAt(c, c - Vector3.new(Track.RX[k] * side, 0, Track.RZ[k] * side))
 			block(village, Vector3.new(30, c.Y - FLOOR + 2, 26), CFrame.new(c - Vector3.new(0, (c.Y - FLOOR + 2) / 2, 0)), Color3.fromRGB(82, 76, 68), Enum.Material.Cobblestone)
 			local w, d, h = 20 + rng:NextInteger(0, 6), 14 + rng:NextInteger(0, 4), 11 + rng:NextInteger(0, 5)
-			block(village, Vector3.new(w, h, d), face * CFrame.new(0, h / 2, 0), wood, Enum.Material.WoodPlanks)
+			-- dark timber walls over a white plaster upper storey, on a stone plinth (a Hakone inn look)
+			block(village, Vector3.new(w, h * 0.55, d), face * CFrame.new(0, h * 0.275, 0), wood, Enum.Material.WoodPlanks)
+			block(village, Vector3.new(w - 0.4, h * 0.45, d - 0.4), face * CFrame.new(0, h * 0.775, 0), Color3.fromRGB(226, 220, 206), Enum.Material.Plaster)
+			block(village, Vector3.new(w + 0.6, 1.4, d + 0.6), face * CFrame.new(0, 0.7, 0), Color3.fromRGB(104, 100, 94), Enum.Material.Cobblestone)
+			block(village, Vector3.new(w + 1.2, 0.5, d + 1.2), face * CFrame.new(0, h * 0.55, 0), Color3.fromRGB(58, 62, 74), Enum.Material.ClayRoofTiles) -- small eave between storeys
+			block(village, Vector3.new(4, 7, 0.3), face * CFrame.new(0, 3.5, -d / 2 - 0.1), Color3.fromRGB(64, 44, 32), Enum.Material.WoodPlanks) -- door
 			local r1 = Instance.new("WedgePart")
-			r1.Anchored, r1.Size, r1.Color, r1.Material = true, Vector3.new(w + 2, 5, d / 2 + 1), roofC, Enum.Material.Slate
+			r1.Anchored, r1.Size, r1.Color, r1.Material = true, Vector3.new(w + 2, 5, d / 2 + 1), roofC, Enum.Material.ClayRoofTiles
 			r1.CFrame = face * CFrame.new(0, h + 2.5, -(d / 4 + 0.5))
 			r1.Parent = village
 			local r2 = r1:Clone()
 			r2.CFrame = face * CFrame.new(0, h + 2.5, d / 4 + 0.5) * CFrame.Angles(0, math.pi, 0)
 			r2.Parent = village
 			for wx = -1, 1, 2 do
-				block(village, Vector3.new(3.2, 3, 0.3), face * CFrame.new(wx * w / 4, h * 0.55, -d / 2 - 0.05), Color3.fromRGB(255, 202, 128), Enum.Material.Neon).Name = "Window"
+				block(village, Vector3.new(3.2, 3, 0.3), face * CFrame.new(wx * w / 4, h * 0.3, -d / 2 - 0.05), Color3.fromRGB(255, 202, 128), Enum.Material.Neon).Name = "Window"
 			end
 			local lantern = block(village, Vector3.new(1.6, 2.2, 1.6), face * CFrame.new(0, h * 0.7, -d / 2 - 1.2), Color3.fromRGB(236, 56, 40), Enum.Material.Neon, Enum.PartType.Ball)
 			lantern.Name = "Lantern"
@@ -337,9 +391,16 @@ map:SetAttribute("Ready", true)
 local store
 pcall(function() store = DataStoreService:GetDataStore("KaidoDrift_v2") end)
 local profiles, lastBank, lastLap, publicMode, dirty = {}, {}, {}, {}, {}
+-- global leaderboards (best single drift, total points banked)
+local bestStore, totalStore
+pcall(function()
+	bestStore = DataStoreService:GetOrderedDataStore("KaidoBestDrift")
+	totalStore = DataStoreService:GetOrderedDataStore("KaidoTotalPoints")
+end)
+local boardDirty = {}
 
 local function newProfile()
-	return { credits = 0, owned = { ps13 = true }, selected = "ps13", best = 0, laps = 0, paint = {}, settings = Config.cleanSettings({}) }
+	return { credits = 0, owned = { ps13 = true }, selected = "ps13", best = 0, laps = 0, total = 0, paint = {}, upg = {}, cos = {}, daily = nil, settings = Config.cleanSettings({}) }
 end
 
 local function stats(player, p)
@@ -377,6 +438,35 @@ local function load(player)
 				end
 			end
 			p.settings = Config.cleanSettings(data.settings)
+			p.total = math.max(0, math.floor(tonumber(data.total) or 0))
+			-- upgrades and cosmetics per car, checked against the known keys and ranges
+			if type(data.upg) == "table" then
+				for id, u in data.upg do
+					if Config.car(id).id == id and type(u) == "table" then
+						local clean = {}
+						for _, up in Config.Upgrades do clean[up.key] = math.clamp(math.floor(tonumber(u[up.key]) or 0), 0, Config.UPGRADE_MAX) end
+						p.upg[id] = clean
+					end
+				end
+			end
+			if type(data.cos) == "table" then
+				for id, c in data.cos do
+					if Config.car(id).id == id and type(c) == "table" then
+						p.cos[id] = {
+							glowOwned = c.glowOwned == true, rimsOwned = c.rimsOwned == true, kit = c.kit == true,
+							glow = math.clamp(math.floor(tonumber(c.glow) or 0), 0, #Config.GlowColors),
+							rims = math.clamp(math.floor(tonumber(c.rims) or 0), 0, #Config.RimColors),
+						}
+					end
+				end
+			end
+			if type(data.daily) == "table" and type(data.daily.day) == "number" and type(data.daily.prog) == "table" and type(data.daily.done) == "table" then
+				p.daily = { day = data.daily.day, prog = {}, done = {} }
+				for k = 1, 3 do
+					p.daily.prog[k] = math.max(0, tonumber(data.daily.prog[k]) or 0)
+					p.daily.done[k] = data.daily.done[k] == true
+				end
+			end
 		end
 	end
 	for _, car in Config.Premium do
@@ -399,16 +489,35 @@ local function save(player)
 	end
 end
 
+-- today's challenges for this profile (a new set each UTC day)
+local function today() return os.time() // 86400 end
+local function daily(p)
+	local d = today()
+	if not p.daily or p.daily.day ~= d then p.daily = { day = d, prog = { 0, 0, 0 }, done = { false, false, false } } end
+	return p.daily
+end
+
 local function view(p)
 	local owned = {}
 	for id in p.owned do table.insert(owned, id) end
-	return { credits = p.credits, owned = owned, selected = p.selected, best = p.best, laps = p.laps, paint = p.paint, settings = p.settings }
+	local dl = daily(p)
+	local list = Config.dailyFor(dl.day)
+	local ch = {}
+	for k, c in list do ch[k] = { text = c.text, goal = c.goal, reward = c.reward, prog = math.min(dl.prog[k], c.goal), done = dl.done[k] } end
+	return { credits = p.credits, owned = owned, selected = p.selected, best = p.best, laps = p.laps, total = p.total, paint = p.paint,
+		upg = p.upg, cos = p.cos, daily = ch, settings = p.settings }
 end
 
 Players.PlayerAdded:Connect(load)
 for _, pl in Players:GetPlayers() do task.spawn(load, pl) end
 Players.PlayerRemoving:Connect(function(player)
 	save(player)
+	local p = profiles[player]
+	if p and boardDirty[player] then
+		pcall(function() if bestStore then bestStore:SetAsync(tostring(player.UserId), p.best) end end)
+		pcall(function() if totalStore then totalStore:SetAsync(tostring(player.UserId), p.total) end end)
+	end
+	boardDirty[player] = nil
 	profiles[player], lastBank[player], lastLap[player], publicMode[player], dirty[player] = nil, nil, nil, nil, nil
 end)
 game:BindToClose(function()
@@ -476,6 +585,36 @@ Paint.OnServerInvoke = function(player, id, idx)
 	return p and view(p)
 end
 
+-- garage: upgrades (next level) and cosmetics (unlock once per car, then colours are free)
+Tune.OnServerInvoke = function(player, id, action, value)
+	local p = profiles[player]
+	if not p or type(id) ~= "string" or type(action) ~= "string" or Config.car(id).id ~= id or not p.owned[id] then return p and view(p) end
+	local function pay(cost)
+		if p.credits < cost then return false end
+		p.credits -= cost
+		stats(player, p)
+		return true
+	end
+	p.upg[id] = p.upg[id] or {}
+	p.cos[id] = p.cos[id] or { glowOwned = false, rimsOwned = false, kit = false, glow = 0, rims = 0 }
+	local u, c = p.upg[id], p.cos[id]
+	for _, up in Config.Upgrades do
+		if action == "up_" .. up.key then
+			local l = u[up.key] or 0
+			if l < Config.UPGRADE_MAX and pay(up.cost[l + 1]) then u[up.key] = l + 1 end
+		end
+	end
+	if action == "glowOwn" and not c.glowOwned and pay(Config.Cosmetics.glow.cost) then c.glowOwned = true; c.glow = 1 end
+	if action == "rimsOwn" and not c.rimsOwned and pay(Config.Cosmetics.rims.cost) then c.rimsOwned = true; c.rims = 1 end
+	if action == "kitOwn" and not c.kit and pay(Config.Cosmetics.kit.cost) then c.kit = true end
+	if action == "kitOff" then c.kit = false end -- removing the kit is free (buy again to refit)
+	if action == "glow" and c.glowOwned and type(value) == "number" then c.glow = math.clamp(math.floor(value), 0, #Config.GlowColors) end
+	if action == "rims" and c.rimsOwned and type(value) == "number" then c.rims = math.clamp(math.floor(value), 1, #Config.RimColors) end
+	dirty[player] = true
+	task.spawn(save, player)
+	return view(p)
+end
+
 SaveSettings.OnServerEvent:Connect(function(player, s)
 	local p = profiles[player]
 	if p then p.settings = Config.cleanSettings(s); dirty[player] = true end
@@ -496,7 +635,97 @@ Erase.OnServerInvoke = function(player)
 end
 
 -- a finished drift: capped, and no faster than a real drift could earn
-Bank.OnServerEvent:Connect(function(player, points)
+-- daily challenge progress: kind, and how much to add (or the value reached, for "best of" kinds)
+local function progress(player, p, kind, amount)
+	local dl = daily(p)
+	local list = Config.dailyFor(dl.day)
+	local changed = false
+	for k, c in list do
+		if c.kind == kind and not dl.done[k] then
+			if kind == "one" or kind == "combo" then dl.prog[k] = math.max(dl.prog[k], amount) else dl.prog[k] += amount end
+			changed = true
+			if dl.prog[k] >= c.goal then
+				dl.done[k] = true
+				p.credits += c.reward
+				stats(player, p)
+				ProfileChanged:FireClient(player, view(p), "Challenge complete  ·  " .. c.text .. "  ·  +" .. c.reward .. " CR")
+			end
+		end
+	end
+	if changed then dirty[player] = true end
+end
+
+-- the neon leaderboard gantry over the street just ahead of the city spawn
+local updateNeonBoard
+do
+	-- the car starts facing +X along an east-west street; the gantry spans it half a block ahead
+	local sx, sy, sz = city.spawn[1], city.spawn[2], city.spawn[3]
+	local gx = sx + 124
+	local folder = Instance.new("Folder")
+	folder.Name = "Leaderboard"
+	folder.Parent = map
+	local steel = Color3.fromRGB(44, 46, 52)
+	for _, side in { -1, 1 } do
+		block(folder, Vector3.new(2.4, 40, 2.4), CFrame.new(gx, sy + 20, sz + side * 27), steel, Enum.Material.Metal).Name = "Pillar"
+	end
+	block(folder, Vector3.new(2.4, 2, 58), CFrame.new(gx, sy + 39, sz), steel, Enum.Material.Metal)
+	local centre = Vector3.new(gx, sy + 27, sz)
+	local face = block(folder, Vector3.new(50, 22, 0.8), CFrame.lookAt(centre, centre - Vector3.new(10, 0, 0)), Color3.fromRGB(10, 10, 18), Enum.Material.SmoothPlastic)
+	face.Name = "BoardFace"
+	face.CanCollide = false
+	for _, e in { { 0, 11.2, 50.6, 0.5 }, { 0, -11.2, 50.6, 0.5 }, { 25.2, 0, 0.5, 22.8 }, { -25.2, 0, 0.5, 22.8 } } do
+		local n = block(folder, Vector3.new(e[3], e[4], 1), face.CFrame * CFrame.new(e[1], e[2], 0), Color3.fromRGB(255, 126, 182), Enum.Material.Neon)
+		n.CanCollide = false
+	end
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.CanvasSize = Vector2.new(1000, 440)
+	gui.LightInfluence = 0
+	gui.Brightness = 2
+	gui.Parent = face
+	local function label(text, x, y, w, h, size, color, align)
+		local t = Instance.new("TextLabel")
+		t.BackgroundTransparency = 1
+		t.Position, t.Size = UDim2.fromOffset(x, y), UDim2.fromOffset(w, h)
+		t.Text, t.TextSize, t.TextColor3 = text, size, color
+		t.Font = Enum.Font.GothamBlack
+		t.TextXAlignment = align or Enum.TextXAlignment.Left
+		t.Parent = gui
+		return t
+	end
+	label("KAIDO LEADERBOARD", 0, 8, 1000, 50, 40, Color3.fromRGB(255, 126, 182), Enum.TextXAlignment.Center)
+	label("BEST DRIFT", 40, 64, 440, 36, 26, Color3.fromRGB(255, 201, 77))
+	label("TOTAL POINTS", 530, 64, 440, 36, 26, Color3.fromRGB(89, 227, 255))
+	local rows = { best = {}, total = {} }
+	for k = 1, 8 do
+		for col, key in { "best", "total" } do
+			local x = col == 1 and 40 or 530
+			rows[key][k] = {
+				label("", x, 64 + k * 40, 330, 36, 24, Color3.fromRGB(240, 238, 232)),
+				label("", x + 300, 64 + k * 40, 130, 36, 24, Color3.fromRGB(240, 238, 232), Enum.TextXAlignment.Right),
+			}
+		end
+	end
+	local function commas(n)
+		local s2 = tostring(math.floor(n))
+		local out = s2:reverse():gsub("(%d%d%d)", "%1,"):reverse()
+		return (out:gsub("^,", ""))
+	end
+	updateNeonBoard = function(boards)
+		for _, key in { "best", "total" } do
+			for k = 1, 8 do
+				local e = boards[key][k]
+				rows[key][k][1].Text = e and (k .. "  " .. e[1]) or ""
+				rows[key][k][2].Text = e and commas(e[2]) or ""
+			end
+		end
+	end
+	updateNeonBoard({ best = {}, total = {} })
+end
+
+-- global leaderboards: best single drift and total points banked
+
+Bank.OnServerEvent:Connect(function(player, points, zone, tandemPts, combo)
 	local p = profiles[player]
 	if not p or type(points) ~= "number" or points ~= points or points <= 0 then return end
 	local now = os.clock()
@@ -506,8 +735,55 @@ Bank.OnServerEvent:Connect(function(player, points)
 	if points <= 0 then return end
 	p.credits += points // 10 -- as in the browser game: one credit per ten drift points
 	p.best = math.max(p.best, points)
+	p.total += points
 	stats(player, p)
 	dirty[player] = true
+	boardDirty[player] = true
+	progress(player, p, "one", points)
+	progress(player, p, "total", points)
+	if zone == "city" then progress(player, p, "city", points) elseif zone == "pass" then progress(player, p, "pass", points) end
+	if type(tandemPts) == "number" and tandemPts == tandemPts and tandemPts > 0 then progress(player, p, "tandem", math.min(tandemPts, points)) end
+	if type(combo) == "number" and combo == combo then progress(player, p, "combo", math.clamp(combo, 1, 5)) end
+end)
+
+-- push changed scores to the leaderboards, then read the top 10 for everyone (every 60 s)
+local names = {}
+local function nameOf(uid)
+	if names[uid] then return names[uid] end
+	local ok, n = pcall(function() return Players:GetNameFromUserIdAsync(uid) end)
+	names[uid] = ok and n or ("Driver " .. uid)
+	return names[uid]
+end
+local function readBoard(store)
+	local out = {}
+	if not store then return out end
+	local ok, pages = pcall(function() return store:GetSortedAsync(false, 10) end)
+	if not ok then return out end
+	for _, e in pages:GetCurrentPage() do
+		local uid = tonumber(e.key)
+		if uid then table.insert(out, { nameOf(uid), e.value }) end
+	end
+	return out
+end
+local function refreshBoards()
+	for pl in boardDirty do
+		local p = profiles[pl]
+		if p then
+			pcall(function() if bestStore then bestStore:SetAsync(tostring(pl.UserId), p.best) end end)
+			pcall(function() if totalStore then totalStore:SetAsync(tostring(pl.UserId), p.total) end end)
+		end
+		boardDirty[pl] = nil
+	end
+	local boards = { best = readBoard(bestStore), total = readBoard(totalStore) }
+	ReplicatedStorage:SetAttribute("Boards", HttpService:JSONEncode(boards))
+	if updateNeonBoard then updateNeonBoard(boards) end
+end
+task.spawn(function()
+	task.wait(5)
+	while true do
+		refreshBoards()
+		task.wait(60)
+	end
 end)
 
 -- a lap: +2,000, no more than one every 3 minutes (the record pace is well over that)
@@ -520,6 +796,7 @@ Lap.OnServerEvent:Connect(function(player)
 		p.laps += 1
 		stats(player, p)
 		dirty[player] = true
+		progress(player, p, "lap", 1)
 	end
 end)
 

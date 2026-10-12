@@ -17,6 +17,8 @@ local CarModel = require(Shared:WaitForChild("CarModel"))
 local Ui = require(script.Parent:WaitForChild("Ui"))
 local Audio = require(script.Parent:WaitForChild("Audio"))
 local CarMesh = require(script.Parent:WaitForChild("CarMesh"))
+local Fx = require(script.Parent:WaitForChild("Fx"))
+local U = {} -- screen widgets (kept in one table: Luau allows 200 locals per scope)
 local make, text, fmt = Ui.make, Ui.text, Ui.fmt
 local K = Config.SCALE -- studs per metre
 local HALF = Config.ROAD_HALF
@@ -32,8 +34,8 @@ local gui = make("ScreenGui", { Name = "KaidoUI", ResetOnSpawn = false, IgnoreGu
 local loading = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Ui.INK, ZIndex = 50, Parent = gui })
 text({ Text = 'KAIDO <font color="#ff7eb6">峠</font> DRIFT', FontFace = Ui.DISPLAY, TextSize = 56, TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.new(0, 0, 0.4, -40), ZIndex = 51, Parent = loading })
 local loadMsg = text({ Text = "Building Japan…", TextSize = 16, TextColor3 = Ui.DIM, TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.new(0, 0, 0.4, 30), ZIndex = 51, Parent = loading })
-local barBack = make("Frame", { Size = UDim2.new(0, 260, 0, 3), Position = UDim2.new(0.5, -130, 0.4, 64), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.85, BorderSizePixel = 0, ZIndex = 51, Parent = loading })
-local loadBar = make("Frame", { Size = UDim2.new(0.1, 0, 1, 0), BackgroundColor3 = Ui.SAKURA, BorderSizePixel = 0, ZIndex = 52, Parent = barBack })
+U.barBack = make("Frame", { Size = UDim2.new(0, 260, 0, 3), Position = UDim2.new(0.5, -130, 0.4, 64), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.85, BorderSizePixel = 0, ZIndex = 51, Parent = loading })
+U.loadBar = make("Frame", { Size = UDim2.new(0.1, 0, 1, 0), BackgroundColor3 = Ui.SAKURA, BorderSizePixel = 0, ZIndex = 52, Parent = U.barBack })
 -- any error while loading is shown here (and in View › Output) rather than loading forever
 local function showLoadError(where, message)
 	if loading.Parent then
@@ -46,7 +48,7 @@ local R = ReplicatedStorage:WaitForChild("KaidoRemotes")
 local mapFolder = workspace:WaitForChild("KaidoMap")
 local t0 = os.clock()
 while not mapFolder:GetAttribute("Ready") do
-	loadBar.Size = UDim2.new(math.min(0.95, 0.1 + (os.clock() - t0) / 60), 0, 1, 0)
+	U.loadBar.Size = UDim2.new(math.min(0.95, 0.1 + (os.clock() - t0) / 60), 0, 1, 0)
 	local err = ReplicatedStorage:GetAttribute("KaidoError")
 	if err then showLoadError("server", err) end
 	task.wait(0.1)
@@ -175,10 +177,31 @@ local function placeCar(m, mesh, cf, steer, rf, rr)
 	if mesh then CarMesh.place(m, cf, steer, rf, rr) else CarModel.place(m, cf, steer, rf) end
 end
 
+-- cosmetics bought in the garage: underglow, rim colour, stance kit (lowered body)
+local function applyStyle(m, def)
+	local cs = profile.cos and profile.cos[def.id]
+	local size = Vector3.new(def.b.wid * K, 1, def.b.len * K)
+	Fx.underglow(m, cs and cs.glowOwned and cs.glow > 0 and Config.GlowColors[cs.glow] or nil, size)
+	local rim = cs and cs.rimsOwned and Config.RimColors[cs.rims] or def.rim
+	local drop = cs and cs.kit and 0.35 or 0
+	for _, p in m:GetChildren() do
+		if p:IsA("BasePart") then
+			local wheel = p:GetAttribute("Wheel") ~= nil or string.match(p.Name, "^Rim") or string.match(p.Name, "^Spoke") or string.match(p.Name, "^Tire") or string.match(p.Name, "^Tyre") or string.match(p.Name, "^Hub") or string.match(p.Name, "^Caliper")
+			if wheel and p.Material == Enum.Material.Metal and not string.match(p.Name, "^Hub") and not string.match(p.Name, "^Caliper") then p.Color = rim end
+			local w = p:FindFirstChild("W")
+			if not wheel and p.Name ~= "Underglow" and w and w:IsA("Weld") then
+				local baseC0 = p:GetAttribute("BaseC0")
+				if not baseC0 then baseC0 = w.C0; p:SetAttribute("BaseC0", baseC0) end
+				w.C0 = CFrame.new(0, -drop, 0) * baseC0
+			end
+		end
+	end
+end
 local function spawnCar(id)
 	if carModel then carModel:Destroy() end
 	if sound then sound:destroy(); sound = nil end
-	carDef = Config.car(id or profile.selected)
+	local base = Config.car(id or profile.selected)
+	carDef = Config.tuned(base, profile.upg and profile.upg[base.id]) -- garage upgrades change the real numbers
 	local col = paintOf(carDef.id)
 	carModel, usingMesh = buildCar(carDef, "MyCar", col)
 	carModel.Parent = workspace
@@ -195,15 +218,17 @@ local function spawnCar(id)
 		end
 	end
 	setCarLights(carModel, night())
+	applyStyle(carModel, carDef)
 	if Audio.available() then sound = Audio.new(carModel, carDef, true) end
 end
 
-local drift = { active = false, score = 0, mult = 1, time = 0, idle = 0, tags = {} }
+local drift = { active = false, score = 0, mult = 1, time = 0, idle = 0, tags = {}, combo = 1, comboT = 0, sign = 1, tandemPts = 0 }
 local function placeAt(x, y, z, h)
 	P = CarPhysics.new(x / K, z / K, h)
 	posY, vy = y, 0
 	idx = Track.nearest(x, z, nil)
-	drift.active, drift.score, drift.mult = false, 0, 1
+	drift.active, drift.score, drift.mult, drift.combo, drift.comboT, drift.tandemPts = false, 0, 1, 1, 0, 0
+	Fx.clearSkids()
 end
 local function resetCar(i)
 	if not onPass and not i then
@@ -226,6 +251,7 @@ local function goCity()
 end
 
 local shake, wallT, lastZone = 0, 0, -1
+local showToast -- set up with the HUD below
 -- ===================== screens =====================
 -- title
 local title, tCol = Ui.sheet(gui)
@@ -233,17 +259,41 @@ text({ Text = 'KAIDO DRIFT\n<font color="#ff7eb6" size="40">街道 · 峠</font>
 text({ Text = "Midnight at Lake Ashi. Slide a 1989 coupe through Kojiri village, up the Hakone hairpins and along the shore, then down into the neon streets and elevated expressway of Shin-Hakone city. Earn credits for every drift and unlock the garage.", TextColor3 = Ui.DIM, TextSize = 16, LineHeight = 1.3, LayoutOrder = 2, Parent = tCol })
 local tStats = Ui.stats({ { "Credits", Ui.GOLD }, { "Best drift" }, { "Cars" } }, 3, tCol)
 local tMenu = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 4, Parent = tCol }, { Ui.list(10) })
-local bSolo = Ui.button("Play solo", "Just you on the mountain", "primary", 1, tMenu)
-local bPublic = Ui.button("Play with others", "Public map · drift together · chat", nil, 2, tMenu)
-local bGarage = Ui.button("Garage", "Unlock & paint", nil, 3, tMenu)
-local bSettings = Ui.button("Settings", "Graphics, gearbox, assists, sound", nil, 4, tMenu)
+U.bSolo = Ui.button("Play solo", "Just you on the mountain", "primary", 1, tMenu)
+U.bPublic = Ui.button("Play with others", "Public map · drift together · chat", nil, 2, tMenu)
+U.bGarage = Ui.button("Garage", "Unlock & paint", nil, 3, tMenu)
+U.bSettings = Ui.button("Settings", "Graphics, gearbox, assists, sound", nil, 4, tMenu)
+U.bBoards = Ui.button("Leaderboards", "Best drift and total points, worldwide", nil, 5, tMenu)
 do
-	local f = Ui.field("Start at", 5, tMenu)
+	local f = Ui.field("Start at", 6, tMenu)
 	Ui.chips({ { "city", "Shin-Hakone city" }, { "pass", "Hakone pass" } }, S.start, function(v) S.start = v; saveSettings() end, 1, f)
 end
 Ui.fine(touch and "Drag on the left to steer. GAS, BRAKE and HAND BRAKE are on the right; hold BRAKE when stopped to reverse. To start a drift: steer hard with GAS, tap HAND BRAKE, or lift and re-press GAS (clutch kick). CAM switches to the cockpit view."
 	or "W/↑ gas · S/↓ brake (hold to reverse) · A D / ← → steer · Space hand brake · drift: steer + gas, tap Space, or lift and re-press W (clutch kick) · C camera · Q/E shift (manual) · R reset · Esc pause. Controllers work too.", 5, tCol)
+-- today's challenges (reset every day at 00:00 UTC)
+U.dailyF = Ui.field("Daily challenges", 4, tCol)
+U.dailyF.LayoutOrder = 5
+U.dailyRows = {}
+for k = 1, 3 do
+	local row = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = k, Parent = U.dailyF }, { Ui.list(4) })
+	local label = text({ Text = "", TextSize = 14, RichText = true, LayoutOrder = 1, Parent = row })
+	local back = make("Frame", { Size = UDim2.new(1, 0, 0, 5), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.88, BorderSizePixel = 0, LayoutOrder = 2, Parent = row }, { Ui.corner(3) })
+	local bar = make("Frame", { Size = UDim2.new(0, 0, 1, 0), BackgroundColor3 = Ui.NEON, BorderSizePixel = 0, Parent = back }, { Ui.corner(3) })
+	U.dailyRows[k] = { label = label, bar = bar }
+end
+local function refreshDaily()
+	for k, r in U.dailyRows do
+		local c = profile.daily and profile.daily[k]
+		r.label.Parent.Visible = c ~= nil
+		if c then
+			r.label.Text = (c.done and '<font color="#59e3ff">✓ </font>' or "") .. c.text .. '  <font color="#ffc94d">+' .. fmt(c.reward) .. " CR</font>"
+			r.bar.Size = UDim2.new(math.clamp(c.prog / c.goal, 0, 1), 0, 1, 0)
+			r.bar.BackgroundColor3 = c.done and Ui.NEON or Ui.SAKURA
+		end
+	end
+end
 local function refreshTitle()
+	refreshDaily()
 	tStats[1].Text = fmt(profile.credits)
 	tStats[2].Text = fmt(profile.best)
 	tStats[3].Text = #profile.owned .. "/" .. #Config.Cars
@@ -255,17 +305,91 @@ Ui.heading("Garage", "ガレージ", 1, gCol)
 local gStats = Ui.stats({ { "Credits", Ui.GOLD } }, 2, gCol)
 local gList = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 3, Parent = gCol }, { Ui.list(8) })
 local gDetail = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 4, Parent = gCol }, { Ui.list(10) })
-local gPaintF = Ui.field("Paint (free)", 5, gCol)
-local gSwatches = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 1, Parent = gPaintF }, {
+U.gPaintF = Ui.field("Paint (free)", 5, gCol)
+local gSwatches = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 1, Parent = U.gPaintF }, {
 	make("UIListLayout", { Padding = UDim.new(0, 8), FillDirection = Enum.FillDirection.Horizontal, Wraps = true, SortOrder = Enum.SortOrder.LayoutOrder }),
 })
-local gBack = Ui.button("Back", nil, nil, 6, gCol)
+U.gUpF = Ui.field("Upgrades", 6, gCol)
+local gUpList = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 1, Parent = U.gUpF }, { Ui.list(8) })
+U.gStyleF = Ui.field("Style", 7, gCol)
+local gStyle = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 1, Parent = U.gStyleF }, { Ui.list(10) })
+Ui.fine("Drag on the car to turn it around.", 8, gCol)
+U.gBack = Ui.button("Back", nil, nil, 9, gCol)
 local renderGarage
 local function statBar(label, v, parent, order)
 	local row = make("Frame", { Size = UDim2.new(1, 0, 0, 18), BackgroundTransparency = 1, LayoutOrder = order, Parent = parent })
 	text({ Text = string.upper(label), TextSize = 12, FontFace = Ui.BOLD, TextColor3 = Ui.DIM, AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(0, 110, 1, 0), Parent = row })
 	local back = make("Frame", { Size = UDim2.new(1, -120, 0, 6), Position = UDim2.new(0, 120, 0.5, -3), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.88, BorderSizePixel = 0, Parent = row }, { Ui.corner(3) })
 	make("Frame", { Size = UDim2.new(math.clamp(v, 0.05, 1), 0, 1, 0), BackgroundColor3 = Ui.NEON, BorderSizePixel = 0, Parent = back }, { Ui.corner(3) })
+end
+-- upgrades and style for the highlighted car (only once you own it)
+local function tune(id, action, value)
+	task.spawn(function()
+		local res = R.Tune:InvokeServer(id, action, value)
+		if res then profile = res; profile.settings = S; spawnCar(garageSel); renderGarage(); refreshTitle() end
+	end)
+end
+local function swatchRow(parent, order, colors, cur, withOff, onPick)
+	local row = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = order, Parent = parent }, {
+		make("UIListLayout", { Padding = UDim.new(0, 8), FillDirection = Enum.FillDirection.Horizontal, Wraps = true, SortOrder = Enum.SortOrder.LayoutOrder }),
+	})
+	for k = withOff and 0 or 1, #colors do
+		local sel = k == cur
+		local sw = make("TextButton", { Size = UDim2.new(0, 34, 0, 34), Text = k == 0 and "OFF" or "", TextSize = 9, FontFace = Ui.BOLD, TextColor3 = Ui.DIM,
+			AutoButtonColor = false, BackgroundColor3 = k == 0 and Ui.INK or colors[k], LayoutOrder = k, Parent = row }, {
+			make("UICorner", { CornerRadius = UDim.new(0, 17) }), Ui.stroke(sel and Ui.SAKURA or Ui.LINE, sel and 3 or 1, sel and 0 or 0.6),
+		})
+		Ui.bouncy(sw)
+		sw.Activated:Connect(function() onPick(k) end)
+	end
+end
+local function renderTuning(car, have)
+	for _, c in gUpList:GetChildren() do if c:IsA("GuiObject") then c:Destroy() end end
+	for _, c in gStyle:GetChildren() do if c:IsA("GuiObject") then c:Destroy() end end
+	if not have then
+		Ui.fine("Own this car to upgrade and style it.", 1, gUpList)
+		Ui.fine("Own this car to upgrade and style it.", 1, gStyle)
+		return
+	end
+	local u = profile.upg and profile.upg[car.id] or {}
+	for k, up in Config.Upgrades do
+		local l = u[up.key] or 0
+		local pips = string.rep("●", l) .. string.rep("○", Config.UPGRADE_MAX - l)
+		if l >= Config.UPGRADE_MAX then
+			Ui.button(up.name .. "   " .. pips, up.desc .. " · fully upgraded", nil, k, gUpList)
+		else
+			local cost = up.cost[l + 1]
+			local b = Ui.button(up.name .. "   " .. pips, up.desc .. " · " .. fmt(cost) .. " CR", profile.credits >= cost and "primary" or nil, k, gUpList)
+			b.Activated:Connect(function()
+				if profile.credits >= cost then tune(car.id, "up_" .. up.key) else showToast("Need " .. fmt(cost - profile.credits) .. " more CR", Ui.DANGER) end
+			end)
+		end
+	end
+	local cs = profile.cos and profile.cos[car.id] or {}
+	-- underglow
+	local f1 = Ui.field(Config.Cosmetics.glow.name, 1, gStyle)
+	if cs.glowOwned then
+		swatchRow(f1, 1, Config.GlowColors, cs.glow or 0, true, function(k) tune(car.id, "glow", k) end)
+	else
+		local c = Config.Cosmetics.glow.cost
+		Ui.button("Fit underglow", fmt(c) .. " CR · then any colour, free", profile.credits >= c and "primary" or nil, 1, f1).Activated:Connect(function() tune(car.id, "glowOwn") end)
+	end
+	-- rims
+	local f2 = Ui.field(Config.Cosmetics.rims.name, 2, gStyle)
+	if cs.rimsOwned then
+		swatchRow(f2, 1, Config.RimColors, cs.rims or 1, false, function(k) tune(car.id, "rims", k) end)
+	else
+		local c = Config.Cosmetics.rims.cost
+		Ui.button("Custom rims", fmt(c) .. " CR · then any colour, free", profile.credits >= c and "primary" or nil, 1, f2).Activated:Connect(function() tune(car.id, "rimsOwn") end)
+	end
+	-- stance kit
+	local f3 = Ui.field(Config.Cosmetics.kit.name, 3, gStyle)
+	if cs.kit then
+		Ui.button("Remove stance kit", "Back to stock height (refitting costs " .. fmt(Config.Cosmetics.kit.cost) .. " CR)", "ghost", 1, f3).Activated:Connect(function() tune(car.id, "kitOff") end)
+	else
+		local c = Config.Cosmetics.kit.cost
+		Ui.button("Fit stance kit", "Lowered body · " .. fmt(c) .. " CR", profile.credits >= c and "primary" or nil, 1, f3).Activated:Connect(function() tune(car.id, "kitOwn") end)
+	end
 end
 renderGarage = function()
 	gStats[1].Text = fmt(profile.credits)
@@ -298,7 +422,7 @@ renderGarage = function()
 	end
 	-- detail for the highlighted car
 	for _, c in gDetail:GetChildren() do if c:IsA("GuiObject") then c:Destroy() end end
-	local car = Config.car(garageSel)
+	local car = Config.tuned(Config.car(garageSel), profile.upg and profile.upg[garageSel])
 	local kwPerT = car.torque * math.min(car.red * 0.9, car.peak + 1600) / 9549 / (car.mass / 1000)
 	statBar("Power", kwPerT / 260, gDetail, 1)
 	statBar("Grip", (car.mu - 0.98) / 0.22, gDetail, 2)
@@ -350,6 +474,30 @@ renderGarage = function()
 			renderGarage()
 		end)
 	end
+	renderTuning(car, have)
+end
+
+-- leaderboards (the server refreshes them every minute)
+local boards, bCol = Ui.sheet(gui, true)
+Ui.heading("Leaderboards", "ランキング", 1, bCol)
+U.boardCols = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 2, Parent = bCol }, { Ui.list(16) })
+U.boardsBack = Ui.button("Back", nil, nil, 4, bCol)
+Ui.fine("Updated every minute. Your scores count once you bank a drift. The same board glows over the street at the city start.", 3, bCol)
+local function renderBoards()
+	for _, c in U.boardCols:GetChildren() do if c:IsA("GuiObject") then c:Destroy() end end
+	local ok, data = pcall(function() return game:GetService("HttpService"):JSONDecode(ReplicatedStorage:GetAttribute("Boards") or "{}") end)
+	data = ok and data or {}
+	for order, col in { { "best", "Best single drift", Ui.GOLD }, { "total", "Total drift points", Ui.NEON } } do
+		local f = Ui.field(col[2], order, U.boardCols)
+		local list = data[col[1]] or {}
+		if #list == 0 then Ui.fine("No scores yet. Bank a drift to be first.", 1, f) end
+		for k, e in list do
+			local me = e[1] == player.Name
+			local row = Ui.glass(make("Frame", { Size = UDim2.new(1, 0, 0, 36), LayoutOrder = k, Parent = f }), 12, me and 0.2 or 0.5)
+			text({ Text = k .. "   " .. e[1], TextSize = 15, FontFace = Ui.BOLD, TextColor3 = me and Ui.SAKURA or Ui.TEXT, AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(1, -150, 1, 0), Position = UDim2.new(0, 14, 0, 0), TextWrapped = false, TextYAlignment = Enum.TextYAlignment.Center, Parent = row })
+			text({ Text = fmt(e[2]), TextSize = 15, FontFace = Ui.BOLD, TextColor3 = col[3], AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(0, 130, 1, 0), Position = UDim2.new(1, -144, 0, 0), TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Center, TextWrapped = false, Parent = row })
+		end
+	end
 end
 
 -- settings
@@ -360,12 +508,11 @@ do
 	Ui.chips({ { "auto", "Auto" }, { "low", "Low" }, { "medium", "Medium" }, { "high", "High" } }, S.quality, function(v) S.quality = v; applyQuality(); saveSettings() end, 1, f)
 	Ui.fine("Low: phones and older computers. Medium adds shadows. High adds bloom and every tree.", 2, f)
 end
-local timeLabel
 local setTimeSlider, setTimeChips
 do
 	local f, l = Ui.field("Time of day", 3, sCol)
-	timeLabel = l
-	local function show() timeLabel.Text = string.format("TIME OF DAY · %02d:%02d", math.floor(S.time), math.floor((S.time % 1) * 60 + 0.5)) end
+	U.timeLabel = l
+	local function show() U.timeLabel.Text = string.format("TIME OF DAY · %02d:%02d", math.floor(S.time), math.floor((S.time % 1) * 60 + 0.5)) end
 	setTimeSlider = Ui.slider(0, 23.75, 0.25, S.time, function(v) S.time = v; show(); applyTime(); saveSettings(); if setTimeChips then setTimeChips(v) end end, 1, f)
 	setTimeChips = Ui.chips({ { 5.75, "Dawn" }, { 12.5, "Noon" }, { 17.25, "Sunset" }, { 0, "Midnight" } }, S.time, function(v) S.time = v; setTimeSlider(v); show(); applyTime(); saveSettings() end, 2, f)
 	show()
@@ -423,26 +570,32 @@ do
 		end
 	end)
 end
-local sBack = Ui.button("Back", nil, nil, 10, sCol)
+U.sBack = Ui.button("Back", nil, nil, 10, sCol)
 
 -- pause
 local pause, pCol = Ui.sheet(gui)
 Ui.heading("Paused", "一時停止", 1, pCol)
 local pMenu = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 2, Parent = pCol }, { Ui.list(10) })
-local pResume = Ui.button("Resume", nil, "primary", 1, pMenu)
-local pGarage = Ui.button("Garage", "Unlock & paint", nil, 2, pMenu)
-local pSettings = Ui.button("Settings", "Graphics, gearbox, assists", nil, 3, pMenu)
-local pPass = Ui.button("Go to Hakone pass", "Start line at Kojiri", nil, 4, pMenu)
-local pCity = Ui.button("Go to Shin-Hakone city", "Neon streets & expressway", nil, 5, pMenu)
-local pQuit = Ui.button("Main menu", nil, "ghost", 6, pMenu)
+U.pResume = Ui.button("Resume", nil, "primary", 1, pMenu)
+U.pGarage = Ui.button("Garage", "Unlock & paint", nil, 2, pMenu)
+U.pSettings = Ui.button("Settings", "Graphics, gearbox, assists", nil, 3, pMenu)
+U.pPass = Ui.button("Go to Hakone pass", "Start line at Kojiri", nil, 4, pMenu)
+U.pCity = Ui.button("Go to Shin-Hakone city", "Neon streets & expressway", nil, 5, pMenu)
+U.pPhoto = Ui.button("Photo mode", "Freeze the moment · drag to frame your shot", nil, 6, pMenu)
+U.pQuit = Ui.button("Main menu", nil, "ghost", 7, pMenu)
 
 -- ===================== HUD =====================
 local hud = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false, Parent = gui })
+-- photo mode: just the scene, plus a small glass bar to leave
+U.photoBar = Ui.glass(make("Frame", { Size = UDim2.new(0, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.XY, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -18), Visible = false, Parent = gui }, { Ui.list(12, true, Enum.VerticalAlignment.Center), Ui.pad(16, 8, 8, 8) }), 18, 0.4)
+text({ Text = touch and "Drag to orbit · pinch to zoom" or "Drag to orbit · scroll to zoom · Esc to leave", TextSize = 13, TextColor3 = Ui.DIM, AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.new(), TextWrapped = false, LayoutOrder = 1, Parent = U.photoBar })
+U.photoExit = Ui.bouncy(make("TextButton", { Size = UDim2.new(0, 120, 0, 34), Text = "Done", TextColor3 = Ui.INK, FontFace = Ui.BOLD, TextSize = 14, BackgroundColor3 = Ui.SAKURA, AutoButtonColor = false, LayoutOrder = 2, Parent = U.photoBar }, { Ui.corner(17) }))
+U.photo = { yaw = 0, pitch = 0.25, dist = 9 }
 local shadowT = function(o) make("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1, Transparency = 0.55, ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual, Parent = o }); return o end
 local tl = Ui.glass(make("Frame", { Size = UDim2.new(0, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.XY, Position = UDim2.new(0, 16, 0, 62), Parent = hud }, { Ui.list(2), Ui.pad(14, 8, 18, 10) }), 16, 0.45)
-local credRow = make("Frame", { Size = UDim2.new(1, 0, 0, 26), BackgroundTransparency = 1, LayoutOrder = 1, Parent = tl }, { Ui.list(8, true, Enum.VerticalAlignment.Bottom) })
-text({ Text = "CR", TextSize = 11, FontFace = Ui.BOLD, TextColor3 = Ui.DIM, AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.new(), TextWrapped = false, LayoutOrder = 1, Parent = credRow })
-local hCredits = shadowT(text({ Text = "0", TextSize = 22, FontFace = Ui.BOLD, TextColor3 = Ui.GOLD, AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.new(), TextWrapped = false, LayoutOrder = 2, Parent = credRow }))
+U.credRow = make("Frame", { Size = UDim2.new(1, 0, 0, 26), BackgroundTransparency = 1, LayoutOrder = 1, Parent = tl }, { Ui.list(8, true, Enum.VerticalAlignment.Bottom) })
+text({ Text = "CR", TextSize = 11, FontFace = Ui.BOLD, TextColor3 = Ui.DIM, AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.new(), TextWrapped = false, LayoutOrder = 1, Parent = U.credRow })
+local hCredits = shadowT(text({ Text = "0", TextSize = 22, FontFace = Ui.BOLD, TextColor3 = Ui.GOLD, AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.new(), TextWrapped = false, LayoutOrder = 2, Parent = U.credRow }))
 local hZone = shadowT(text({ Text = "", TextSize = touch and 12 or 15, FontFace = Ui.DISPLAY, LayoutOrder = 2, Parent = tl }))
 -- drift score: top centre, compact on phones
 local dW = touch and 200 or 360
@@ -457,15 +610,15 @@ local dTags = make("Frame", { Size = UDim2.new(1, 0, 0, touch and 16 or 22), Bac
 })
 local toast = shadowT(text({ Text = "", TextSize = touch and 16 or 24, FontFace = Ui.DISPLAY, TextColor3 = Ui.GOLD, TextXAlignment = Enum.TextXAlignment.Center, Size = UDim2.new(0, 520, 0, 0), Position = UDim2.new(0.5, -260, 0, touch and 82 or 130), TextTransparency = 1, Parent = hud }))
 local toastT = 0
-local function showToast(t, c) toast.Text, toast.TextColor3, toast.TextTransparency, toastT = t, c or Ui.GOLD, 0, 2.4; Ui.pop(toast, 1.25) end
+showToast = function(t, c) toast.Text, toast.TextColor3, toast.TextTransparency, toastT = t, c or Ui.GOLD, 0, 2.4; Ui.pop(toast, 1.25) end
 local hint = make("TextLabel", { Size = UDim2.new(0, 0, 0, 34), AutomaticSize = Enum.AutomaticSize.X, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.42, 0), BackgroundColor3 = Color3.fromHex("0a0b14"), BackgroundTransparency = 0.3, Text = "", FontFace = Ui.BOLD, TextSize = 14, TextColor3 = Ui.TEXT, Visible = false, Parent = hud }, { Ui.corner(4), Ui.pad(14, 0, 14, 0) })
 -- speed
 local spBox = Ui.glass(make("Frame", { Size = UDim2.new(0, 210, 0, 96), Position = UDim2.new(0.5, -105, 1, touch and -112 or -108), Parent = hud }, { Ui.pad(10, 6, 10, 6) }), 20, 0.45)
 local hSpeed = shadowT(text({ Text = "0", TextSize = touch and 42 or 56, FontFace = Ui.DISPLAY, TextXAlignment = Enum.TextXAlignment.Right, AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(0.6, 0, 0, 56), Parent = spBox }))
 text({ Text = "KM/H", TextSize = 11, FontFace = Ui.BOLD, TextColor3 = Ui.DIM, AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(0.38, 0, 0, 14), Position = UDim2.new(0.64, 0, 0, 12), Parent = spBox })
 local hGear = shadowT(text({ Text = "1", TextSize = 22, FontFace = Ui.BOLD, TextColor3 = Ui.NEON, AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(0.38, 0, 0, 26), Position = UDim2.new(0.64, 0, 0, 26), Parent = spBox }))
-local rpmBack = make("Frame", { Size = UDim2.new(1, 0, 0, 4), Position = UDim2.new(0, 0, 0, 62), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.87, BorderSizePixel = 0, Parent = spBox }, { Ui.corner(2) })
-local rpmBar = make("Frame", { Size = UDim2.new(0.2, 0, 1, 0), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, Parent = rpmBack }, {
+U.rpmBack = make("Frame", { Size = UDim2.new(1, 0, 0, 4), Position = UDim2.new(0, 0, 0, 62), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.87, BorderSizePixel = 0, Parent = spBox }, { Ui.corner(2) })
+local rpmBar = make("Frame", { Size = UDim2.new(0.2, 0, 1, 0), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, Parent = U.rpmBack }, {
 	Ui.corner(2), make("UIGradient", { Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Ui.NEON), ColorSequenceKeypoint.new(0.85, Ui.SAKURA), ColorSequenceKeypoint.new(1, Ui.DANGER) }) }),
 })
 local hAngle = text({ Text = "", TextSize = 11, FontFace = Ui.BOLD, TextColor3 = Ui.DIM, TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.new(0, 0, 0, 70), Parent = spBox })
@@ -484,9 +637,9 @@ if cityMin then
 end
 local mmSpan = math.max(mmMaxX - mmMinX, mmMaxZ - mmMinZ) * 1.08
 local function mmPos(x, z) return UDim2.new(0.5 + (x - (mmMinX + mmMaxX) / 2) / mmSpan, 0, 0.5 + (z - (mmMinZ + mmMaxZ) / 2) / mmSpan, 0) end
-local zoneCol = { [0] = Ui.NEON, [1] = Ui.SAKURA, [2] = Ui.GOLD }
+U.zoneCol = { [0] = Ui.NEON, [1] = Ui.SAKURA, [2] = Ui.GOLD }
 for i = 1, Track.N, math.max(1, Track.N // 260) do
-	make("Frame", { Size = UDim2.new(0, 3, 0, 3), AnchorPoint = Vector2.new(0.5, 0.5), Position = mmPos(Track.X[i], Track.Z[i]), BackgroundColor3 = zoneCol[Track.ZONE[i]], BorderSizePixel = 0, Parent = mm })
+	make("Frame", { Size = UDim2.new(0, 3, 0, 3), AnchorPoint = Vector2.new(0.5, 0.5), Position = mmPos(Track.X[i], Track.Z[i]), BackgroundColor3 = U.zoneCol[Track.ZONE[i]], BorderSizePixel = 0, Parent = mm })
 end
 if cityMin then
 	local grid, pitch, street = mapFolder:GetAttribute("CityGrid"), mapFolder:GetAttribute("CityPitch"), mapFolder:GetAttribute("CityStreet")
@@ -586,14 +739,18 @@ local function setMode(m)
 	if mode == "garage" and m ~= "garage" and garageSel ~= profile.selected then garageSel = profile.selected; spawnCar() end
 	mode = m
 	-- the new screen slides in on glass; the world behind blurs while a menu is open
-	for name, root in { title = title, garage = garage, settings = settings, pause = pause } do
+	if m == "boards" then renderBoards() end
+	for name, root in { title = title, garage = garage, settings = settings, pause = pause, boards = boards } do
 		if name == m then
 			if not root.Visible then Ui.show(root) end
 		else
 			root.Visible = false
 		end
 	end
-	Ui.blur(m ~= "play")
+	Ui.blur(m ~= "play" and m ~= "photo")
+	U.photoBar.Visible = m == "photo"
+	if m ~= "play" then Fx.tandem(nil, nil, 0) end
+	if m == "photo" then U.photo.yaw, U.photo.pitch, U.photo.dist = P.h + math.pi * 0.75, 0.22, 8 end
 	hud.Visible = m == "play"
 	if m == "title" then clearGhosts(); refreshTitle() end
 	if m == "garage" then garageSel = profile.selected; renderGarage() end
@@ -613,35 +770,70 @@ local function start(public)
 	end
 	if not usingMesh and CarMesh.lastError then warn("Kaido Drift: browser car models unavailable (" .. CarMesh.lastError .. "). Turn on Game Settings › Security › Allow Mesh / Image APIs.") end
 end
-bSolo.Activated:Connect(function() start(false) end)
-bPublic.Activated:Connect(function() start(true) end)
-bGarage.Activated:Connect(function() setMode("garage") end)
-bSettings.Activated:Connect(function() setMode("settings") end)
-gBack.Activated:Connect(function() setMode(returnTo) end)
-sBack.Activated:Connect(function() physSet.assist, physSet.trans, physSet.sens = S.assist, S.trans, S.sens; setMode(returnTo) end)
-pResume.Activated:Connect(function() setMode("play") end)
-pGarage.Activated:Connect(function() setMode("garage") end)
-pSettings.Activated:Connect(function() setMode("settings") end)
-pPass.Activated:Connect(function() resetCar(START); onPass = true; setMode("play") end)
-pCity.Activated:Connect(function() goCity(); setMode("play") end)
-pQuit.Activated:Connect(function() R.SetMode:FireServer("solo"); setMode("title") end)
+U.bSolo.Activated:Connect(function() start(false) end)
+U.bPublic.Activated:Connect(function() start(true) end)
+U.bGarage.Activated:Connect(function() setMode("garage") end)
+U.bSettings.Activated:Connect(function() setMode("settings") end)
+U.bBoards.Activated:Connect(function() setMode("boards") end)
+U.boardsBack.Activated:Connect(function() setMode("title") end)
+ReplicatedStorage:GetAttributeChangedSignal("Boards"):Connect(function() if mode == "boards" then renderBoards() end end)
+U.gBack.Activated:Connect(function() setMode(returnTo) end)
+U.sBack.Activated:Connect(function() physSet.assist, physSet.trans, physSet.sens = S.assist, S.trans, S.sens; setMode(returnTo) end)
+U.pResume.Activated:Connect(function() setMode("play") end)
+U.pGarage.Activated:Connect(function() setMode("garage") end)
+U.pSettings.Activated:Connect(function() setMode("settings") end)
+U.pPass.Activated:Connect(function() resetCar(START); onPass = true; setMode("play") end)
+U.pCity.Activated:Connect(function() goCity(); setMode("play") end)
+U.pQuit.Activated:Connect(function() R.SetMode:FireServer("solo"); setMode("title") end)
+U.pPhoto.Activated:Connect(function() setMode("photo") end)
+U.photoExit.Activated:Connect(function() setMode("pause") end)
+-- drag to turn the car in the garage, or to orbit the camera in photo mode; wheel / pinch zooms
+UserInputService.InputChanged:Connect(function(io, processed)
+	if mode ~= "garage" and mode ~= "photo" then return end
+	local t = io.UserInputType
+	if t == Enum.UserInputType.MouseWheel and mode == "photo" then
+		U.photo.dist = math.clamp(U.photo.dist - io.Position.Z * 0.8, 3, 30)
+		return
+	end
+	if processed then return end
+	local dragging = t == Enum.UserInputType.Touch or (t == Enum.UserInputType.MouseMovement and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1))
+	if not dragging then return end
+	local d = io.Delta
+	if mode == "garage" then
+		U.orbitNudge = (U.orbitNudge or 0) - d.X * 0.008 -- applied by the camera below
+		U.dragT = os.clock()
+	else
+		U.photo.yaw -= d.X * 0.008
+		U.photo.pitch = math.clamp(U.photo.pitch + d.Y * 0.006, -0.1, 1.3)
+	end
+end)
+UserInputService.TouchPinch:Connect(function(_, scale, _, state)
+	if mode == "photo" and state == Enum.UserInputState.Change then U.photo.dist = math.clamp(U.photo.dist / math.max(scale, 0.5) ^ 0.05, 3, 30) end
+end)
 -- a special car bought with Robux: the server sends the new profile
-R.Profile.OnClientEvent:Connect(function(res)
+R.Profile.OnClientEvent:Connect(function(res, message)
+	local carChanged = res.selected ~= profile.selected
 	profile = res
 	profile.settings = S
-	garageSel = profile.selected
-	spawnCar(profile.selected)
+	if message then
+		-- a daily challenge finished: keep driving, just show it
+		showToast(message, Ui.GOLD)
+		if U.showCallout then U.showCallout("CHALLENGE COMPLETE!", Ui.NEON) end
+	else
+		garageSel = profile.selected
+		if carChanged then spawnCar(profile.selected) end
+		showToast("Unlocked · " .. Config.car(profile.selected).name, Ui.VIOLET)
+	end
 	if mode == "garage" then renderGarage() end
 	refreshTitle()
-	showToast("Unlocked · " .. Config.car(profile.selected).name, Ui.VIOLET)
 end)
-local CAM_NAMES = { [0] = "Chase", [1] = "Far chase", [2] = "Cockpit · first person", [3] = "Hood" }
+U.CAM_NAMES = { [0] = "Chase", [1] = "Far chase", [2] = "Cockpit · first person", [3] = "Hood" }
 local function cycleCam()
 	camMode = (camMode + 1) % 4
 	S.cam = camMode
 	setCamChips(camMode)
 	saveSettings()
-	showToast(CAM_NAMES[camMode], Ui.TEXT)
+	showToast(U.CAM_NAMES[camMode], Ui.TEXT)
 end
 bCam.Activated:Connect(cycleCam)
 bSnd.Activated:Connect(function() S.sound = not S.sound; saveSettings(); showToast(S.sound and "Sound on" or "Sound off", Ui.TEXT) end)
@@ -654,11 +846,13 @@ UserInputService.InputBegan:Connect(function(io, processed)
 		if k == Enum.KeyCode.R or k == Enum.KeyCode.ButtonSelect then resetCar() end
 		if k == Enum.KeyCode.Escape or k == Enum.KeyCode.P or k == Enum.KeyCode.ButtonStart then setMode("pause") end
 		if S.trans == "manual" then
-			if k == Enum.KeyCode.E or k == Enum.KeyCode.ButtonR1 then CarPhysics.shiftUp(P, carDef) end
-			if k == Enum.KeyCode.Q or k == Enum.KeyCode.ButtonL1 then CarPhysics.shiftDown(P, carDef) end
+			if k == Enum.KeyCode.E or k == Enum.KeyCode.ButtonR1 or k == Enum.KeyCode.DPadUp then CarPhysics.shiftUp(P, carDef) end
+			if k == Enum.KeyCode.Q or k == Enum.KeyCode.ButtonL1 or k == Enum.KeyCode.DPadDown then CarPhysics.shiftDown(P, carDef) end
 		end
 	elseif mode == "pause" and (k == Enum.KeyCode.Escape or k == Enum.KeyCode.P or k == Enum.KeyCode.ButtonStart) then
 		setMode("play")
+	elseif mode == "photo" and (k == Enum.KeyCode.Escape or k == Enum.KeyCode.ButtonB or k == Enum.KeyCode.ButtonStart) then
+		setMode("pause")
 	end
 end)
 
@@ -689,28 +883,60 @@ local function readInput(dt)
 		end
 		if io.KeyCode == Enum.KeyCode.ButtonR2 then thr = math.max(thr, io.Position.Z) end
 		if io.KeyCode == Enum.KeyCode.ButtonL2 then brk = math.max(brk, io.Position.Z) end
-		if (io.KeyCode == Enum.KeyCode.ButtonX or io.KeyCode == Enum.KeyCode.ButtonA) and io.UserInputState == Enum.UserInputState.Begin then hand = true end
+	end
+	-- hand brake on A, B or X (held), as most drift games map it
+	local pad1 = Enum.UserInputType.Gamepad1
+	for _, b in { Enum.KeyCode.ButtonA, Enum.KeyCode.ButtonB, Enum.KeyCode.ButtonX } do
+		local okB, down = pcall(UserInputService.IsGamepadButtonDown, UserInputService, pad1, b)
+		if okB and down then hand = true end
 	end
 	input.throttle, input.brake, input.hand, input.steer = thr, brk, hand, steer
 end
 
 -- ===================== drift scoring (as in the browser game) =====================
-local TIERS = { { 0, "DRIFT" }, { 3000, "GREAT DRIFT" }, { 8000, "AWESOME DRIFT" }, { 15000, "INSANE DRIFT" }, { 30000, "UNBELIEVABLE DRIFT" } }
-local function tierOf(pts) local t = "DRIFT"; for _, x in TIERS do if pts >= x[1] then t = x[2] end end; return t end
-local nearWall, tandem = false, false
+U.TIERS = { { 0, "DRIFT" }, { 3000, "GREAT DRIFT" }, { 8000, "AWESOME DRIFT" }, { 15000, "INSANE DRIFT" }, { 30000, "UNBELIEVABLE DRIFT" } }
+local function tierOf(pts) local t = "DRIFT"; for _, x in U.TIERS do if pts >= x[1] then t = x[2] end end; return t end
+local nearWall, tandem, tandemWith = false, 0, nil -- tandem: 0 (alone) .. 1 (door to door with another drifter)
+-- big centre-screen callouts when a drift banks
+U.CALLOUTS = { { 0, "NICE DRIFT!", Ui.TEXT }, { 5000, "GREAT DRIFT!", Ui.NEON }, { 15000, "AWESOME!", Ui.GOLD }, { 30000, "INSANE!", Ui.SAKURA }, { 60000, "LEGENDARY!", Ui.VIOLET } }
+U.callout = shadowT(text({ Text = "", TextSize = touch and 34 or 58, FontFace = Ui.DISPLAY, TextXAlignment = Enum.TextXAlignment.Center,
+	Size = UDim2.new(1, 0, 0, 0), Position = UDim2.new(0, 0, 0.3, 0), TextTransparency = 1, Parent = hud }))
+U.calloutT = 0
+local function callout(t, color)
+	U.callout.Text, U.callout.TextColor3, U.callout.TextTransparency, U.calloutT = t, color, 0, 1.6
+	Ui.pop(U.callout, 1.5)
+end
+U.showCallout = callout
+-- a rising ping each time the combo goes up (a sound every Roblox client has built in)
+U.comboSound = make("Sound", { SoundId = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.45, Parent = game:GetService("SoundService") })
+local function comboUp()
+	drift.combo = math.min(6, drift.combo + 0.5)
+	Ui.pop(dMult, 1.4)
+	if S.sound then
+		U.comboSound.Volume = 0.45 * S.volume
+		U.comboSound.PlaybackSpeed = 0.9 + drift.combo * 0.1
+		U.comboSound:Play()
+	end
+end
 local function endDrift(bank)
 	if not drift.active then return end
 	local total = math.floor(drift.score * drift.mult)
+	local combo, tandemPts = drift.mult, math.floor(drift.tandemPts * drift.mult)
 	drift.active = false
 	table.clear(drift.tags)
-	if not bank or total < 50 then drift.score = 0; return end
+	drift.combo, drift.mult, drift.comboT = 1, 1, 0
+	if not bank or total < 50 then drift.score, drift.tandemPts = 0, 0; return end
 	local cr = total // 10
-	R.Bank:FireServer(total)
+	R.Bank:FireServer(total, if onPass then "pass" elseif lastZone == 3 then "city" else "link", tandemPts, combo)
 	profile.credits += cr
+	profile.total = (profile.total or 0) + total
 	local best = total > profile.best
 	if best then profile.best = total end
-	showToast(string.format("%s  +%s  ·  %s CR%s", tierOf(total), fmt(total), fmt(cr), best and "  ·  NEW BEST" or ""), Ui.GOLD)
-	drift.score = 0
+	local c = U.CALLOUTS[1]
+	for _, x in U.CALLOUTS do if total >= x[1] then c = x end end
+	callout(best and "NEW BEST!" or c[2], best and Ui.GOLD or c[3])
+	showToast(string.format("+%s  ·  ×%.1f combo  ·  %s CR", fmt(total), combo, fmt(cr)), Ui.GOLD)
+	drift.score, drift.tandemPts = 0, 0
 end
 local lastCrash = 0
 local function crash(force)
@@ -718,25 +944,44 @@ local function crash(force)
 	if now - lastCrash < 0.6 then return end
 	lastCrash = now
 	shake = math.min(1, force / 14)
-	if drift.active and drift.score * drift.mult > 200 then showToast("CRASH  ·  " .. fmt(drift.score * drift.mult) .. " lost", Ui.DANGER) end
-	drift.active, drift.score = false, 0
+	if drift.active and drift.score * drift.mult > 200 then
+		callout("CRASH!", Ui.DANGER)
+		showToast(fmt(drift.score * drift.mult) .. " lost  ·  combo reset", Ui.DANGER)
+	end
+	drift.active, drift.score, drift.tandemPts = false, 0, 0
+	drift.combo, drift.mult, drift.comboT = 1, 1, 0
 	table.clear(drift.tags)
 end
+-- points = angle × speed × time; the combo grows while you keep sliding (every 2.5 s) and each time you
+-- link into the next drift (switching direction, or re-entering within 1.4 s). Straight for 1.4 s banks it.
 local function updateScoring(dt, sp)
 	local vdot = if onPass and sp > 1 then (P.vx * Track.TX[idx] + P.vz * Track.TZ[idx]) / sp else 1
 	if P.drifting and sp > 8 and vdot > 0.2 then
-		if not drift.active then drift.active, drift.score, drift.time = true, 0, 0 end
+		local sign = if P.slip > 0 then 1 else -1
+		if not drift.active then
+			drift.active, drift.score, drift.time, drift.tandemPts = true, 0, 0, 0
+			drift.combo, drift.comboT, drift.sign = 1, 0, sign
+		elseif drift.idle > 0.15 then
+			comboUp() -- linked a new drift onto the chain
+		elseif sign ~= drift.sign and math.abs(P.slip) > 0.17 then
+			comboUp() -- direction switch (feint / S-bend)
+		end
+		if math.abs(P.slip) > 0.17 then drift.sign = sign end
 		drift.idle = 0
 		drift.time += dt
+		drift.comboT += dt
+		if drift.comboT >= 2.5 then drift.comboT -= 2.5; comboUp() end
 		local ang = math.min(math.abs(P.slip) * 57.3, 90)
 		local bonus = 1
 		table.clear(drift.tags)
-		if tandem then bonus *= 1.5; drift.tags.TANDEM = true end
+		if tandem > 0 then bonus *= 1 + tandem; drift.tags.TANDEM = string.format("TANDEM ×%.1f", 1 + tandem) end
 		if nearWall then bonus *= 1.35; drift.tags["NEAR WALL"] = true end
 		if ang > 45 then drift.tags.ANGLE = true; bonus *= 1.15 end
 		if sp * 3.6 > 110 then drift.tags.SPEED = true; bonus *= 1.15 end
-		drift.mult = math.min(5, 1 + math.floor(drift.time / 1.6) * 0.5)
-		drift.score += sp * 3.6 * ang * 0.5 * dt * bonus
+		drift.mult = drift.combo
+		local gain = sp * 3.6 * ang * 0.5 * dt * bonus
+		drift.score += gain
+		if tandem > 0 then drift.tandemPts += gain end
 	elseif drift.active then
 		drift.idle += dt
 		if drift.idle > 1.4 then endDrift(true) end
@@ -745,7 +990,10 @@ end
 local tagCache = ""
 local function renderTags()
 	local names = {}
-	for _, n in { "TANDEM", "NEAR WALL", "ANGLE", "SPEED" } do if drift.tags[n] then table.insert(names, n) end end
+	for _, n in { "TANDEM", "NEAR WALL", "ANGLE", "SPEED" } do
+		local v = drift.tags[n]
+		if v then table.insert(names, if type(v) == "string" then v else n) end
+	end
 	local key = table.concat(names, "|")
 	if key == tagCache then return end
 	tagCache = key
@@ -781,7 +1029,7 @@ RunService.RenderStepped:Connect(function(dt)
 		local _, roadY = Track.at(X, Z, idx)
 		local dd = math.sqrt((Track.X[idx] - X) ^ 2 + (Track.Z[idx] - Z) ^ 2)
 		onPass = dd < HALF + 10 and math.abs(posY - roadY) < 14
-		nearWall, tandem = false, false
+		nearWall, tandem, tandemWith = false, 0, nil
 		if onPass and not nearJunction(idx) then
 			local hl, hw = c.b.len / 2 - 0.05, c.b.wid / 2
 			local fx2, fz2 = math.sin(P.h), math.cos(P.h)
@@ -856,9 +1104,15 @@ RunService.RenderStepped:Connect(function(dt)
 		wallT = (wallT or 0)
 
 		-- tandem with another driver
+		-- closer = bigger bonus: ×1 at 11 m apart, up to ×2 door to door
 		for _, g in ghosts do
-			if P.drifting and g.drifting and (g.cf.Position - Vector3.new(X, posY, Z)).Magnitude < 11 * K then tandem = true end
+			if P.drifting and g.drifting then
+				local d = (g.cf.Position - Vector3.new(X, posY, Z)).Magnitude
+				local q = math.clamp(1 - (d - 2 * K) / (9 * K), 0, 1)
+				if q > tandem then tandem, tandemWith = q, g end
+			end
 		end
+		Fx.tandem(tandemWith and m.PrimaryPart or nil, tandemWith and tandemWith.model.PrimaryPart or nil, tandem)
 		updateScoring(dt, sp)
 
 		-- laps on the pass: all four quarters, then the start line
@@ -900,6 +1154,7 @@ RunService.RenderStepped:Connect(function(dt)
 		end
 		mmMe.Position = mmPos(X, Z)
 		if toastT > 0 then toastT -= dt; if toastT < 0.5 then toast.TextTransparency = 1 - toastT * 2 end end
+		if U.calloutT > 0 then U.calloutT -= dt; if U.calloutT < 0.5 then U.callout.TextTransparency = 1 - U.calloutT * 2 end end
 		local vdot = if onPass and sp > 3 then (P.vx * Track.TX[idx] + P.vz * Track.TZ[idx]) / sp else 1
 		local h = if vdot < -0.5 and P.gear > 0 then (touch and "Wrong way · tap ↺ to reset" or "Wrong way · press R to reset") else ""
 		hint.Text, hint.Visible = h, h ~= ""
@@ -940,10 +1195,35 @@ RunService.RenderStepped:Connect(function(dt)
 	local cf = CFrame.lookAt(pos, pos + fwd, up) * CFrame.Angles(-pitch, 0, -roll)
 	placeCar(m, usingMesh, cf, -P.delta, fspin, P.rspin)
 
-	-- tyre smoke follows real rear-tyre slip; sound
+	-- tyre smoke follows real rear-tyre slip and gets thicker with drift angle; skid marks; sound
 	local skid = math.clamp((P.rearSlip - 2.5) / 9, 0, 1)
+	local angF = math.clamp(math.abs(P.slip) * 57.3 / 45, 0, 1)
 	local smoking = mode == "play" and skid > 0.12
-	local rate = smoking and math.floor(50 * Config.Quality[qName()].smoke * skid) or 0
+	local rate = smoking and math.floor(50 * Config.Quality[qName()].smoke * skid * (0.5 + angF)) or 0
+	local root = m.PrimaryPart
+	for _, a in { "SmokeL", "SmokeR" } do
+		local att = root:FindFirstChild(a)
+		if att then
+			local on = mode == "play" and onGround and skid > 0.15
+			Fx.skid(a, root.CFrame:PointToWorldSpace(att.Position - Vector3.new(0, att.Position.Y, 0)), up, on and skid or 0, 0.9)
+		end
+	end
+	-- backfire: a pop of flame on a fast upshift, and crackles when you lift off at high revs
+	if mode == "play" then
+		local lift = U.lastThr and U.lastThr > 0.8 and input.throttle < 0.1 and P.rpm > c.red * 0.7
+		local upshift = U.lastGear and P.gear > U.lastGear and U.lastGear >= 1 and P.rpm > c.red * 0.45
+		if upshift or (lift and math.random() < 0.6) then
+			local tips = {}
+			local back = -root.CFrame.LookVector
+			for k = 1, c.b.exhaust or 1 do
+				local x = if (c.b.exhaust or 1) == 1 then -c.b.wid * K * 0.3 else (k == 1 and -1 or 1) * c.b.wid * K * 0.3
+				local tipPos = root.CFrame:PointToWorldSpace(Vector3.new(x, 0.32 * K, c.b.len * K / 2 + 0.2))
+				table.insert(tips, CFrame.lookAt(tipPos, tipPos + back))
+			end
+			Fx.backfire(tips, upshift == true)
+		end
+		U.lastThr, U.lastGear = input.throttle, P.gear
+	end
 	if rate ~= smokeOn then
 		smokeOn = rate
 		for _, a in m.PrimaryPart:GetChildren() do
@@ -974,8 +1254,19 @@ RunService.RenderStepped:Connect(function(dt)
 
 	-- camera (as in the browser game, in studs)
 	local sp = math.sqrt(P.vx * P.vx + P.vz * P.vz)
-	if mode ~= "play" then
-		orbit += dt * 0.18
+	if mode == "photo" then
+		local ph = U.photo
+		local r = ph.dist * K
+		local eye = pos + Vector3.new(math.sin(ph.yaw) * math.cos(ph.pitch) * r, math.sin(ph.pitch) * r + 0.6 * K, math.cos(ph.yaw) * math.cos(ph.pitch) * r)
+		local gy = World.ground(eye.X, eye.Y, eye.Z)
+		if gy and eye.Y < gy + 0.6 * K then eye = Vector3.new(eye.X, gy + 0.6 * K, eye.Z) end
+		camera.CFrame = CFrame.lookAt(eye, pos + Vector3.new(0, 0.6 * K, 0))
+		camera.FieldOfView += (45 - camera.FieldOfView) * math.min(1, dt * 4)
+		CarModel.setCabinVisible(m, true)
+	elseif mode ~= "play" then
+		if os.clock() - (U.dragT or 0) > 3 then orbit += dt * 0.18 end
+		orbit += U.orbitNudge or 0
+		U.orbitNudge = 0
 		local r = (mode == "garage" and 6.2 or 8.5) * K
 		local eye = pos + Vector3.new(math.sin(P.h + orbit) * r, (mode == "garage" and 1.5 or 2.4) * K, math.cos(P.h + orbit) * r)
 		local side = (mode == "title" or mode == "garage") and camera.ViewportSize.X > 800
@@ -1010,6 +1301,9 @@ RunService.RenderStepped:Connect(function(dt)
 		camPos = Vector3.new(camPos.X + (tx - camPos.X) * kx, camPos.Y + (ty - camPos.Y) * (1 - math.exp(-4 * dt)), camPos.Z + (tz - camPos.Z) * kx)
 		local eye = camPos
 		if shake > 0 then eye += Vector3.new((math.random() - 0.5) * shake * 0.5 * K, (math.random() - 0.5) * shake * 0.4 * K, 0); shake = math.max(0, shake - dt * 2.5) end
+		-- a faint buzz above 150 km/h, so speed feels fast
+		local hs = math.clamp((sp * 3.6 - 150) / 150, 0, 1)
+		if hs > 0 then eye += Vector3.new((math.random() - 0.5), (math.random() - 0.5), (math.random() - 0.5)) * hs * 0.07 * K end
 		camera.CFrame = CFrame.lookAt(eye, Vector3.new(X + f.X * 2.5 * K, posY + look, Z + f.Z * 2.5 * K))
 		local fov = math.clamp(60 + sp * 0.32, 60, 82)
 		camera.FieldOfView += (fov - camera.FieldOfView) * math.min(1, dt * 3)

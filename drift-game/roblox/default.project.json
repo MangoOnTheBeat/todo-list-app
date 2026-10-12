@@ -22,6 +22,9 @@
     "Workspace": {
       "$properties": { "StreamingEnabled": false }
     },
+    "MaterialService": {
+      "$properties": { "Use2022Materials": true }
+    },
     "TextChatService": {
       "$properties": { "ChatVersion": "TextChatService" }
     }

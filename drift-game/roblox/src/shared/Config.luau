@@ -41,6 +41,75 @@ Config.Paints = {
 	Color3.fromHex("2f6b46"), Color3.fromHex("7c8088"), Color3.fromHex("5a2a8c"), Color3.fromHex("8c1d2a"),
 }
 
+-- garage upgrades: bought per car with credits, three levels each. `apply` changes the car's real
+-- drivetrain numbers, so the physics feel the difference (see Config.tuned).
+Config.Upgrades = {
+	{ key = "engine", name = "Engine", desc = "Ported head, cams and exhaust: +7% torque a level", cost = { 4000, 10000, 22000 },
+		apply = function(c, l) c.torque *= 1 + 0.07 * l end },
+	{ key = "turbo", name = "Turbo", desc = "Bigger turbo: more top-end, +6% torque and +250 rpm a level", cost = { 5000, 12000, 26000 },
+		apply = function(c, l) c.torque *= 1 + 0.06 * l; c.peak += 250 * l; c.red += 250 * l end },
+	{ key = "grip", name = "Tyres", desc = "Stickier compound: +2.5% grip a level", cost = { 3000, 8000, 18000 },
+		apply = function(c, l) c.mu *= 1 + 0.025 * l end },
+	{ key = "steer", name = "Steering angle", desc = "Angle kit: +3° of lock a level, for deeper drifts", cost = { 3000, 7000, 15000 },
+		apply = function(c, l) c.lock += 3 * l end },
+}
+Config.UPGRADE_MAX = 3
+-- cosmetics, per car: unlock once with credits, then pick any colour for free
+Config.Cosmetics = {
+	glow = { name = "Underglow neon", cost = 5000 },
+	rims = { name = "Rim colour", cost = 2000 },
+	kit = { name = "Stance kit (lowered body)", cost = 4000 },
+}
+Config.GlowColors = {
+	Color3.fromHex("59e3ff"), Color3.fromHex("ff7eb6"), Color3.fromHex("a77bff"), Color3.fromHex("49ff8a"),
+	Color3.fromHex("ff3b3b"), Color3.fromHex("ffc94d"), Color3.fromHex("ffffff"),
+}
+Config.RimColors = {
+	Color3.fromHex("c3c6cc"), Color3.fromHex("2a2b30"), Color3.fromHex("c9a227"), Color3.fromHex("d8d8d8"),
+	Color3.fromHex("ff7eb6"), Color3.fromHex("59e3ff"), Color3.fromHex("c81e2c"), Color3.fromHex("ffffff"),
+}
+
+-- a car with its upgrades applied (upg = { engine = 2, grip = 1, ... }); the original is left alone
+function Config.tuned(car, upg)
+	if type(upg) ~= "table" then return car end
+	local any = false
+	for _, u in Config.Upgrades do if (upg[u.key] or 0) > 0 then any = true end end
+	if not any then return car end
+	local c = table.clone(car)
+	for _, u in Config.Upgrades do
+		local l = math.clamp(math.floor(tonumber(upg[u.key]) or 0), 0, Config.UPGRADE_MAX)
+		if l > 0 then u.apply(c, l) end
+	end
+	return c
+end
+
+-- daily challenges: the same three for everyone each day (picked from the day number)
+Config.DailyPool = {
+	{ kind = "one", text = "Score %s in one drift", goals = { 15000, 25000, 40000 }, reward = 6000 },
+	{ kind = "total", text = "Bank %s drift points today", goals = { 100000, 200000, 350000 }, reward = 8000 },
+	{ kind = "city", text = "Bank %s points drifting in the city", goals = { 40000, 80000 }, reward = 7000 },
+	{ kind = "pass", text = "Bank %s points drifting on the Hakone pass", goals = { 40000, 80000 }, reward = 7000 },
+	{ kind = "tandem", text = "Bank %s points in tandem drifts", goals = { 10000, 25000 }, reward = 10000 },
+	{ kind = "lap", text = "Complete %s lap(s) of the Hakone pass", goals = { 1, 2 }, reward = 9000 },
+	{ kind = "combo", text = "Reach a ×%s combo", goals = { 3, 4, 5 }, reward = 6000 },
+}
+function Config.dailyFor(day: number)
+	local list, used = {}, {}
+	local seed = day * 7919
+	while #list < 3 do
+		seed = (seed * 1103515245 + 12345) % 2147483648
+		local k = seed % #Config.DailyPool + 1
+		if not used[k] then
+			used[k] = true
+			local c = Config.DailyPool[k]
+			seed = (seed * 1103515245 + 12345) % 2147483648
+			local goal = c.goals[seed % #c.goals + 1]
+			table.insert(list, { kind = c.kind, goal = goal, reward = c.reward, text = string.format(c.text, goal >= 1000 and string.format("%d,%03d", goal // 1000, goal % 1000) or tostring(goal)) })
+		end
+	end
+	return list
+end
+
 -- assist levels (names and descriptions as in the browser settings)
 Config.Assists = {
 	{ id = "touch", name = "Easy drift", desc = "Best for touch: auto drift entry, throttle feed, countersteer" },
