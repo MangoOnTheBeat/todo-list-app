@@ -1,38 +1,38 @@
--- Kaido Drift (Roblox): cars, paints, assist levels, graphics levels and settings.
+-- Kaido Drift (Roblox): shared settings. Cars come from the browser game (Cars.luau); physics and assist
+-- numbers live in CarPhysics, exactly as in the browser.
 local Config = {}
 
-Config.ROAD_HALF = 16 -- half the road width in studs
-Config.SEG = 10 -- road sample spacing in studs
+Config.ROAD_HALF = 16 -- half the pass road width (studs)
+Config.SEG = 10 -- pass road sample spacing (studs)
+Config.SCALE = 3.5 -- studs per metre for cars and physics
 
--- the 13 cars from the browser game (see Cars.luau)
 Config.Cars = require(script.Parent.Cars)
 
 -- free paints (index 0 = the car's own colour)
 Config.Paints = {
-	Color3.fromRGB(236, 236, 240), Color3.fromRGB(18, 18, 22), Color3.fromRGB(196, 28, 36), Color3.fromRGB(255, 126, 182),
-	Color3.fromRGB(89, 227, 255), Color3.fromRGB(30, 70, 190), Color3.fromRGB(240, 120, 20), Color3.fromRGB(255, 201, 77),
-	Color3.fromRGB(40, 120, 70), Color3.fromRGB(120, 124, 132), Color3.fromRGB(90, 40, 140), Color3.fromRGB(150, 20, 40),
+	Color3.fromHex("e9e6df"), Color3.fromHex("111114"), Color3.fromHex("c81e2c"), Color3.fromHex("ff7eb6"),
+	Color3.fromHex("59e3ff"), Color3.fromHex("2a54c8"), Color3.fromHex("ff6a00"), Color3.fromHex("ffcc00"),
+	Color3.fromHex("2f6b46"), Color3.fromHex("7c8088"), Color3.fromHex("5a2a8c"), Color3.fromHex("8c1d2a"),
 }
 
--- Drift assist levels, easiest first. Every level uses the same tyre physics.
+-- assist levels (names and descriptions as in the browser settings)
 Config.Assists = {
-	{ id = "touch", name = "Easy drift", desc = "Best for touch: auto drift entry, throttle feed, countersteer", counter = 1.0, entry = 1.0, thrMod = true, damp = 2.4, esp = 6, espAngle = 1.05, tcs = false, speedSteer = true, steerRate = 9 },
-	{ id = "high", name = "High", desc = "Auto countersteer, stability, traction control", counter = 0.95, entry = 0.7, thrMod = true, damp = 2.8, esp = 8, espAngle = 0.95, tcs = true, speedSteer = true, steerRate = 9 },
-	{ id = "std", name = "Medium", desc = "Auto countersteer, stability", counter = 0.7, entry = 0.5, thrMod = false, damp = 1.6, esp = 4, espAngle = 1.15, tcs = false, speedSteer = true, steerRate = 7.5 },
-	{ id = "low", name = "Low", desc = "Light countersteer only", counter = 0.35, entry = 0.3, thrMod = false, damp = 0.6, esp = 0, espAngle = 9, tcs = false, speedSteer = true, steerRate = 6 },
-	{ id = "off", name = "Pro", desc = "No assists, pure simulation", counter = 0, entry = 0, thrMod = false, damp = 0, esp = 0, espAngle = 9, tcs = false, speedSteer = false, steerRate = 4.5 },
+	{ id = "touch", name = "Easy drift", desc = "Best for touch: auto drift entry, throttle feed, countersteer" },
+	{ id = "high", name = "High", desc = "Auto countersteer, stability, traction control" },
+	{ id = "std", name = "Medium", desc = "Auto countersteer, stability" },
+	{ id = "low", name = "Low", desc = "Light countersteer only" },
+	{ id = "off", name = "Pro", desc = "No assists, pure simulation" },
 }
 
--- Graphics levels (applied on each player's own device)
+-- graphics levels (applied on each player's own device)
 Config.Quality = {
-	low = { trees = 1, lights = 3, shadows = false, bloom = false, smoke = 0.5 },
-	medium = { trees = 2, lights = 2, shadows = true, bloom = false, smoke = 0.8 },
-	high = { trees = 3, lights = 1, shadows = true, bloom = true, smoke = 1 },
+	low = { trees = 1, lights = 4, shadows = false, bloom = false, smoke = 0.5, windows = 1, signs = false },
+	medium = { trees = 2, lights = 2, shadows = true, bloom = false, smoke = 0.8, windows = 2, signs = true },
+	high = { trees = 3, lights = 1, shadows = true, bloom = true, smoke = 1, windows = 3, signs = true },
 }
 
-Config.DefaultSettings = { quality = "auto", time = 0, trans = "auto", assist = "", cam = 0, sens = 1, sound = true, volume = 0.8 }
+Config.DefaultSettings = { quality = "auto", time = 0, trans = "auto", assist = "", cam = 0, sens = 1, sound = true, volume = 0.8, start = "pass" }
 
--- keep whatever a client sends to safe values
 function Config.cleanSettings(t)
 	local d = Config.DefaultSettings
 	t = type(t) == "table" and t or {}
@@ -46,6 +46,7 @@ function Config.cleanSettings(t)
 	out.sens = type(t.sens) == "number" and t.sens == t.sens and math.clamp(t.sens, 0.5, 1.6) or 1
 	out.sound = t.sound ~= false
 	out.volume = type(t.volume) == "number" and t.volume == t.volume and math.clamp(t.volume, 0, 1) or d.volume
+	out.start = t.start == "city" and "city" or "pass"
 	return out
 end
 
@@ -61,13 +62,6 @@ function Config.assist(id: string)
 		if a.id == id then return a end
 	end
 	return Config.Assists[3]
-end
-
--- physics numbers for a car (drag set so top speed matches)
-function Config.physics(c)
-	local top = c.top / 3.6 * 3.5
-	return { power = c.power, grip = c.grip, drag = c.power / (top ^ 3), lock = c.lock, top = top, gears = c.gears, red = c.red,
-		a = c.wb * (1 - c.front), b = c.wb * c.front }
 end
 
 return Config

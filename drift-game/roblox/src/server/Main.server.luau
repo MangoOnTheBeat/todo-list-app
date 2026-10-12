@@ -10,6 +10,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Track = require(Shared.Track)
 local Course = require(Shared.CourseData)
+local City = require(script.Parent:WaitForChild("City"))
 
 -- ===================== remotes =====================
 local remotes = Instance.new("Folder")
@@ -119,10 +120,25 @@ for k = 1, #C, 4 do
 	breathe()
 end
 
+-- where the link road to the city leaves the pass: its eastern-most point (no guardrail on that side there)
+local junction, junctionSide = 1, 1
+do
+	local best = -math.huge
+	for k = 1, N do if X[k] > best then best, junction = X[k], k end end
+	junctionSide = if Track.RX[junction] > 0 then 1 else -1
+end
+local function nearJunction(k)
+	local d = math.abs(k - junction)
+	return math.min(d, N - d) <= 5
+end
+
 -- road: straight runs are merged into long parts, curves use short ones
 local road = Instance.new("Folder")
 road.Name = "Road"
 road.Parent = map
+local rails = Instance.new("Folder")
+rails.Name = "Rails"
+rails.Parent = map
 local asphalt, rail, rock = Color3.fromRGB(44, 45, 50), Color3.fromRGB(172, 174, 178), Color3.fromRGB(96, 88, 78)
 local function turnBetween(i, j)
 	return math.abs(math.atan2(Track.TX[i] * Track.TZ[j] - Track.TZ[i] * Track.TX[j], Track.TX[i] * Track.TX[j] + Track.TZ[i] * Track.TZ[j]))
@@ -138,11 +154,12 @@ while i <= N do
 	local cf = CFrame.lookAt(mid, b)
 	block(road, Vector3.new(HALF * 2, 1, len), cf * CFrame.new(0, -0.5, 0), asphalt, Enum.Material.Asphalt).Name = "Road"
 	for _, side in { -1, 1 } do
+		if side == junctionSide and (nearJunction(i) or nearJunction(jj)) then continue end
 		local ra = a + Vector3.new(Track.RX[i], 0, Track.RZ[i]) * side * (HALF + 0.9)
 		local rb = b + Vector3.new(Track.RX[jj], 0, Track.RZ[jj]) * side * (HALF + 0.9)
 		local rcf = CFrame.lookAt((ra + rb) / 2, rb)
-		block(road, Vector3.new(0.5, 1.2, (rb - ra).Magnitude + 0.8), rcf * CFrame.new(0, 1.6, 0), rail, Enum.Material.DiamondPlate).Name = "Rail"
-		block(road, Vector3.new(0.4, 2.2, 0.4), CFrame.new(ra + Vector3.new(0, 1.1, 0)), Color3.fromRGB(120, 122, 126), Enum.Material.Metal).Name = "Post"
+		block(rails, Vector3.new(0.5, 1.2, (rb - ra).Magnitude + 0.8), rcf * CFrame.new(0, 1.6, 0), rail, Enum.Material.DiamondPlate).Name = "Rail"
+		block(rails, Vector3.new(0.4, 2.2, 0.4), CFrame.new(ra + Vector3.new(0, 1.1, 0)), Color3.fromRGB(120, 122, 126), Enum.Material.Metal).Name = "Post"
 	end
 	-- embankment below the road (hidden inside hills where the ground is high)
 	if mid.Y > FLOOR + 1 then
@@ -153,6 +170,9 @@ while i <= N do
 	i = j
 end
 -- kerbs on the bends, dashed centre line on the straights
+local roadDeco = Instance.new("Folder")
+roadDeco.Name = "RoadDeco"
+roadDeco.Parent = map
 for k = 1, N do
 	local nx = k % N + 1
 	local a, b = Vector3.new(X[k], Y[k], Z[k]), Vector3.new(X[nx], Y[nx], Z[nx])
@@ -160,11 +180,11 @@ for k = 1, N do
 	local len = (b - a).Magnitude + 0.4
 	if turnBetween(k, ((k + 1) % N) + 1) > math.rad(2.2) then
 		for _, side in { -1, 1 } do
-			local kp = block(road, Vector3.new(1.6, 0.22, len), cf * CFrame.new(side * (HALF - 0.8), 0.06, 0), (k // 1) % 2 == 0 and Color3.fromRGB(205, 36, 40) or Color3.fromRGB(236, 236, 236), Enum.Material.SmoothPlastic)
+			local kp = block(roadDeco, Vector3.new(1.6, 0.22, len), cf * CFrame.new(side * (HALF - 0.8), 0.06, 0), (k // 1) % 2 == 0 and Color3.fromRGB(205, 36, 40) or Color3.fromRGB(236, 236, 236), Enum.Material.SmoothPlastic)
 			kp.CanCollide = false
 		end
 	elseif k % 4 == 0 then
-		local line = block(road, Vector3.new(0.45, 0.08, len * 1.6), cf * CFrame.new(0, 0.02, 0), Color3.fromRGB(240, 236, 220), Enum.Material.SmoothPlastic)
+		local line = block(roadDeco, Vector3.new(0.45, 0.08, len * 1.6), cf * CFrame.new(0, 0.02, 0), Color3.fromRGB(240, 236, 220), Enum.Material.SmoothPlastic)
 		line.CanCollide = false
 	end
 	if k % 200 == 0 then task.wait() end
@@ -240,7 +260,7 @@ trees.Name = "Trees"
 trees.Parent = map
 local placed = 0
 for _, cell in hillTops do
-	if placed >= 2600 then break end
+	if placed >= 1800 then break end
 	for _ = 1, 2 do
 		local x, z = cell[1] + rng:NextNumber(-40, 40), cell[3] + rng:NextNumber(-40, 40)
 		if #Track.near(x, z, HALF + 14) == 0 and rng:NextNumber() < 0.75 then
@@ -290,6 +310,19 @@ do
 		p.CanCollide = false
 	end
 end
+
+-- Shin-Hakone city and the link road
+local city = City.build({ Track = Track, rng = rng, breathe = breathe, FLOOR = FLOOR, HALF = HALF, map = map, junction = junction, junctionSide = junctionSide })
+map:SetAttribute("CitySpawn", Vector3.new(city.spawn[1], city.spawn[2], city.spawn[3]))
+map:SetAttribute("CityMin", Vector2.new(city.bounds[1], city.bounds[2]))
+map:SetAttribute("CityMax", Vector2.new(city.bounds[3], city.bounds[4]))
+map:SetAttribute("CityRing", Vector3.new(city.ring[1], city.ring[2], city.ring[3]))
+map:SetAttribute("CityRing2", city.ring[4])
+map:SetAttribute("CityPitch", city.grid.PITCH)
+map:SetAttribute("CityStreet", city.grid.STREET)
+map:SetAttribute("CityGrid", city.grid.GRID)
+map:SetAttribute("Junction", junction)
+print(string.format("Kaido Drift map ready: pass %d samples, city %d buildings", N, city.buildings))
 
 map:SetAttribute("Ready", true)
 
@@ -430,9 +463,9 @@ Bank.OnServerEvent:Connect(function(player, points)
 	local now = os.clock()
 	local since = now - (lastBank[player] or 0)
 	lastBank[player] = now
-	points = math.floor(math.min(points, 250000, since * 15000))
+	points = math.floor(math.min(points, 600000, since * 30000))
 	if points <= 0 then return end
-	p.credits += points
+	p.credits += points // 10 -- as in the browser game: one credit per ten drift points
 	p.best = math.max(p.best, points)
 	stats(player, p)
 	dirty[player] = true

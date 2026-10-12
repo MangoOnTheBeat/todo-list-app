@@ -1,204 +1,272 @@
---!strict
--- Drift car physics for Kaido Drift (Roblox). Pure maths, no Roblox APIs, so it is tested outside Studio.
--- Units are studs and seconds (3.5 studs per metre). Mass is 1, so forces are accelerations.
--- Two-axle model: front and rear slip angles, a driven rear axle that loses side grip when it spins,
--- weight transfer, a hand brake, a gearbox (auto or manual) with rpm and rev limiter, clutch kicks,
--- and assist levels from Pro (none) to Easy drift.
-
+-- Kaido Drift car physics: a line-for-line port of the browser game's four-tyre simulation (CarX-style).
+-- Units are metres, kg, seconds; the client converts to studs (3.5 per metre) when placing the car.
+-- Per-wheel loads with longitudinal and lateral transfer, load-sensitive combined-slip tyres, Ackermann
+-- steering, ABS, a locked rear differential with its own wheel speed (integrated semi-implicitly), turbo
+-- lag, clutch kicks, an automatic or manual gearbox, and the five assist levels.
 local CarPhysics = {}
 
-local G = 34.3
-local HCG = 1.7
-local APK = 0.14
-local IDLE = 900
+local G, HCG, KPK, APK, ENTRY_YAW = 9.81, 0.5, 0.1, 0.14, -1
+local DEG = math.pi / 180
+CarPhysics.RW = 0.31 -- wheel radius (m)
+local RW = CarPhysics.RW
 
-local function curve(s: number): number
-	return math.sin(1.35 * math.atan(2.36 * s))
+local function clamp(v, a, b) return if v < a then a elseif v > b then b else v end
+local function lerp(a, b, t) return a + (b - a) * t end
+local function smooth(e0, e1, x) local t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t) end
+local function sign(x) return if x > 0 then 1 elseif x < 0 then -1 else 0 end
+local function tyreCurve(s) return math.sin(1.35 * math.atan(2.36 * s)) end
+local function tyreXY(kap, alpha, D)
+	local sx, sy = kap / KPK, alpha / APK
+	local s = math.sqrt(sx * sx + sy * sy)
+	if s < 1e-6 then return 0, 0 end
+	local F = D * tyreCurve(s)
+	return F * sx / s, -F * sy / s
 end
-local function sign(x: number): number
-	return if x > 0 then 1 elseif x < 0 then -1 else 0
+function CarPhysics.torqueAt(c, rpm)
+	if rpm >= c.red + 150 then return 0 end
+	if rpm < c.peak then return c.torque * (0.55 + 0.45 * math.sin(math.pi / 2 * clamp((rpm - 1000) / (c.peak - 1000), 0, 1))) end
+	return c.torque * (1 - 0.3 * ((rpm - c.peak) / (c.red - c.peak)) ^ 2)
 end
-local function lerp(a: number, b: number, t: number): number
-	return a + (b - a) * t
-end
--- engine torque against rpm fraction (0 = idle, 1 = redline): pulls hardest near the top
-local function torque(x: number): number
-	return math.clamp(0.55 + 0.75 * x - 0.45 * x * x, 0.35, 1)
-end
--- top road speed in each gear, as a share of the car's top speed
-local function gearTop(car, g: number): number
-	if g < 0 then return car.top * 0.22 end
-	local n = car.gears
-	return car.top * (0.32 * (1 / 0.32) ^ ((g - 1) / (n - 1)))
-end
+local function gearRatio(P, c) return (if P.gear < 0 then -3.4 else c.gears[P.gear]) * c.final end
 
-function CarPhysics.new(x: number, z: number, h: number)
+-- the browser game's assist levels
+CarPhysics.ASSISTS = {
+	off = { counter = 0, steerRate = 4.5, speedSteer = false, abs = false, tcs = false, esp = 0, espAngle = 9, damp = 0, entry = 0, thrMod = false },
+	low = { counter = 0.35, steerRate = 6, speedSteer = true, abs = true, tcs = false, esp = 0, espAngle = 9, damp = 0.6, entry = 0.35, thrMod = false },
+	std = { counter = 0.7, steerRate = 7.5, speedSteer = true, abs = true, tcs = false, esp = 8, espAngle = 1.15, damp = 1.6, entry = 0.5, thrMod = false },
+	high = { counter = 0.95, steerRate = 9, speedSteer = true, abs = true, tcs = true, esp = 16, espAngle = 0.95, damp = 2.8, entry = 0.7, thrMod = true },
+	touch = { counter = 1, steerRate = 9, speedSteer = true, abs = true, tcs = false, esp = 12, espAngle = 1.0, damp = 2.4, entry = 1, thrMod = true },
+}
+
+function CarPhysics.new(x, z, h)
 	return {
-		x = x, z = z, h = h, vx = 0, vz = 0, r = 0, delta = 0, ax = 0,
-		entryT = 0, entryDir = 0, entryArmed = true, bPrev = 0,
-		gear = 1, rpm = IDLE, shiftT = 0, revT = 0, offT = 0, kickT = 0,
-		u = 0, speed = 0, beta = 0, sliding = 0, spin = false, limiter = false, thrEff = 0,
+		x = x, z = z, h = h, vx = 0, vz = 0, r = 0, wr = 0, gear = 1, shiftT = 0, revT = 0, delta = 0, ax = 0, ay = 0,
+		boost = 0, eng = 900, rpm = 900, slip = 0, drifting = false, rearSlip = 0, frontLock = false, limiter = false,
+		bPrev = nil, entryT = 0, entryDir = 0, entryArmed = true, offT = 0, kickT = 0, u = 0, thrEff = 0, brkEff = 0, loads = { 1, 1, 1, 1 },
 	}
 end
 
-function CarPhysics.shift(s, car, dir: number)
-	if s.shiftT > 0 then return end
-	if dir > 0 then
-		if s.gear < 0 then s.gear = 1 elseif s.gear < car.gears then s.gear += 1 end
-	else
-		if s.gear > 1 then s.gear -= 1 elseif s.gear == 1 and s.u < 2 then s.gear = -1 end
+function CarPhysics.shiftUp(P, c) if P.gear > 0 and P.gear < #c.gears then P.gear += 1; P.shiftT = 0.12 end end
+function CarPhysics.shiftDown(P, c) if P.gear > 1 then P.gear -= 1; P.shiftT = 0.1 end end
+
+-- one step. input = { throttle, brake, hand, steer (+ = right) }; settings = { assist, trans, sens }
+function CarPhysics.step(P, c, input, settings, dt)
+	local m, Lw = c.mass, c.b.wb
+	local a, b = Lw * (1 - c.front), Lw * c.front
+	local Iz = m * a * b * 1.1
+	local fx, fz = math.sin(P.h), math.cos(P.h)
+	local lx, lz = fz, -fx -- forward and left unit vectors
+	local u, vy = P.vx * fx + P.vz * fz, P.vx * lx + P.vz * lz
+	local sp = math.sqrt(P.vx * P.vx + P.vz * P.vz)
+	local thr, brk = input.throttle, input.brake
+	local hand = input.hand
+	local A = CarPhysics.ASSISTS[settings.assist] or CarPhysics.ASSISTS.std
+	-- throttle feed: past ~26° of slide the gas is eased off so a held GAS button holds the angle instead of spinning
+	if A.thrMod and thr > 0.05 and P.gear > 0 then
+		local ab = math.abs(P.bPrev or 0)
+		if ab > 0.45 then thr *= clamp(1 - (ab - 0.45) / 0.4, 0.3, 1) end
 	end
-	s.shiftT = 0.12
-end
-
-function CarPhysics.step(s, inp, car, as, manual: boolean, dt: number)
-	-- centre of mass to front axle (A) and rear axle (B): longer cars are calmer, nose-heavy cars push
-	local A, B = car.a, car.b
-	local WB = A + B
-	local IZ = A * B * 1.1
-	local fx, fz = math.sin(s.h), math.cos(s.h)
-	local rx, rz = -fz, fx
-	local u = s.vx * fx + s.vz * fz
-	local v = s.vx * rx + s.vz * rz
-	local sp = math.sqrt(u * u + v * v)
-	local au = math.max(math.abs(u), 3)
-	local thr, brk = inp.thr, inp.brk
-
-	-- reverse: hold the brake at a standstill; in reverse the pedals swap, gas takes you forward again
-	if s.gear > 0 then
-		if brk > 0.2 and thr < 0.05 and u < 0.8 then
-			s.revT += dt
-			if s.revT > 0.35 then s.gear, s.revT = -1, 0 end
+	-- drift entry: steer firmly with the gas on and the rear steps out (once per steer input; also links transitions)
+	if A.entry > 0 and P.gear > 0 and u > 8 and u < 45 and thr > 0.6 and math.abs(input.steer) > 0.65 and P.entryArmed and math.abs(P.bPrev or 0) < 0.12 then
+		P.entryT, P.entryDir, P.entryArmed = 0.5, sign(input.steer), false
+	end
+	if math.abs(input.steer) < 0.3 or thr < 0.1 then P.entryArmed = true end
+	P.entryT = math.max(0, P.entryT - dt)
+	local eK = A.entry * P.entryT / 0.5
+	-- reverse: hold brake at a standstill
+	if P.gear > 0 then
+		if brk > 0.2 and thr < 0.05 and u < 0.4 then
+			P.revT += dt
+			if P.revT > 0.3 then P.gear, P.revT = -1, 0 end
 		else
-			s.revT = 0
+			P.revT = 0
 		end
-	elseif thr > 0.2 and u > -1 then
-		s.gear = 1
+	elseif thr > 0.2 and u > -0.4 then
+		P.gear = 1
 	end
-	if s.gear < 0 then thr, brk = brk, thr end
-
-	local betaR = math.atan2(v - s.r * B, au)
-	local betaF = math.atan2(v + s.r * A, au)
-	local beta = if sp > 3 and u > -0.5 * sp then math.atan2(v, au) else 0
-	local sliding = math.clamp((math.abs(betaR) - 0.08) / 0.15, 0, 1)
-
-	-- assists: throttle feed and drift entry
-	if as.thrMod and thr > 0.05 and math.abs(beta) > 0.45 then
-		thr *= math.clamp(1 - (math.abs(beta) - 0.45) / 0.4, 0.3, 1)
+	if P.gear < 0 then thr, brk = brk, thr end
+	local ratio = gearRatio(P, c)
+	local ar = math.abs(ratio)
+	-- automatic gearbox works from road speed, so wheelspin mid-drift holds the gear
+	P.shiftT = math.max(0, P.shiftT - dt)
+	if settings.trans ~= "manual" and P.gear > 0 and P.shiftT == 0 then
+		local roadRpm = math.abs(u) / RW * ar * 9.549
+		if roadRpm > c.red * 0.97 and P.gear < #c.gears then
+			P.gear += 1; P.shiftT = 0.16
+		elseif P.gear > 1 and roadRpm < c.red * 0.45 and math.abs(u) / RW * c.gears[P.gear - 1] * c.final * 9.549 < c.red * 0.88 then
+			P.gear -= 1; P.shiftT = 0.1
+		end
 	end
-	if as.entry > 0 and s.gear > 0 and u > 25 and u < 160 and thr > 0.6 and math.abs(inp.steer) > 0.65 and s.entryArmed and math.abs(betaR) < 0.12 then
-		s.entryT, s.entryDir, s.entryArmed = 0.45, sign(inp.steer), false
-	end
-	if math.abs(inp.steer) < 0.3 or thr < 0.1 then s.entryArmed = true end
-	s.entryT = math.max(0, s.entryT - dt)
-	local eK = as.entry * s.entryT / 0.45
-
-	-- clutch kick: a quick lift and stab of the gas while steering
+	-- engine
+	local wheelRpm = math.abs(P.wr) * ar * 9.549
+	local clutchSlip = wheelRpm < 1200 or hand
+	local eng = if clutchSlip then math.max(wheelRpm, 900 + thr * 3400) else wheelRpm
+	-- clutch kick: a quick off-on of the gas while steering dumps the clutch and breaks the rear loose
 	if thr < 0.15 then
-		s.offT += dt
+		P.offT += dt
 	else
-		if s.offT > 0.03 and s.offT < 0.45 and thr > 0.6 and math.abs(inp.steer) > 0.25 and u > 12 then s.kickT = 0.35 end
-		s.offT = 0
+		if P.offT > 0.03 and P.offT < 0.45 and thr > 0.6 and math.abs(input.steer) > 0.25 and u > 8 then P.kickT = 0.35 end
+		P.offT = 0
 	end
-	s.kickT = math.max(0, s.kickT - dt)
-
-	-- gearbox
-	s.shiftT = math.max(0, s.shiftT - dt)
-	local gTop = gearTop(car, s.gear)
-	local wheel = math.abs(u)
-	local x = math.clamp(wheel / gTop, 0, 1.08)
-	if not manual and s.gear > 0 and s.shiftT == 0 then
-		if x > 0.96 and s.gear < car.gears then
-			s.gear += 1; s.shiftT = 0.16
-		elseif s.gear > 1 and x < 0.45 and wheel / gearTop(car, s.gear - 1) < 0.85 then
-			s.gear -= 1; s.shiftT = 0.1
-		end
-		gTop = gearTop(car, s.gear)
-		x = math.clamp(wheel / gTop, 0, 1.08)
+	P.kickT = math.max(0, P.kickT - dt)
+	local tq = 0
+	if P.shiftT > 0 or hand then
+		tq = 0
+	elseif thr > 0.02 then
+		tq = if eng > c.red then 0 else CarPhysics.torqueAt(c, eng) * thr * (if c.turbo then 0.62 + 0.38 * P.boost else 1) * (if P.kickT > 0 then 1.8 else 1)
+	elseif not clutchSlip then
+		tq = -sign(P.wr * ratio) * c.torque * 0.14 * clamp(eng / c.red, 0.2, 1)
 	end
-
-	-- steering
-	local lock = car.lock
-	local maxSteer = if as.speedSteer then lerp(lock / (1 + (math.max(u, 0) / 70) ^ 1.5), lock, sliding) else lock
-	local target = inp.steer * maxSteer
-	local oversteer = sign(betaF) == -sign(s.r)
-	if oversteer and u > 5 then target += as.counter * sliding * betaF end
-	target = math.clamp(target, -lock, lock)
-	s.delta += math.clamp(target - s.delta, -as.steerRate * dt, as.steerRate * dt)
-
-	-- axle loads
-	local Fzf = math.max(0.1, G * B / WB - s.ax * HCG / WB)
-	local Fzr = math.max(0.1, G * A / WB + s.ax * HCG / WB)
-
-	local alphaF = math.atan2(v + s.r * A, au) - s.delta
-	local Fyf = -car.grip * Fzf * curve(alphaF / APK)
-
-	-- rear axle: engine, wheelspin, hand brake
-	local muR = car.grip * 1.06 * (1 - 0.6 * eK)
-	if inp.hand then muR *= 0.55 end
-	local capR = muR * Fzr
-	local Fxr, latCap = 0, capR
-	local limiter = false
-	local drive = 0
-	if s.shiftT == 0 and not inp.hand and thr > 0.02 then
-		if x >= 1 then
-			limiter = true
+	P.limiter = eng > c.red and thr > 0.02
+	-- turbo: boost builds with revs and throttle (with lag) and dumps when you lift
+	if c.turbo then
+		local want = smooth(2400, 4300, eng) * (if thr > 0.05 and not hand then thr else 0)
+		P.boost += (want - P.boost) * math.min(1, dt * (if want > P.boost then 2.2 else 5))
+	else
+		P.boost = 1
+	end
+	local Tdrive = tq * ratio * 0.85
+	-- ===== four tyres: per-wheel load, slip and grip =====
+	local tw = c.b.wid - 0.2
+	local htw = tw / 2
+	local Wf, Wr = m * G * b / Lw / 2, m * G * a / Lw / 2
+	local dLong = m * P.ax * HCG / Lw / 2
+	local dLatF, dLatR = m * P.ay * HCG / tw * 0.62, m * P.ay * HCG / tw * 0.38
+	local minZ = m * G * 0.02
+	local Fz = { math.max(minZ, Wf - dLong - dLatF), math.max(minZ, Wf - dLong + dLatF), math.max(minZ, Wr + dLong - dLatR), math.max(minZ, Wr + dLong + dLatR) }
+	local function grip(i)
+		local front = i <= 2
+		return c.mu * (if front then 1.0 else 1.06 * (1 - 0.6 * eK)) * Fz[i] * (1 - 0.08 * (Fz[i] / (if front then Wf else Wr) - 1))
+	end
+	local WX = { a, a, -b, -b }
+	local WY = { htw, -htw, htw, -htw }
+	-- steering: driver input plus countersteer assist (front wheels follow the direction of travel)
+	local beta = if sp > 1.5 and P.gear > 0 and u > -0.5 * sp then math.atan2(vy, math.max(u, 0.01)) else 0
+	local lock = c.lock * DEG
+	local dIn = -input.steer * settings.sens
+	local betaR = if sp > 1.5 and P.gear > 0 and u > 0.5 then math.atan2(vy - b * P.r, u) else 0
+	local betaF = if sp > 1.5 and P.gear > 0 and u > 0.5 then math.atan2(vy + a * P.r, u) else 0
+	local sliding = smooth(0.1, 0.25, math.abs(betaR))
+	local oversteer = if sign(betaF) == -sign(P.r) then 1 else 0
+	local counter = sliding > 0 and sign(dIn) == sign(betaR)
+	local inLock = if A.speedSteer and not counter then lerp(lock / (1 + (math.abs(u) / 14) ^ 1.5), lock, sliding) else lock
+	local dT = clamp(dIn * inLock + A.counter * sliding * oversteer * betaF, -lock, lock)
+	P.delta += clamp(dT - P.delta, -A.steerRate * dt, A.steerRate * dt)
+	local d = P.delta
+	local ack = sign(d) * math.min(0.06, math.abs(d) * 0.12)
+	local DEL = { d + ack, d - ack, 0, 0 }
+	-- brakes: 65 % front; ABS on every assist level except Pro
+	local brakeTotal = brk * m * G * 0.95
+	local Fxw, Fyw = { 0, 0, 0, 0 }, { 0, 0, 0, 0 }
+	local lockF = false
+	for i = 1, 2 do
+		local ui, vi = u - P.r * WY[i], vy + P.r * WX[i]
+		local cd, sd = math.cos(DEL[i]), math.sin(DEL[i])
+		local uw, vw = ui * cd + vi * sd, -ui * sd + vi * cd
+		local D = grip(i)
+		local alpha = math.atan2(vw, math.max(math.abs(uw), 1.5))
+		local bf = brakeTotal * 0.65 / 2
+		if A.abs then bf = math.min(bf, D * 0.92) end
+		if bf > D * 1.02 and math.abs(uw) > 2 then
+			lockF = true
+			local vv = math.sqrt(uw * uw + vw * vw)
+			if vv == 0 then vv = 1 end
+			Fxw[i], Fyw[i] = -uw / vv * D * 0.9, -vw / vv * D * 0.9
 		else
-			drive = thr * car.power / gTop * torque(x) * 1.25 * (if s.kickT > 0 then 1.8 else 1)
+			Fyw[i] = -D * sign(alpha) * tyreCurve(math.abs(alpha) / APK)
+			Fxw[i] = if math.abs(uw) > 0.2 then -sign(uw) * bf else 0
+			local t = math.sqrt(Fxw[i] ^ 2 + Fyw[i] ^ 2)
+			if t > D then Fxw[i] *= D / t; Fyw[i] *= D / t end
 		end
 	end
-	if s.gear < 0 then
-		Fxr = -drive
-	else
-		if as.tcs then drive = math.min(drive, capR * (1.05 + 0.6 * sliding)) end
-		local k = drive / capR
-		Fxr = math.min(drive, capR)
-		latCap = if k >= 1 then capR * 0.32 else capR * math.sqrt(1 - math.min(k, 0.97) ^ 2)
+	P.frontLock = lockF
+	-- rear axle: locked differential, one shared wheel speed, integrated semi-implicitly against both tyres
+	local Iw = 1.6 + c.engI * ratio * ratio * (if clutchSlip then 0.25 else 1)
+	local rr = {}
+	for _, i in { 3, 4 } do
+		local ui, vi = u - P.r * WY[i], vy + P.r * WX[i]
+		table.insert(rr, { i = i, ui = ui, vi = vi, den = math.max(math.abs(ui), 2), D = grip(i), alpha = math.atan2(vi, math.max(math.abs(ui), 1.5)) })
 	end
-	s.spin = s.gear > 0 and drive >= capR
-	-- engine braking when off the gas in gear
-	if thr <= 0.02 and not inp.hand and math.abs(u) > 2 then Fxr -= sign(u) * 2.2 * x end
-	if inp.hand and math.abs(u) > 1 then Fxr -= sign(u) * capR * 0.5; latCap *= 0.6 end
-	local alphaR = math.atan2(v - s.r * B, au)
-	local Fyr = -latCap * curve(alphaR / APK)
-
-	-- brakes (with ABS on every level except Pro), drag, rolling
-	local Fb = brk * G * (if as.speedSteer then 0.95 else 1.05)
-	local stopF = math.min(Fb + 0.4, math.abs(u) / dt)
-	local Fx = Fxr - Fyf * math.sin(s.delta) - car.drag * u * math.abs(u) - sign(u) * stopF
-	local Fy = Fyr + Fyf * math.cos(s.delta)
-	local Mz = A * Fyf * math.cos(s.delta) - B * Fyr
-
-	if eK > 0 then Mz += s.entryDir * eK * IZ * 3.2 end
-	local bRate = (betaR - s.bPrev) / dt
-	s.bPrev = betaR
-	if sliding > 0 and as.damp > 0 then Mz += as.damp * sliding * IZ * math.clamp(bRate, -4, 4) end
-	if as.esp > 0 and math.abs(beta) > as.espAngle and sp > 5 then Mz -= sign(s.r) * IZ * as.esp * (math.abs(beta) - as.espAngle) end
-
-	s.vx += (Fx * fx + Fy * rx) * dt
-	s.vz += (Fx * fz + Fy * rz) * dt
-	s.r += Mz / IZ * dt
-	if sp < 2 then s.r *= 1 - math.min(1, (2 - sp) * 3 * dt) end
-	s.h -= s.r * dt
-	s.x += s.vx * dt
-	s.z += s.vz * dt
-	s.ax += (Fx - s.ax) * math.min(1, dt * 10)
-	-- park when stopped with the brake on (never while reversing)
-	if sp < 0.6 and inp.thr < 0.05 and s.gear > 0 and s.revT == 0 and inp.hand then s.vx, s.vz, s.r = 0, 0, 0 end
-
-	-- rpm: from the road speed, flaring when the rear spins or the clutch slips
-	local target_rpm = IDLE + (car.red - IDLE) * math.clamp(x, 0, 1.02)
-	if s.spin or s.kickT > 0 then target_rpm = math.max(target_rpm, car.red * (0.85 + 0.15 * thr)) end
-	if wheel < 4 then target_rpm = math.max(target_rpm, IDLE + thr * 3200) end
-	if inp.hand and thr > 0.05 then target_rpm = math.max(target_rpm, IDLE + thr * (car.red - IDLE) * 0.9) end
-	if limiter then target_rpm = car.red * (0.97 + 0.03 * math.sin(os.clock() * 60)) end
-	s.rpm += (target_rpm - s.rpm) * math.min(1, dt * 12)
-
-	s.u, s.speed, s.beta, s.sliding, s.limiter, s.thrEff = u, sp, beta, sliding, limiter, thr
+	local Fx0, slope = 0, 0
+	for _, w in rr do
+		Fx0 += (tyreXY((P.wr * RW - w.ui) / w.den, w.alpha, w.D))
+		slope += w.D * 1.35 * 2.36 / KPK * RW / w.den
+	end
+	local Tdr = Tdrive
+	if A.tcs and thr > 0 then
+		local spinS = P.wr * RW - u
+		if spinS > 6 + math.abs(vy) then Tdr *= clamp(1 - (spinS - 6) / 10, 0.35, 1) end
+	end
+	local wr = P.wr + dt * (Tdr - RW * Fx0) / (Iw + dt * RW * slope)
+	local Tb = brakeTotal * 0.35 * RW + (if hand then 4200 else 0)
+	if Tb > 0 then
+		local dw = Tb * dt / Iw
+		wr = if math.abs(wr) <= dw then 0 else wr - sign(wr) * dw
+	end
+	P.wr = wr
+	for _, w in rr do
+		Fxw[w.i], Fyw[w.i] = tyreXY((wr * RW - w.ui) / w.den, w.alpha, w.D)
+	end
+	-- sum the four tyres into body forces and yaw moment
+	local Fxb, Fyb, Mz = 0, 0, 0
+	for i = 1, 4 do
+		local cd, sd = math.cos(DEL[i]), math.sin(DEL[i])
+		local fxb, fyb = Fxw[i] * cd - Fyw[i] * sd, Fxw[i] * sd + Fyw[i] * cd
+		Fxb += fxb; Fyb += fyb
+		Mz += WX[i] * fyb - WY[i] * fxb
+	end
+	Fxb -= 0.6 * c.CdA * u * math.abs(u) + m * G * 0.013 * clamp(u, -1, 1)
+	-- stability control past the angle a skilled driver would hold (Medium/High); slide damping; drift entry yaw
+	if A.esp > 0 and math.abs(beta) > A.espAngle and sp > 5 then Mz += A.esp * Iz * (beta - sign(beta) * A.espAngle) end
+	local bRate = (betaR - (P.bPrev or betaR)) / dt
+	P.bPrev = betaR
+	if A.damp > 0 and sliding > 0 then Mz += A.damp * sliding * Iz * clamp(bRate, -4, 4) end
+	if eK > 0 then Mz += ENTRY_YAW * P.entryDir * eK * Iz * 3.2 end
+	local FzSum = Fz[1] + Fz[2] + Fz[3] + Fz[4]
+	for i = 1, 4 do P.loads[i] = Fz[i] / FzSum * 4 end
+	P.vx += (Fxb * fx + Fyb * lx) / m * dt
+	P.vz += (Fxb * fz + Fyb * lz) / m * dt
+	P.r += Mz / Iz * dt
+	if sp < 2 then P.r *= 1 - math.min(1, (2 - sp) * 3 * dt) end
+	if sp < 0.35 and thr < 0.05 and (brk > 0.05 or hand) then P.vx, P.vz, P.r, P.wr = 0, 0, 0, 0 end
+	P.h += P.r * dt
+	P.x += P.vx * dt
+	P.z += P.vz * dt
+	P.ax += (Fxb / m - P.ax) * math.min(1, dt * 10)
+	P.ay += (Fyb / m - P.ay) * math.min(1, dt * 10)
+	P.eng, P.u, P.thrEff, P.brkEff = eng, u, thr, brk
+	P.slip = if sp > 1.5 then math.atan2(-vy, math.abs(u)) else 0 -- + = sliding toward the car's right
+	P.rearSlip = math.sqrt((wr * RW - u) ^ 2 + (vy - b * P.r) ^ 2)
+	local sp2 = math.sqrt(P.vx * P.vx + P.vz * P.vz)
+	P.drifting = if P.drifting then (math.abs(P.slip) > 0.1 and sp2 > 5) else (math.abs(P.slip) > 0.19 and sp2 > 7)
 end
 
-function CarPhysics.kmh(speed: number): number
-	return speed / 3.5 * 3.6
+-- a rigid-body impulse against a wall (as in the browser game). n = wall normal pointing back into the
+-- road (x, z), depth = how far the corner went through, (rpx, rpz) = that corner relative to the centre
+function CarPhysics.wallHit(P, c, nx, nz, depth, rpx, rpz)
+	local m, Lw = c.mass, c.b.wb
+	local a, b = Lw * (1 - c.front), Lw * c.front
+	local Iz = m * a * b * 1.1
+	P.x += nx * depth; P.z += nz * depth
+	local vpx, vpz = P.vx + P.r * rpz, P.vz - P.r * rpx
+	local vn = vpx * nx + vpz * nz
+	if vn < 0 then
+		local k = nx * rpz - nz * rpx
+		local j = -1.25 * vn / (1 / m + k * k / Iz)
+		P.vx += j * nx / m; P.vz += j * nz / m; P.r += j * k / Iz
+		local tx, tz = -nz, nx
+		local vt, kt = vpx * tx + vpz * tz, tx * rpz - tz * rpx
+		local jt = clamp(-vt / (1 / m + kt * kt / Iz), -0.3 * j, 0.3 * j)
+		P.vx += jt * tx / m; P.vz += jt * tz / m; P.r += jt * kt / Iz
+		return -vn
+	end
+	return 0
+end
+
+-- engine rpm for the gauges and sound (browser updatePlayerVisual)
+function CarPhysics.visual(P, c, dt)
+	P.rpm += (P.eng - P.rpm) * math.min(1, dt * 14)
+	if P.limiter then P.rpm = c.red - math.random() * 250 end
 end
 
 return CarPhysics

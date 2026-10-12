@@ -34,6 +34,13 @@ function Audio.available(): boolean
 	return ids.kaido_engine_mid ~= nil
 end
 
+-- how many of the 7 sound files this place has
+function Audio.count(): number
+	local n = 0
+	for _, name in NAMES do if ids[name] then n += 1 end end
+	return n
+end
+
 local function snd(parent, name, looped, spatial)
 	local s = Instance.new("Sound")
 	s.Name = name

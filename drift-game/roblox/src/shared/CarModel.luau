@@ -48,8 +48,10 @@ function CarModel.build(car, name: string, paint: Color3?)
 	root.Parent = m
 	m.PrimaryPart = root
 
-	local st = STYLE[car.style] or STYLE.notch
-	local L, W, H, WB = car.len, car.wid, car.h, car.wb
+	-- browser car dimensions are in metres
+	local bd = car.b
+	local st = STYLE[bd.style] or STYLE.notch
+	local L, W, H, WB = bd.len * 3.5, bd.wid * 3.5, bd.h * 3.5, bd.wb * 3.5
 	local body = paint or car.color
 	local mat = Enum.Material.SmoothPlastic
 	local function P(nm, size, off, col, mt, o) return weldPart(m, root, "Part", nm, size, off, col, mt or mat, o) end
@@ -92,7 +94,7 @@ function CarModel.build(car, name: string, paint: Color3?)
 	P("PlateF", Vector3.new(1.5, 0.4, 0.06), CFrame.new(0, sill + 0.75, front - 0.03), Color3.fromRGB(235, 235, 225))
 	-- lamps: pop-ups sit on the hood, the rest are in the nose
 	local lampCol = Color3.fromRGB(255, 244, 214)
-	if car.popups then
+	if bd.popups then
 		for _, x in { -1, 1 } do
 			P("Popup", Vector3.new(1.35, 0.32, 1.0), CFrame.new(x * (W / 2 - 1.0), hoodTop + 0.3, front + 1.3), body, mat, paintO)
 			P("Lamp", Vector3.new(1.2, 0.08, 0.05), CFrame.new(x * (W / 2 - 1.0), hoodTop + 0.3, front + 0.78), lampCol, Enum.Material.Neon)
@@ -108,7 +110,7 @@ function CarModel.build(car, name: string, paint: Color3?)
 	local cowlZ = front + L * st.cowl
 	local wsLen = L * st.ws
 	local glassO = { transparency = 0.35, cabin = true }
-	if car.style == "roadster" then
+	if bd.style == "roadster" then
 		Wd("Windscreen", Vector3.new(cabW, 1.1, wsLen), CFrame.new(0, shoulder + 0.55, cowlZ + wsLen / 2), GLASS, Enum.Material.Glass, glassO)
 		P("Seats", Vector3.new(cabW - 0.4, 0.9, 2.6), CFrame.new(0, shoulder + 0.2, cowlZ + wsLen + 1.6), DARK, Enum.Material.Fabric)
 		P("Hoop", Vector3.new(cabW - 0.6, 0.25, 0.25), CFrame.new(0, shoulder + 1.1, cowlZ + wsLen + 3.0), CHROME, Enum.Material.Metal)
@@ -120,7 +122,7 @@ function CarModel.build(car, name: string, paint: Color3?)
 		local roofZ1 = roofZ0 + roofLen
 		Wd("Windscreen", Vector3.new(cabW, roofY - hoodTop, wsLen), CFrame.new(0, (roofY + hoodTop) / 2, cowlZ + wsLen / 2), GLASS, Enum.Material.Glass, glassO)
 		P("Cabin", Vector3.new(cabW + 0.02, roofY - hoodTop - 0.2, roofLen), CFrame.new(0, (roofY + hoodTop) / 2 - 0.1, (roofZ0 + roofZ1) / 2), GLASS, Enum.Material.Glass, glassO)
-		P("Pillar", Vector3.new(cabW + 0.06, roofY - hoodTop - 0.2, 0.35), CFrame.new(0, (roofY + hoodTop) / 2 - 0.1, roofZ0 + roofLen * (car.style == "sedan" and 0.48 or 0.62)), body, mat, { paint = true, cabin = true })
+		P("Pillar", Vector3.new(cabW + 0.06, roofY - hoodTop - 0.2, 0.35), CFrame.new(0, (roofY + hoodTop) / 2 - 0.1, roofZ0 + roofLen * (bd.style == "sedan" and 0.48 or 0.62)), body, mat, { paint = true, cabin = true })
 		P("Roof", Vector3.new(cabW - 0.1, 0.24, roofLen + 0.3), CFrame.new(0, roofY, (roofZ0 + roofZ1) / 2), body, mat, { paint = true, cabin = true })
 		local deckY = if st.deck > 0 then shoulder * st.deck else shoulder * 0.9
 		local rg = Wd("RearGlass", Vector3.new(cabW, roofY - deckY, rgLen), CFrame.new(0, (roofY + deckY) / 2, roofZ1 + rgLen / 2) * CFrame.Angles(0, math.pi, 0), GLASS, Enum.Material.Glass, glassO)
@@ -140,10 +142,10 @@ function CarModel.build(car, name: string, paint: Color3?)
 		P("TailLamp", Vector3.new(1.5, 0.36, 0.06), CFrame.new(x * (W / 2 - 1.0), shoulder - 0.35, rear - 0.12), Color3.fromRGB(255, 30, 40), Enum.Material.Neon)
 	end
 	P("PlateR", Vector3.new(1.5, 0.4, 0.06), CFrame.new(0, sill + 0.8, rear + 0.03), Color3.fromRGB(235, 235, 225))
-	if car.duck then
+	if bd.duck then
 		Wd("Duck", Vector3.new(W - 0.4, 0.4, 0.7), CFrame.new(0, shoulder * (st.deck > 0 and st.deck or 0.9) + 0.32, rear - 0.55), body, mat, paintO)
 	end
-	if car.wing then
+	if bd.wing then
 		local wy = shoulder * 0.95 + 1.1
 		P("Wing", Vector3.new(W - 0.4, 0.14, 1.0), CFrame.new(0, wy, rear - 0.75) * CFrame.Angles(math.rad(-6), 0, 0), body, mat, paintO)
 		for _, x in { -1, 1 } do
@@ -151,8 +153,8 @@ function CarModel.build(car, name: string, paint: Color3?)
 			P("WingPlate", Vector3.new(0.08, 0.6, 1.1), CFrame.new(x * (W / 2 - 0.2), wy, rear - 0.75), DARK)
 		end
 	end
-	for k = 1, car.exhaust do
-		local x = car.exhaust == 1 and (W / 2 - 1.2) or (k == 1 and -(W / 2 - 1.2) or (W / 2 - 1.2))
+	for k = 1, bd.exhaust do
+		local x = bd.exhaust == 1 and (W / 2 - 1.2) or (k == 1 and -(W / 2 - 1.2) or (W / 2 - 1.2))
 		P("Exhaust", Vector3.new(0.7, 0.42, 0.42), CFrame.new(x, sill + 0.15, rear + 0.05) * CFrame.Angles(0, math.pi / 2, 0), CHROME, Enum.Material.Metal, { shape = Enum.PartType.Cylinder })
 	end
 	-- wheels: tyre, rim, hub, caliper; they spin and the fronts steer (see CarModel.place)
@@ -188,7 +190,7 @@ function CarModel.build(car, name: string, paint: Color3?)
 end
 
 -- place the car at ground point cf; steer = front wheel angle (rad, + = right); roll = wheel turn (rad)
-function CarModel.place(m: Model, cf: CFrame, steer: number, roll: number?)
+function CarModel.place(m: Model, cf: CFrame, steer: number, roll: number?, _rollR: number?)
 	local root = m.PrimaryPart :: BasePart
 	root.CFrame = cf
 	local wheels = CarModel._wheels and CarModel._wheels[m]

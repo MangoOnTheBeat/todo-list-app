@@ -6,7 +6,7 @@
       "Shared": { "$path": "src/shared" }
     },
     "ServerScriptService": {
-      "KaidoServer": { "$path": "src/server/Main.server.luau" }
+      "KaidoServer": { "$path": "src/server" }
     },
     "StarterPlayer": {
       "StarterPlayerScripts": {
