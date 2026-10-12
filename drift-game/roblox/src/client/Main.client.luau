@@ -347,7 +347,7 @@ local pQuit = Ui.button("Main menu", nil, "ghost", 4, pMenu)
 -- ===================== HUD =====================
 local hud = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false, Parent = gui })
 local shadowT = function(o) make("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1, Transparency = 0.55, ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual, Parent = o }); return o end
-local tl = make("Frame", { Size = UDim2.new(0, 280, 0, 60), Position = UDim2.new(0, 16, 0, 14), BackgroundTransparency = 1, Parent = hud }, { Ui.list(2) })
+local tl = make("Frame", { Size = UDim2.new(0, 280, 0, 60), Position = UDim2.new(0, 16, 0, 62), -- below Roblox's own top-left buttons BackgroundTransparency = 1, Parent = hud }, { Ui.list(2) })
 local credRow = make("Frame", { Size = UDim2.new(1, 0, 0, 26), BackgroundTransparency = 1, LayoutOrder = 1, Parent = tl }, { Ui.list(8, true, Enum.VerticalAlignment.Bottom) })
 text({ Text = "CR", TextSize = 11, FontFace = Ui.BOLD, TextColor3 = Ui.DIM, AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.new(), TextWrapped = false, LayoutOrder = 1, Parent = credRow })
 local hCredits = shadowT(text({ Text = "0", TextSize = 22, FontFace = Ui.BOLD, TextColor3 = Ui.GOLD, AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.new(), TextWrapped = false, LayoutOrder = 2, Parent = credRow }))

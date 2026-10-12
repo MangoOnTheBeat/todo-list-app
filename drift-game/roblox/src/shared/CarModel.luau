@@ -4,7 +4,7 @@
 -- is one CFrame write. Wheels spin and the fronts steer through their weld offsets.
 local CarModel = {}
 
-local DARK, GLASS, CHROME = Color3.fromRGB(16, 16, 20), Color3.fromRGB(26, 34, 44), Color3.fromRGB(200, 202, 208)
+local DARK, GLASS, CHROME = Color3.fromRGB(16, 16, 20), Color3.fromRGB(70, 88, 108), Color3.fromRGB(200, 202, 208)
 
 -- per-style shape: roof length, rear glass length, trunk deck height, deck length (share of the car)
 local STYLE = {
@@ -107,7 +107,7 @@ function CarModel.build(car, name: string, paint: Color3?)
 	local cabW = W * 0.84
 	local cowlZ = front + L * st.cowl
 	local wsLen = L * st.ws
-	local glassO = { transparency = 0.15, cabin = true }
+	local glassO = { transparency = 0.35, cabin = true }
 	if car.style == "roadster" then
 		Wd("Windscreen", Vector3.new(cabW, 1.1, wsLen), CFrame.new(0, shoulder + 0.55, cowlZ + wsLen / 2), GLASS, Enum.Material.Glass, glassO)
 		P("Seats", Vector3.new(cabW - 0.4, 0.9, 2.6), CFrame.new(0, shoulder + 0.2, cowlZ + wsLen + 1.6), DARK, Enum.Material.Fabric)

@@ -20,7 +20,7 @@
       "$properties": { "Technology": "Future", "ClockTime": 0, "GlobalShadows": true }
     },
     "Workspace": {
-      "$properties": { "StreamingEnabled": true, "StreamingTargetRadius": 1400, "StreamingMinRadius": 300 }
+      "$properties": { "StreamingEnabled": false }
     },
     "TextChatService": {
       "$properties": { "ChatVersion": "TextChatService" }
