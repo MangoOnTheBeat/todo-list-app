@@ -1,44 +1,42 @@
--- Kaido Drift (Roblox): the course. A closed loop through hairpins and S-bends (the browser game's
--- Kojiri layout, scaled to studs), with smooth climbs and drops. Server and client both build it from
--- the same numbers, so the car never needs the map parts to know where the road is.
+-- Kaido Drift (Roblox): the course. The browser game's real Hakone road (13.7 km, real climbs and
+-- drops from elevation data) as a smooth loop. Server and client build it from the same numbers,
+-- so the car never needs the map parts to know where the road is.
 local Config = require(script.Parent.Config)
+local Course = require(script.Parent.CourseData)
 
 local Track = {}
 
-local CP = {
-	{ -718.3, 279.1 }, { -688.5, 20.3 }, { -628.0, -233.0 }, { -534.2, -427.7 }, { -395.7, -502.3 }, { -275.5, -434.9 },
-	{ -136.2, -476.3 }, { -47.4, -605.9 }, { 119.8, -655.6 }, { 223.7, -571.3 }, { 203.4, -456.0 }, { 294.5, -374.0 },
-	{ 400.0, -447.8 }, { 448.1, -571.3 }, { 585.2, -599.9 }, { 669.5, -479.5 }, { 616.9, -330.3 }, { 680.1, -240.0 },
-	{ 717.0, -75.1 }, { 661.7, 14.2 }, { 603.7, 43.6 }, { 543.5, -26.5 }, { 495.0, -50.9 }, { 445.2, -30.6 },
-	{ 408.3, 28.9 }, { 426.8, 111.4 }, { 462.5, 170.5 }, { 439.6, 225.8 }, { 369.9, 246.5 }, { 306.3, 195.7 },
-	{ 260.7, 154.7 }, { 207.7, 178.3 }, { 183.9, 253.3 }, { 177.9, 437.1 }, { 61.2, 574.9 }, { -110.5, 650.3 },
-	{ -294.2, 644.3 }, { -438.8, 566.0 }, { -594.0, 472.6 }, { -697.9, 388.3 },
-}
-local SCALE = 3.5
+local src = Course.POINTS
+local cp = {}
+for i = 1, #src, 4 do
+	table.insert(cp, { src[i], src[i + 1], src[i + 2], src[i + 3] })
+end
+local n = #cp
 
--- closed Catmull-Rom through the control points, sampled densely
+-- closed Catmull-Rom through the points (they are evenly spaced), sampled densely
 local dense = {}
-local n = #CP
 for i = 1, n do
-	local p0, p1, p2, p3 = CP[(i - 2) % n + 1], CP[i], CP[i % n + 1], CP[(i + 1) % n + 1]
-	for k = 0, 39 do
-		local t = k / 40
+	local p0, p1, p2, p3 = cp[(i - 2) % n + 1], cp[i], cp[i % n + 1], cp[(i + 1) % n + 1]
+	for k = 0, 19 do
+		local t = k / 20
 		local t2, t3 = t * t, t * t * t
-		local function cr(a, b, c, d)
-			return 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3)
+		local function cr(c)
+			local a, b, cc, d = p0[c], p1[c], p2[c], p3[c]
+			return 0.5 * (2 * b + (-a + cc) * t + (2 * a - 5 * b + 4 * cc - d) * t2 + (-a + 3 * b - 3 * cc + d) * t3)
 		end
-		table.insert(dense, { cr(p0[1], p1[1], p2[1], p3[1]) * SCALE, cr(p0[2], p1[2], p2[2], p3[2]) * SCALE })
+		table.insert(dense, { cr(1), cr(2), cr(3), if t < 0.5 then p1[4] else p2[4] })
 	end
 end
 
--- resample at an even spacing
-local px, pz = {}, {}
+-- resample every SEG studs along the ground
+local px, py, pz, zone = {}, {}, {}, {}
 do
-	local acc, seg = 0, Config.SEG
-	px[1], pz[1] = dense[1][1], dense[1][2]
-	for i = 1, #dense do
-		local a, b = dense[i], dense[i % #dense + 1]
-		local dx, dz = b[1] - a[1], b[2] - a[2]
+	local seg, acc = Config.SEG, 0
+	local m = #dense
+	table.insert(px, dense[1][1]); table.insert(py, dense[1][2]); table.insert(pz, dense[1][3]); table.insert(zone, dense[1][4])
+	for i = 1, m do
+		local a, b = dense[i], dense[i % m + 1]
+		local dx, dz = b[1] - a[1], b[3] - a[3]
 		local len = math.sqrt(dx * dx + dz * dz)
 		local pos = 0
 		while acc + (len - pos) >= seg do
@@ -46,31 +44,18 @@ do
 			acc = 0
 			local f = pos / len
 			table.insert(px, a[1] + dx * f)
-			table.insert(pz, a[2] + dz * f)
+			table.insert(py, a[2] + (b[2] - a[2]) * f)
+			table.insert(pz, a[3] + dz * f)
+			table.insert(zone, a[4])
 		end
 		acc += len - pos
 	end
-	-- drop a final point that lands on top of the start
 	local l = #px
 	if math.sqrt((px[l] - px[1]) ^ 2 + (pz[l] - pz[1]) ^ 2) < seg * 0.5 then
-		table.remove(px)
-		table.remove(pz)
+		table.remove(px); table.remove(py); table.remove(pz); table.remove(zone)
 	end
 end
-
 local N = #px
--- centre the course on the origin
-local cx, cz = 0, 0
-for i = 1, N do cx += px[i]; cz += pz[i] end
-cx /= N; cz /= N
-for i = 1, N do px[i] -= cx; pz[i] -= cz end
-
--- elevation: smooth climbs and drops, closed around the loop, under ~7 % grade
-local py = {}
-for i = 1, N do
-	local th = (i - 1) / N * math.pi * 2
-	py[i] = 46 + 24 * math.sin(3 * th - math.pi / 2) + 12 * math.sin(7 * th)
-end
 
 local tx, tz, rx, rz = {}, {}, {}, {}
 for i = 1, N do
@@ -82,9 +67,21 @@ for i = 1, N do
 end
 
 Track.N = N
-Track.X, Track.Y, Track.Z = px, py, pz
+Track.X, Track.Y, Track.Z, Track.ZONE = px, py, pz, zone
 Track.TX, Track.TZ, Track.RX, Track.RZ = tx, tz, rx, rz
 Track.LENGTH = N * Config.SEG
+Track.ZONE_NAMES = { [0] = "湖尻 · Kojiri village", [1] = "箱根 · Hakone hills", [2] = "芦ノ湖 · Lake Ashi shore" }
+
+-- spatial hash so "where is the road?" is quick anywhere on the map
+local CELL = 80
+local hash = {}
+local function key(cx, cz) return cx * 100000 + cz end
+for i = 1, N do
+	local k = key(math.floor(px[i] / CELL), math.floor(pz[i] / CELL))
+	local t = hash[k]
+	if not t then t = {}; hash[k] = t end
+	table.insert(t, i)
+end
 
 function Track.heading(i: number): number
 	return math.atan2(tx[i], tz[i])
@@ -95,22 +92,54 @@ function Track.slope(i: number): number
 	return (py[b] - py[a]) / (2 * Config.SEG)
 end
 
--- nearest road sample to (x, z), searching around a hint first
+-- nearest road sample: searched along the road from the last one first (fast, and never jumps to a
+-- road section above or below on a hairpin), then through the spatial hash
 function Track.nearest(x: number, z: number, hint: number?): number
 	local best, bi = math.huge, 1
 	if hint then
-		for k = -40, 40 do
+		for k = -30, 30 do
 			local i = (hint - 1 + k) % N + 1
 			local d = (px[i] - x) ^ 2 + (pz[i] - z) ^ 2
 			if d < best then best, bi = d, i end
 		end
-		if best < 40 * 40 then return bi end
+		if best < 30 * 30 then return bi end
 	end
-	for i = 1, N do
-		local d = (px[i] - x) ^ 2 + (pz[i] - z) ^ 2
-		if d < best then best, bi = d, i end
+	local cx, cz = math.floor(x / CELL), math.floor(z / CELL)
+	for dx = -2, 2 do
+		for dz = -2, 2 do
+			local t = hash[key(cx + dx, cz + dz)]
+			if t then
+				for _, i in t do
+					local d = (px[i] - x) ^ 2 + (pz[i] - z) ^ 2
+					if d < best then best, bi = d, i end
+				end
+			end
+		end
+	end
+	if best == math.huge then
+		for i = 1, N do
+			local d = (px[i] - x) ^ 2 + (pz[i] - z) ^ 2
+			if d < best then best, bi = d, i end
+		end
 	end
 	return bi
+end
+
+-- every road sample within r studs (for building scenery)
+function Track.near(x: number, z: number, r: number): { number }
+	local out = {}
+	local cx, cz, span = math.floor(x / CELL), math.floor(z / CELL), math.ceil(r / CELL)
+	for dx = -span, span do
+		for dz = -span, span do
+			local t = hash[key(cx + dx, cz + dz)]
+			if t then
+				for _, i in t do
+					if (px[i] - x) ^ 2 + (pz[i] - z) ^ 2 < r * r then table.insert(out, i) end
+				end
+			end
+		end
+	end
+	return out
 end
 
 -- sideways offset from the centre line and road height at (x, z) near sample i

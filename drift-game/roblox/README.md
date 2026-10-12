@@ -1,23 +1,36 @@
 # Kaido Drift — Roblox version
 
-A Roblox remake of the browser drift game: a 5.3 km night mountain pass with hairpins, guardrails,
-street lamps, cedar and maple trees, a lake and Kojiri village; a drift car with Easy drift (no hand
-brake needed); drift scoring that banks credits; a garage of 6 unlockable cars saved with DataStores;
-keyboard, controller and phone controls; chase, far-chase and first-person cameras.
+A Roblox replica of the browser drift game:
+- **The real course:** the browser game's 13.7 km Hakone road with its real climbs and drops, hills beside
+  the road, Lake Ashi, Kojiri village (houses, lanterns, vending machines), the torii start gate and
+  Mt. Fuji on the horizon.
+- **All 13 cars** from the browser game, in its body styles (notchback, hatch, fastback, sedan, roadster)
+  with pop-up lamps, ducktails, wings, twin exhausts, rim colours and free paint.
+- **Physics:** gearbox (automatic or manual, rev limiter, reverse) and clutch kicks.
+- **Drift assists, as in the browser:** Easy drift, High, Medium, Low, Pro.
+- **Scoring and HUD, as in the browser:** drift tiers, ×multiplier, ANGLE / SPEED / NEAR WALL / TANDEM bonuses,
+  laps, zones, minimap.
+- **Settings:** graphics (Auto/Low/Medium/High), time of day with Dawn/Noon/Sunset/Midnight, gearbox, assists,
+  camera (chase, far chase, cockpit, hood), steering sensitivity, sound and volume, erase progress.
+  Everything is saved to the player's Roblox account (DataStore), not the device.
+- **Menu:** Play solo, or Play with others on the public map (everyone who picks it drives together, with chat).
+- **Engine sound** synthesised for this game: three rpm layers, off-throttle crackle, turbo blow-off, tyres, wind.
 
-Menu: **Play solo** (just you) or **Play with others** (the public map: everyone in the server who
-picked it drives together, with chat).
+## 1. Open it
+Double-click `KaidoDrift.rbxlx` (Roblox Studio opens it) and press **Play**. The map is built when the game
+starts, so the place looks empty in edit mode. The first start takes a few seconds while the hills fill in.
 
-## Open it
-Double-click `KaidoDrift.rbxlx` (Roblox Studio opens it), then press **Play**. The map is built when
-the game starts, so the place looks empty in edit mode.
+## 2. Add the sounds (once)
+Roblox only plays audio uploaded to Roblox, so upload the 7 files in `sounds/`:
+1. In Studio: **Window → Asset Manager → Bulk Import** (or Creator Hub → Creations → Audio → Upload), pick all 7 `.ogg` files.
+2. Open the **Toolbox → Inventory → My Audio** and click each one so it lands in Workspace. Keep their names
+   (`kaido_engine_low`, `kaido_engine_mid`, …). The game finds them by name.
+   Alternatively paste their IDs into `ReplicatedStorage > Shared > SoundIds`.
 
-To save progress while testing in Studio: Home → Game Settings → Security → turn on
-**Enable Studio Access to API Services** (needs the place published first).
-
-## Publish
-File → **Publish to Roblox**, then in Game Settings set it to Public.
+## 3. Publish
+**File → Publish to Roblox**, then **Game Settings → Security → Enable Studio Access to API Services** (so
+progress saves while testing in Studio) and set the game to **Public** in Permissions.
 
 ## Rebuild from source
-`rojo build -o KaidoDrift.rbxlx` in this folder (Rojo 7). Source is in `src/`:
-`shared/` (Config, Track, CarPhysics, CarModel), `server/Main.server.luau`, `client/Main.client.luau`.
+`rojo build -o KaidoDrift.rbxlx` (Rojo 7) in this folder. `tools/make_course.py` regenerates
+`src/shared/CourseData.luau` from the browser game; `tools/make_sounds.py` regenerates `sounds/`.

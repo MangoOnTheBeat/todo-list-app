@@ -10,7 +10,7 @@
     },
     "StarterPlayer": {
       "StarterPlayerScripts": {
-        "KaidoClient": { "$path": "src/client/Main.client.luau" }
+        "KaidoClient": { "$path": "src/client" }
       }
     },
     "Players": {
@@ -20,7 +20,7 @@
       "$properties": { "Technology": "Future", "ClockTime": 0, "GlobalShadows": true }
     },
     "Workspace": {
-      "$properties": { "Gravity": 196.2 }
+      "$properties": { "StreamingEnabled": true, "StreamingTargetRadius": 1400, "StreamingMinRadius": 300 }
     },
     "TextChatService": {
       "$properties": { "ChatVersion": "TextChatService" }
