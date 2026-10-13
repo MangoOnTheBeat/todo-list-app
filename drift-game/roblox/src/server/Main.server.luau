@@ -914,15 +914,16 @@ local function playerList()
 	return out
 end
 local function serverInfo()
-	local mem = 0
-	pcall(function() mem = math.floor(game:GetService("Stats"):GetTotalMemoryUsageMb()) end)
+	local mem, fps = 0, 0
+	pcall(function() mem = math.floor(tonumber(game:GetService("Stats"):GetTotalMemoryUsageMb()) or 0) end)
+	pcall(function() fps = math.floor(tonumber(workspace:GetRealPhysicsFPS()) or 0) end)
 	local banList = {}
 	for uid, b in bans do
 		if banActive(uid) then table.insert(banList, { id = uid, name = b.name, reason = b.reason, untilTime = b.untilTime or 0, by = b.by }) end
 	end
 	return {
 		players = #Players:GetPlayers(), maxPlayers = Players.MaxPlayers, uptime = os.time() - serverStart, memory = mem,
-		fps = math.floor(workspace:GetRealPhysicsFPS()), locked = ReplicatedStorage:GetAttribute("KaidoLocked") == true,
+		fps = fps, locked = ReplicatedStorage:GetAttribute("KaidoLocked") == true,
 		mult = ReplicatedStorage:GetAttribute("KaidoMult") or 1, multUntil = ReplicatedStorage:GetAttribute("KaidoMultUntil") or 0,
 		timeOverride = ReplicatedStorage:GetAttribute("KaidoTime"), jobId = game.JobId, bans = banList, log = adminLog,
 	}
