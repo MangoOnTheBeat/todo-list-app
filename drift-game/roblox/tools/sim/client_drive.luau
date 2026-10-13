@@ -125,4 +125,45 @@ game:GetService("Players").PlayerAdded:Fire(cheater)
 local res = rawget(rem:FindFirstChild("Admin"), "OnServerInvoke")(cheater, "credits", 88, 999999)
 print("cheater admin call:", res.ok, res.msg)
 print("cheater sees admin flag:", rawget(rem:FindFirstChild("GetProfile"), "OnServerInvoke")(cheater).admin)
+-- ===== multiplayer: a burst of updates (as after a hitch) must not stack copies of one car =====
+click("Play with others"); frames(10)
+local function count(name) local n = 0 for _, m in workspace:GetChildren() do if m.Name == name then n += 1 end end return n end
+for i = 1, 120 do others.OnClientEvent:Fire(55, 10 + i, 6, 10, 0, "jza", 0, i % 2 == 0) end
+frames(3)
+print("cars for driver 55 after 120 updates:", count("Driver55"))
+others.OnClientEvent:Fire(55, 10, 6, 10, 0, "jza", 2, false); frames(3)
+print("cars for driver 55 after a repaint:", count("Driver55"))
+print("my cars:", count("MyCar"))
+local ghostSounds, ourId = 0, nil
+for _, d in workspace:GetDescendants() do
+	if d.ClassName == "Sound" and d.Name == "kaido_engine_low" then ghostSounds += 1; ourId = rawget(d, "SoundId") end
+end
+print("ghost engine sounds:", ghostSounds, "low layer stays empty in simple mode:", ourId == "")
+-- a crowd: only the nearest two make engine noise
+for uid = 200, 205 do others.OnClientEvent:Fire(uid, 30 * (uid - 199), 6, 10, 0, "ae8", 0, false) end
+frames(3)
+local mids = 0
+for _, d in workspace:GetDescendants() do if d.ClassName == "Sound" and d.Name == "kaido_engine_mid" then mids += 1 end end
+print("engine sounds with 7 drivers around:", mids)
+-- ===== admin: anyone, in any server or offline =====
+local plrs = game:GetService("Players")
+rawset(plrs, "GetUserIdFromNameAsync", function(_, n) if n == "OfflineFriend" then return 4242 end error("no user") end)
+rawset(plrs, "GetNameFromUserIdAsync", function(_, id) return if id == 4242 then "OfflineFriend" else "user" .. id end)
+key("F2"); frames(5)
+clickExact("Anywhere"); frames(3)
+typeInto("Their username", "OfflineFriend"); clickExact("Find"); frames(3)
+local found = false
+for _, d in gui:GetDescendants() do local t = rawget(d, "Text"); if type(t) == "string" and t:find("OfflineFriend  ·  ID 4242", 1, true) then found = true end end
+print("found offline player:", found)
+typeInto("Amount, e.g. 50000", "12345"); clickExact("Set credits"); frames(3)
+for _, d in gui:GetDescendants() do local t = rawget(d, "Text"); if type(t) == "string" and (t:find("12345") or t:find("Couldn") or t:find("Find someone") or t:find("for OfflineFriend")) then print("UI:", d.ClassName, t) end end
+print("offline credits saved:", STORES.KaidoDrift_v2.p_4242 and STORES.KaidoDrift_v2.p_4242.credits)
+local realDelay = task.delay; task.delay = function() end -- keep the "tap again" confirm armed
+clickExact("Ban forever"); clickExact("Tap again to confirm"); frames(3)
+task.delay = realDelay
+for _, d in gui:GetDescendants() do local t = rawget(d, "Text"); if type(t) == "string" and (t:find("Banned") or t:find("ban")) then print("UI:", d.ClassName, t) end end
+print("offline ban saved:", STORES.KaidoBans_v1.list and STORES.KaidoBans_v1.list["4242"] ~= nil)
+typeInto("Message (filtered", "Server restart soon"); clickExact("Announce everywhere"); frames(3)
+clickExact("Start everywhere"); frames(3)
+print("event everywhere running:", (RS:GetAttribute("KaidoMultUntil") or 0) > os.time())
 print("CLIENT SIM OK")

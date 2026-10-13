@@ -98,6 +98,10 @@ with **F2**. Every action is checked again on the server. Tabs:
   events with a countdown everyone sees; force the time of day; send or freeze everyone; lock the server; kick
   everyone; shut down.
 - **Bans:** the ban list with Unban, and banning someone by user ID who isn't in the server.
+- **Anywhere:** works across every running server and on players who aren't online: announce everywhere, start or end a
+  credits event everywhere, shut down every server (handy after publishing an update), and find anyone by username or user
+  ID to change their credits, best drift or cars, erase their progress, kick them from whichever server they're in, or ban
+  and unban them. Uses MessagingService and the saved data, so it needs Game Settings › Security › API access turned on.
 - **Log:** what admins did in this server.
 - **Me:** ghost mode (drive through walls), speed boost, teleports, 1,000,000 CR, unlock everything.
 

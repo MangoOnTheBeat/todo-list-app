@@ -857,16 +857,23 @@ local function log(admin, text)
 	table.insert(adminLog, 1, os.date("!%H:%M", os.time()) .. "  " .. admin.Name .. ": " .. text)
 	if #adminLog > 60 then table.remove(adminLog) end
 end
+local bansLoaded = -math.huge
 local function loadBans()
 	if not banStore then return end
+	bansLoaded = os.clock()
 	local ok, data = pcall(function() return banStore:GetAsync("list") end)
-	if ok and type(data) == "table" then bans = {} for k, v in data do bans[tonumber(k)] = v end end
+	if ok and type(data) == "table" then bans = {} for k, v in data do if tonumber(k) and type(v) == "table" then bans[tonumber(k)] = v end end end
 end
-local function saveBans()
+-- write one person's ban (or unban) into the saved list without undoing other servers' changes
+local function saveBans(uid)
 	if not banStore then return end
-	local out = {}
-	for k, v in bans do out[tostring(k)] = v end
-	pcall(function() banStore:SetAsync("list", out) end)
+	pcall(function()
+		banStore:UpdateAsync("list", function(old)
+			old = type(old) == "table" and old or {}
+			old[tostring(uid)] = bans[uid]
+			return old
+		end)
+	end)
 end
 task.spawn(loadBans)
 local function banActive(uid)
@@ -881,6 +888,7 @@ local function banMessage(b)
 end
 -- banned players and (when the server is locked) everyone but admins are turned away at the door
 Players.PlayerAdded:Connect(function(pl)
+	if os.clock() - bansLoaded > 20 then loadBans() end -- pick up bans made in other servers
 	local b = banActive(pl.UserId)
 	if b then pl:Kick(banMessage(b)); return end
 	if ReplicatedStorage:GetAttribute("KaidoLocked") and not isAdmin(pl) then pl:Kick("This server is locked by the game owner. Try another server.") end
@@ -938,6 +946,98 @@ local function filtered(text, fromId, toId)
 	return ok and res or nil
 end
 
+-- ===== every server at once, and players who aren't in this server =====
+-- MessagingService carries commands to all running servers; offline players are changed in their saved data.
+local MessagingService = game:GetService("MessagingService")
+local TOPIC = "KaidoAdmin"
+local function publish(msg)
+	msg.job = game.JobId
+	task.spawn(function() pcall(function() MessagingService:PublishAsync(TOPIC, HttpService:JSONEncode(msg)) end) end)
+end
+local function shutdownHere(reason)
+	for _, pl in Players:GetPlayers() do
+		save(pl)
+		task.defer(function() pl:Kick(reason) end)
+	end
+end
+-- the changes that work on a saved profile (offline) and on a live one alike
+local OFFLINE = {
+	credits = function(p, v) p.credits = math.max(0, (tonumber(p.credits) or 0) + math.clamp(math.floor(tonumber(v) or 0), -1e9, 1e9)); return "Changed credits" end,
+	setCredits = function(p, v) p.credits = math.clamp(math.floor(tonumber(v) or 0), 0, 1e9); return "Set credits to " .. p.credits end,
+	unlockAll = function(p) p.owned = type(p.owned) == "table" and p.owned or {}; for _, c in Config.Cars do if not c.premium then p.owned[c.id] = true end end; return "Unlocked every garage car" end,
+	setBest = function(p, v) p.best = math.max(0, math.floor(tonumber(v) or 0)); return "Set best drift to " .. p.best end,
+	erase = function(p)
+		local fresh = newProfile()
+		fresh.settings, fresh.admin = p.settings or fresh.settings, p.admin
+		local owned = type(p.owned) == "table" and p.owned or {}
+		for _, c in Config.Premium do if owned[c.id] then fresh.owned[c.id] = true end end -- paid cars stay
+		for k, v in fresh do p[k] = v end
+		for k in p do if fresh[k] == nil then p[k] = nil end end
+		return "Erased all progress"
+	end,
+}
+-- apply to a player in this server, if they're here
+local function applyLive(uid, op, value)
+	local pl = Players:GetPlayerByUserId(uid)
+	local p = pl and profiles[pl]
+	if not p then return nil end
+	local msg = OFFLINE[op](p, value)
+	stats(pl, p); dirty[pl] = true; boardDirty[pl] = true
+	ProfileChanged:FireClient(pl, view(p), nil, "admin")
+	return msg
+end
+pcall(function()
+	MessagingService:SubscribeAsync(TOPIC, function(packet)
+		local ok, msg = pcall(function() return HttpService:JSONDecode(packet.Data) end)
+		if not ok or type(msg) ~= "table" or msg.job == game.JobId then return end
+		if msg.kind == "announce" then
+			Announce:FireAllClients(tostring(msg.text), tostring(msg.from))
+		elseif msg.kind == "event" then
+			ReplicatedStorage:SetAttribute("KaidoMult", math.clamp(tonumber(msg.mult) or 1, 1, 10))
+			ReplicatedStorage:SetAttribute("KaidoMultUntil", tonumber(msg.untilTime) or 0)
+		elseif msg.kind == "shutdown" then
+			shutdownHere(tostring(msg.reason))
+		elseif msg.kind == "kick" then
+			local pl = Players:GetPlayerByUserId(tonumber(msg.uid) or 0)
+			if pl then save(pl); pl:Kick(tostring(msg.reason)) end
+		elseif msg.kind == "bans" then
+			loadBans()
+			local pl = msg.kick and Players:GetPlayerByUserId(tonumber(msg.kick) or 0)
+			local b = pl and banActive(pl.UserId)
+			if b then save(pl); pl:Kick(banMessage(b)) end
+		elseif msg.kind == "profile" and OFFLINE[msg.op] then
+			applyLive(tonumber(msg.uid) or 0, msg.op, msg.value)
+		end
+	end)
+end)
+-- name or user ID typed in the panel -> user ID and name
+local function findUser(q)
+	q = string.gsub(tostring(q or ""), "^%s*@?(.-)%s*$", "%1")
+	if q == "" then return nil end
+	local uid = tonumber(q)
+	if not uid then
+		local ok, res = pcall(function() return Players:GetUserIdFromNameAsync(q) end)
+		if not ok then return nil end
+		uid = res
+	end
+	local name
+	local ok = pcall(function() name = Players:GetNameFromUserIdAsync(uid) end)
+	if not ok then return nil end
+	return uid, name
+end
+local function lookup(uid, name)
+	local here = Players:GetPlayerByUserId(uid)
+	local data = here and profiles[here]
+	if not data and store then
+		local ok, res = pcall(function() return store:GetAsync("p_" .. uid) end)
+		data = ok and type(res) == "table" and res or nil
+	end
+	local cars = 0
+	if data and type(data.owned) == "table" then for _ in data.owned do cars += 1 end end
+	return { id = uid, name = name, played = data ~= nil, here = here ~= nil, credits = data and tonumber(data.credits) or 0, best = data and tonumber(data.best) or 0,
+		total = data and tonumber(data.total) or 0, cars = cars, banned = banActive(uid) ~= nil }
+end
+
 Admin.OnServerInvoke = function(player, action, targetId, value)
 	if not isAdmin(player) then
 		warn("Kaido Drift: non-admin " .. player.Name .. " tried the admin panel")
@@ -950,6 +1050,77 @@ Admin.OnServerInvoke = function(player, action, targetId, value)
 		return r
 	end
 	if action == "list" then return result(true, "") end
+
+	-- ===== every server =====
+	if action == "announceAll" then
+		if type(value) ~= "string" or #value == 0 then return result(false, "Type a message first") end
+		local text = filtered(value, player.UserId)
+		if not text then return result(false, "Roblox's text filter didn't answer, try again") end
+		Announce:FireAllClients(text, player.DisplayName)
+		publish({ kind = "announce", text = text, from = player.DisplayName })
+		log(player, "announced in every server: " .. text)
+		return result(true, "Announced in every server")
+	elseif action == "eventAll" or action == "endEventAll" then
+		local mult = math.clamp(math.floor(tonumber(type(value) == "table" and value[1]) or 2), 1, 10)
+		local mins = math.clamp(math.floor(tonumber(type(value) == "table" and value[2]) or 15), 1, 720)
+		local untilTime = if action == "eventAll" then os.time() + mins * 60 else 0
+		ReplicatedStorage:SetAttribute("KaidoMult", mult)
+		ReplicatedStorage:SetAttribute("KaidoMultUntil", untilTime)
+		publish({ kind = "event", mult = mult, untilTime = untilTime })
+		log(player, if untilTime > 0 then string.format("started a ×%d event in every server for %d min", mult, mins) else "ended the event in every server")
+		return result(true, if untilTime > 0 then string.format("×%d credits for %d minutes in every server", mult, mins) else "Event ended in every server")
+	elseif action == "shutdownAll" then
+		local reason = type(value) == "string" and value ~= "" and string.sub(value, 1, 80) or "Kaido Drift is updating. Rejoin in a minute!"
+		publish({ kind = "shutdown", reason = reason })
+		log(player, "shut down every server")
+		task.delay(1, shutdownHere, reason)
+		return result(true, "Shutting down every server…")
+
+	-- ===== anyone, in any server or offline (value = { name or ID, ... }) =====
+	elseif action == "find" then
+		local uid, name = findUser(value)
+		if not uid then return result(false, "No Roblox user called that") end
+		local f = lookup(uid, name)
+		return result(true, f.played and ("Found " .. name) or (name .. " has never played Kaido Drift"), { found = f })
+	elseif action == "anyKick" then
+		local uid = tonumber(type(value) == "table" and value[1])
+		if not uid then return result(false, "Find someone first") end
+		if uid == player.UserId then return result(false, "You can't kick yourself") end
+		local reason = type(value[2]) == "string" and value[2] ~= "" and string.sub(value[2], 1, 80) or "Removed by the game owner"
+		local pl = Players:GetPlayerByUserId(uid)
+		if pl then save(pl); pl:Kick(reason) end
+		publish({ kind = "kick", uid = uid, reason = reason })
+		log(player, "kicked user " .. uid .. " from any server")
+		return result(true, "Kicked from whichever server they're in")
+	elseif action == "anyProfile" then
+		-- value = { userId, op, amount }
+		local uid, op, arg = tonumber(type(value) == "table" and value[1]), type(value) == "table" and value[2], type(value) == "table" and value[3] or nil
+		if not uid or not OFFLINE[op] then return result(false, "Find someone first") end
+		local name = "user " .. uid
+		pcall(function() name = Players:GetNameFromUserIdAsync(uid) end)
+		local msg = applyLive(uid, op, arg)
+		if not msg then
+			-- tell their server if they're playing somewhere else, and change their saved data too
+			publish({ kind = "profile", uid = uid, op = op, value = arg })
+			if not store then return result(false, "Saving isn't available (turn on API access in Game Settings › Security)") end
+			local ok, err = pcall(function()
+				store:UpdateAsync("p_" .. uid, function(old)
+					local p = type(old) == "table" and old or newProfile()
+					msg = OFFLINE[op](p, arg)
+					return p
+				end)
+			end)
+			if not ok then return result(false, "Couldn't save: " .. tostring(err)) end
+		end
+		if op == "erase" then
+			pcall(function() if bestStore then bestStore:RemoveAsync(tostring(uid)) end end)
+			pcall(function() if totalStore then totalStore:RemoveAsync(tostring(uid)) end end)
+		elseif op == "setBest" then
+			pcall(function() if bestStore then bestStore:SetAsync(tostring(uid), math.max(0, math.floor(tonumber(arg) or 0))) end end)
+		end
+		log(player, tostring(msg) .. " (" .. name .. ", any server)")
+		return result(true, tostring(msg) .. " for " .. name, { found = lookup(uid, name) })
+	end
 
 	-- ===== whole server =====
 	if action == "announce" then
@@ -1012,7 +1183,7 @@ Admin.OnServerInvoke = function(player, action, targetId, value)
 		local uid = tonumber(value)
 		if uid and bans[uid] then
 			log(player, "unbanned " .. tostring(bans[uid].name))
-			bans[uid] = nil; saveBans()
+			bans[uid] = nil; saveBans(uid); publish({ kind = "bans" })
 			return result(true, "Unbanned")
 		end
 		return result(false, "Not on the ban list")
@@ -1025,7 +1196,8 @@ Admin.OnServerInvoke = function(player, action, targetId, value)
 		local name = "user " .. uid
 		pcall(function() name = Players:GetNameFromUserIdAsync(uid) end)
 		bans[uid] = { name = name, reason = tostring(value[2] or "Banned"):sub(1, 80), by = player.Name, untilTime = if hours > 0 then os.time() + hours * 3600 else 0 }
-		saveBans()
+		saveBans(uid)
+		publish({ kind = "bans", kick = uid })
 		local pl = Players:GetPlayerByUserId(uid)
 		if pl then pl:Kick(banMessage(bans[uid])) end
 		log(player, "banned " .. name)
@@ -1147,7 +1319,8 @@ Admin.OnServerInvoke = function(player, action, targetId, value)
 		if reason == "" then reason = "Banned by the game owner" end
 		local hours = tonumber(type(value) == "table" and value[2]) or 0
 		bans[target.UserId] = { name = target.Name, reason = reason:sub(1, 80), by = player.Name, untilTime = if hours > 0 then os.time() + hours * 3600 else 0 }
-		saveBans()
+		saveBans(target.UserId)
+		publish({ kind = "bans" })
 		save(target)
 		target:Kick(banMessage(bans[target.UserId]))
 		log(player, "banned " .. target.Name .. (hours > 0 and (" for " .. hours .. "h") or " forever") .. ": " .. reason)

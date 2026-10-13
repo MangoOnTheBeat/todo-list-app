@@ -89,10 +89,15 @@ end
 -- build (or clone) the browser model of car `def`
 function CarMesh.build(def, name: string, paint: Color3?)
 	local key = def.mesh or def.id -- special cars reuse a browser body
+	-- another call is already building this car: wait for it instead of building it twice
+	while templates[key] == "busy" do task.wait() end
 	local tpl = templates[key]
 	if tpl == false then return nil end
 	if not tpl then
+		templates[key] = "busy"
 		local ok, res = pcall(function()
+			-- the "lite" install has no car shapes at all: use the block car straight away instead of waiting
+			if folder:FindFirstChild("_lite") then error("lite build: no car meshes") end
 			local src = require(folder:WaitForChild(key, 5))
 			local m = Instance.new("Model")
 			m.Name = key

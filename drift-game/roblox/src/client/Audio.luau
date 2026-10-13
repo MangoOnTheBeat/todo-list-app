@@ -22,6 +22,8 @@ local KEYWORDS = {
 	wind = { "wind" },
 }
 local function learn(d: Instance)
+	-- skip the game's own car sounds (they reuse these names and would be mistaken for the real files)
+	if d:GetAttribute("KaidoMade") then return end
 	local id = if d:IsA("Sound") then d.SoundId elseif d:IsA("AudioPlayer") then (d :: any).AssetId else nil
 	if not id or id == "" then return end
 	local key = string.lower(d.Name)
@@ -79,6 +81,7 @@ end
 local function snd(parent, name, looped, spatial, override)
 	local s = Instance.new("Sound")
 	s.Name = name
+	s:SetAttribute("KaidoMade", true)
 	s.SoundId = override or ids[name] or ""
 	s.Looped = looped
 	s.Volume = 0
@@ -116,6 +119,14 @@ end
 -- rpm, throttle (0..1), slide (0..1), speed in km/h, limiter on, master volume (0..1)
 function Audio:update(dt: number, rpm: number, thr: number, slide: number, kmh: number, limiter: boolean, master: number)
 	self.t += dt
+	-- a looped sound Roblox stopped (too many sounds at once, a hitch) starts again
+	self.check = (self.check or 0) + dt
+	if self.check > 1 then
+		self.check = 0
+		for _, s in { self.layers[1], self.layers[2], self.layers[3], self.off, self.skid, self.wind } do
+			if s.Parent and s.SoundId ~= "" and not s.IsPlaying then s:Play() end
+		end
+	end
 	local car = self.car
 	local pitch = car.pitch or 1
 	-- engine load follows the throttle a little behind, like a real intake

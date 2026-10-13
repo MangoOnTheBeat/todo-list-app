@@ -206,7 +206,19 @@ local function spawnCar(id)
 	local base = Config.car(id or profile.selected)
 	carDef = Config.tuned(base, profile.upg and profile.upg[base.id]) -- garage upgrades change the real numbers
 	local col = paintOf(carDef.id)
-	carModel, usingMesh = buildCar(carDef, "MyCar", col)
+	-- building can wait on the server; if another spawn starts meanwhile, only the newest car is kept
+	U.spawnToken = (U.spawnToken or 0) + 1
+	local token = U.spawnToken
+	carModel = nil
+	U.building = true
+	local ok, built, mesh = pcall(buildCar, carDef, "MyCar", col)
+	if token ~= U.spawnToken then if ok then built:Destroy() end; return end
+	U.building = false
+	if not ok then warn("Kaido: car build failed: " .. tostring(built)); built, mesh = CarModel.build(carDef, "MyCar", col), false end
+	for _, old in workspace:GetChildren() do
+		if old.Name == "MyCar" and old:IsA("Model") then old:Destroy() end
+	end
+	carModel, usingMesh = built, mesh
 	carModel.Parent = workspace
 	for _, a in carModel.PrimaryPart:GetChildren() do
 		if a:IsA("Attachment") then
@@ -724,31 +736,48 @@ end
 local ghosts = {}
 local publicMap = false
 local mode = "title" -- title | garage | settings | pause | play
+local function dropGhost(g)
+	g.gone = true
+	if g.model then g.model:Destroy() end
+	if g.sound then g.sound:destroy() end
+end
 R.Others.OnClientEvent:Connect(function(uid, x, y, z, h, carId, paint, drifting)
 	if not publicMap or (mode ~= "play" and mode ~= "pause") then return end
+	if uid == player.UserId then return end
 	local g = ghosts[uid]
+	local cf = CFrame.new(x, y, z) * CFrame.Angles(0, h + math.pi, 0)
 	if not g or g.carId ~= carId or g.paint ~= paint then
-		if g then g.model:Destroy(); if g.sound then g.sound:destroy() end end
-		local car = Config.car(carId)
-		local m, mesh = buildCar(car, "Driver" .. uid, paint > 0 and Config.Paints[paint] or car.color)
-		local who = Players:GetPlayerByUserId(uid)
-		local tag = make("BillboardGui", { Size = UDim2.new(0, 160, 0, 24), StudsOffset = Vector3.new(0, 7, 0), AlwaysOnTop = true, MaxDistance = 500, Parent = m.PrimaryPart })
-		text({ Text = who and who.DisplayName or "Driver", TextSize = 15, FontFace = Ui.BOLD, TextColor3 = Ui.NEON, TextXAlignment = Enum.TextXAlignment.Center, Parent = tag })
-		m.Parent = workspace
-		setCarLights(m, night())
-		g = { model = m, mesh = mesh, carId = carId, paint = paint, cf = CFrame.new(x, y, z) * CFrame.Angles(0, h + math.pi, 0), sound = Audio.available() and Audio.new(m, car, false) or nil, rpm = 3000, spin = 0 }
+		if g then dropGhost(g) end
+		-- the entry is stored straight away; the car itself is built in the background, so updates that arrive
+		-- while it builds (or after a hitch) just move it instead of building another copy
+		g = { carId = carId, paint = paint, cf = cf, rpm = 3000, spin = 0 }
 		ghosts[uid] = g
+		task.spawn(function()
+			local car = Config.car(carId)
+			local m, mesh = buildCar(car, "Driver" .. uid, paint > 0 and Config.Paints[paint] or car.color)
+			if g.gone or ghosts[uid] ~= g then m:Destroy(); return end
+			local who = Players:GetPlayerByUserId(uid)
+			local tag = make("BillboardGui", { Size = UDim2.new(0, 160, 0, 24), StudsOffset = Vector3.new(0, 7, 0), AlwaysOnTop = true, MaxDistance = 500, Parent = m.PrimaryPart })
+			text({ Text = who and who.DisplayName or "Driver", TextSize = 15, FontFace = Ui.BOLD, TextColor3 = Ui.NEON, TextXAlignment = Enum.TextXAlignment.Center, Parent = tag })
+			m.Parent = workspace
+			setCarLights(m, night())
+			g.model, g.mesh, g.car = m, mesh, car
+		end)
 	end
-	g.target = CFrame.new(x, y, z) * CFrame.Angles(0, h + math.pi, 0)
+	g.target = cf
 	g.drifting = drifting
 	g.seen = os.clock()
 end)
 local function clearGhosts()
-	for uid, g in ghosts do g.model:Destroy(); if g.sound then g.sound:destroy() end; ghosts[uid] = nil end
+	for uid, g in ghosts do dropGhost(g); ghosts[uid] = nil end
+	-- anything left behind by an older version of the game
+	for _, m in workspace:GetChildren() do
+		if m:IsA("Model") and string.match(m.Name, "^Driver%d+$") then m:Destroy() end
+	end
 end
 Players.PlayerRemoving:Connect(function(p)
 	local g = ghosts[p.UserId]
-	if g then g.model:Destroy(); if g.sound then g.sound:destroy() end; ghosts[p.UserId] = nil end
+	if g then dropGhost(g); ghosts[p.UserId] = nil end
 end)
 
 -- ===================== screen switching =====================
@@ -1057,7 +1086,11 @@ local lapCP, prevIdx = 0, START
 local WALL = HALF + 0.65 -- guardrail line on the pass (studs from the centre)
 RunService.RenderStepped:Connect(function(dt)
 	dt = math.min(dt, 0.05)
-	if not carModel then spawnCar() end
+	if not carModel then
+		-- wait for the car being built instead of starting another copy every frame
+		if not U.building then task.spawn(spawnCar) end
+		return
+	end
 	local m = carModel :: Model
 	local c = carDef
 	if U.boost then
@@ -1169,7 +1202,7 @@ RunService.RenderStepped:Connect(function(dt)
 		-- tandem with another driver
 		-- closer = bigger bonus: ×1 at 11 m apart, up to ×2 door to door
 		for _, g in ghosts do
-			if P.drifting and g.drifting then
+			if P.drifting and g.drifting and g.model then
 				local d = (g.cf.Position - Vector3.new(X, posY, Z)).Magnitude
 				local q = math.clamp(1 - (d - 2 * K) / (9 * K), 0, 1)
 				if q > tandem then tandem, tandemWith = q, g end
@@ -1299,19 +1332,29 @@ RunService.RenderStepped:Connect(function(dt)
 	end
 
 	-- other players glide to their latest positions
+	-- only the 2 nearest cars get engine sound, so a crowd can't drown out your own engine
+	local myPos = carModel and carModel.PrimaryPart and carModel.PrimaryPart.Position or Vector3.zero
+	local near = {}
 	for uid, g in ghosts do
 		if os.clock() - g.seen > 3 then
-			g.model:Destroy(); if g.sound then g.sound:destroy() end; ghosts[uid] = nil
-		else
-			local before = g.cf.Position
-			g.cf = g.cf:Lerp(g.target, math.min(1, dt * 10))
-			local spd = (g.cf.Position - before).Magnitude / math.max(dt, 1e-3)
-			g.spin += spd / (CarPhysics.RW * K) * dt
-			placeCar(g.model, g.mesh, g.cf, 0, g.spin, g.spin)
-			if g.sound then
-				g.rpm += ((1500 + spd * 30) - g.rpm) * math.min(1, dt * 3)
-				g.sound:update(dt, math.min(g.rpm, 7000), 0.8, g.drifting and 0.7 or 0, spd / K * 3.6, false, S.sound and S.volume * 0.8 or 0)
-			end
+			dropGhost(g); ghosts[uid] = nil
+		elseif g.model then
+			table.insert(near, g)
+		end
+	end
+	table.sort(near, function(a, b) return (a.cf.Position - myPos).Magnitude < (b.cf.Position - myPos).Magnitude end)
+	for rank, g in near do
+		local before = g.cf.Position
+		g.cf = g.cf:Lerp(g.target, math.min(1, dt * 10))
+		local spd = (g.cf.Position - before).Magnitude / math.max(dt, 1e-3)
+		g.spin += spd / (CarPhysics.RW * K) * dt
+		placeCar(g.model, g.mesh, g.cf, 0, g.spin, g.spin)
+		local audible = rank <= 2 and S.sound and Audio.available()
+		if audible and not g.sound then g.sound = Audio.new(g.model, g.car, false) end
+		if g.sound and not audible then g.sound:destroy(); g.sound = nil end
+		if g.sound then
+			g.rpm += ((1500 + spd * 30) - g.rpm) * math.min(1, dt * 3)
+			g.sound:update(dt, math.min(g.rpm, 7000), 0.8, g.drifting and 0.7 or 0, spd / K * 3.6, false, S.volume * 0.5)
 		end
 	end
 

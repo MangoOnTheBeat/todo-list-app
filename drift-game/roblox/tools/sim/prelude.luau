@@ -110,8 +110,12 @@ function methods.WaitForChild(self, n) return methods.FindFirstChild(self, n) or
 function methods.FindFirstChildOfClass(self, n) for _, c in self.__kids do if c.ClassName == n then return c end end return nil end
 function methods.GetChildren(self) return table.clone(self.__kids) end
 function methods.GetDescendants(self) local o = {}; local function w(x) for _, c in x.__kids do table.insert(o, c); w(c) end end; w(self); return o end
-function methods.IsA(self, c) return self.ClassName == c or (c == "BasePart" and (self.ClassName == "Part" or self.ClassName == "WedgePart" or self.ClassName == "MeshPart")) end
-function methods.Destroy(self) end
+local GUI = { Frame = true, TextLabel = true, TextButton = true, TextBox = true, ImageLabel = true, ImageButton = true, ScrollingFrame = true, CanvasGroup = true, ViewportFrame = true }
+function methods.IsA(self, c)
+	return self.ClassName == c or (c == "BasePart" and (self.ClassName == "Part" or self.ClassName == "WedgePart" or self.ClassName == "MeshPart"))
+		or (c == "GuiObject" and GUI[self.ClassName] == true)
+end
+function methods.Destroy(self) self.Parent = nil end
 function methods.Clone(self) local o = inst(self.ClassName, self.Name); for k, v in self do if k ~= "__kids" and k ~= "__attr" and k ~= "Parent" then rawset(o, k, v) end end; if o.ClassName == "Part" or o.ClassName == "WedgePart" then PARTS += 1 end; for _, c in self.__kids do c:Clone().Parent = o end; return o end
 function methods.FillBlock(self, c, size, mat) FILLS += 1; assert(getmetatable(c) == CF and getmetatable(size) == V and type(mat) == "string", "bad FillBlock args") end
 function methods.FillBall() end
@@ -149,6 +153,8 @@ end
 INST.__newindex = function(t, k, v)
 	if SCRIPTABLE_ONLY_IN_STUDIO[k] then error("cannot set " .. k .. " from a script", 2) end
 	if k == "Parent" then
+		local old = rawget(t, "__parent")
+		if old then local kids = rawget(old, "__kids"); local i = table.find(kids, t); if i then table.remove(kids, i) end end
 		if v then table.insert(rawget(v, "__kids"), t) end
 		rawset(t, "__parent", v)
 		return

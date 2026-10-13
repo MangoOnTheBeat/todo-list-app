@@ -1,5 +1,6 @@
 -- Kaido Drift admin panel (only drawn for admins; the server re-checks every action).
--- Tabs: Players (everything for one player), Server (everyone at once), Bans, Log, Me (your own tools).
+-- Tabs: Players (everything for one player), Server (everyone at once), Anywhere (every server, and players
+-- who aren't in this one), Bans, Log, Me (your own tools).
 -- Also owns the announcement banner and the credits-event pill that every player sees.
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -133,6 +134,7 @@ function AdminPanel.init(ctx)
 			Ui.pop(status, 1.08)
 			if res.players then data.players = res.players end
 			if res.server then data.server = res.server end
+			if res.found then data.found = res.found end
 			if res.pos then ctx.placeAt(res.pos[1] + 14, res.pos[2] + 0.5, res.pos[3], res.pos[4]); ctx.setMode("play"); return end
 			render()
 		end)
@@ -143,7 +145,7 @@ function AdminPanel.init(ctx)
 	local function playerById(id) for _, p in data.players do if p.id == id then return p end end end
 	local function hms(sec) sec = math.max(0, math.floor(sec)); return string.format("%d:%02d:%02d", sec // 3600, (sec % 3600) // 60, sec % 60) end
 
-	local tabs = { { "players", "Players" }, { "server", "Server" }, { "bans", "Bans" }, { "log", "Log" }, { "me", "Me" } }
+	local tabs = { { "players", "Players" }, { "server", "Server" }, { "anywhere", "Anywhere" }, { "bans", "Bans" }, { "log", "Log" }, { "me", "Me" } }
 	Ui.chips(tabs, tab, function(v) tab = v; render() end, 3, col)
 
 	-- ===== Players =====
@@ -281,6 +283,56 @@ function AdminPanel.init(ctx)
 		act(rE, "Shut down server", "danger", function() run("shutdown", reason.Text, true) end, true)
 	end
 
+	-- ===== Anywhere: every server, and anyone by name =====
+	local function renderAnywhere()
+		local an = section("Announcement in every server", 1)
+		local msg = box(an, "Message (filtered by Roblox)", 1)
+		act(row(an, 2), "Announce everywhere", "primary", function() run("announceAll", msg.Text, true); msg.Text = "" end)
+
+		local ev = section("Credits event in every server", 2)
+		local mult, mins = 2, 30
+		Ui.chips({ { 2, "×2" }, { 3, "×3" }, { 5, "×5" }, { 10, "×10" } }, mult, function(v) mult = v end, 1, ev)
+		Ui.chips({ { 10, "10 min" }, { 30, "30 min" }, { 60, "1 hour" }, { 180, "3 hours" } }, mins, function(v) mins = v end, 2, ev)
+		local rE = row(ev, 3)
+		act(rE, "Start everywhere", "good", function() run("eventAll", { mult, mins }, true) end)
+		act(rE, "End everywhere", nil, function() run("endEventAll", nil, true) end)
+
+		local fp = section("Find any player (in any server, or offline)", 3)
+		local q = box(fp, "Their username or user ID", 1)
+		act(row(fp, 2), "Find", "primary", function() run("find", q.Text, true) end)
+		local f = data.found
+		if f then
+			Ui.fine(string.format("%s  ·  ID %d  ·  %s  ·  %s CR  ·  best drift %s  ·  %d cars%s", f.name, f.id,
+				f.here and "in this server" or (f.played and "not in this server" or "never played"), fmt(f.credits), fmt(f.best), f.cars,
+				f.banned and "  ·  BANNED" or ""), 3, fp)
+			local amount = box(fp, "Amount, e.g. 50000", 4, true)
+			local r1 = row(fp, 5)
+			local function any(op, v) run("anyProfile", { f.id, op, v }, true) end
+			act(r1, "Give", "primary", function() any("credits", tonumber(amount.Text) or 0) end)
+			act(r1, "Take", nil, function() any("credits", -(tonumber(amount.Text) or 0)) end)
+			act(r1, "Set credits", nil, function() any("setCredits", tonumber(amount.Text) or 0) end)
+			act(r1, "Set best drift", nil, function() any("setBest", tonumber(amount.Text) or 0) end)
+			local r2 = row(fp, 6)
+			act(r2, "Unlock all garage cars", "good", function() any("unlockAll") end)
+			act(r2, "Erase all progress", "danger", function() any("erase") end, true)
+			local reason = box(fp, "Reason (shown to them)", 7)
+			local r3 = row(fp, 8)
+			act(r3, "Kick (any server)", "danger", function() run("anyKick", { f.id, reason.Text }, true) end, true)
+			if f.banned then
+				act(r3, "Unban", "good", function() run("unban", f.id, true); f.banned = false end, true)
+			else
+				act(r3, "Ban 1 day", "danger", function() run("banId", { f.id, reason.Text, 24 }, true); f.banned = true end, true)
+				act(r3, "Ban forever", "danger", function() run("banId", { f.id, reason.Text, 0 }, true); f.banned = true end, true)
+			end
+			Ui.fine("Changes reach them right away if they're playing in another server; if they're offline, they see them next time they join.", 9, fp)
+		end
+
+		local dz = section("Danger zone", 4)
+		local why = box(dz, "Message shown to everyone (optional)", 1)
+		act(row(dz, 2), "Shut down EVERY server", "danger", function() run("shutdownAll", why.Text, true) end, true)
+		Ui.fine("Handy after you publish an update: everyone rejoins on the new version.", 3, dz)
+	end
+
 	-- ===== Bans =====
 	local function renderBans()
 		local s = data.server
@@ -337,6 +389,7 @@ function AdminPanel.init(ctx)
 		clear()
 		if tab == "players" then renderPlayers()
 		elseif tab == "server" then renderServer()
+		elseif tab == "anywhere" then renderAnywhere()
 		elseif tab == "bans" then renderBans()
 		elseif tab == "log" then renderLog()
 		else renderMe() end
