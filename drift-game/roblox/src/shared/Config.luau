@@ -26,13 +26,13 @@ local function special(base: string, t)
 end
 Config.Premium = {
 	special("fd7", { id = "fd7x", name = "Akagi FD-7 Spirit Rotor", tag = "Special · 1,180 kg triple-rotor · screams to 9,500",
-		pass = 0, robux = 149, color = Color3.fromHex("#e8f0ff"), rim = Color3.fromHex("#ff7eb6"),
+		pass = 2029130262, robux = 149, color = Color3.fromHex("#e8f0ff"), rim = Color3.fromHex("#ff7eb6"),
 		mass = 1180, torque = 640, peak = 6800, red = 9500, mu = 1.2, lock = 64 }),
 	special("jza", { id = "jzax", name = "Kaze JZA-80 Apex Omega", tag = "Special · 1,000 hp twin-turbo six · fastest on the mountain",
-		pass = 0, robux = 249, color = Color3.fromHex("#14141a"), rim = Color3.fromHex("#ffc94d"),
+		pass = 2029784268, robux = 249, color = Color3.fromHex("#14141a"), rim = Color3.fromHex("#ffc94d"),
 		mass = 1420, torque = 880, peak = 5200, red = 8200, mu = 1.22, lock = 65 }),
 	special("r34", { id = "r34x", name = "Hoshi R-34 Raijin Z-Tune", tag = "Special · stroked twin-turbo · 6-speed · ultimate grip",
-		pass = 0, robux = 399, color = Color3.fromHex("#9aa3b2"), rim = Color3.fromHex("#59e3ff"),
+		pass = 2028884270, robux = 399, color = Color3.fromHex("#9aa3b2"), rim = Color3.fromHex("#59e3ff"),
 		mass = 1460, torque = 860, peak = 5000, red = 8600, mu = 1.26, lock = 66 }),
 }
 for _, c in Config.Premium do table.insert(Config.Cars, c) end
