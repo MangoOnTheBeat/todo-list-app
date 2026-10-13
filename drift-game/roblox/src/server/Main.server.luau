@@ -41,6 +41,7 @@ local ProfileChanged = remote("RemoteEvent", "Profile")
 local Tune = remote("RemoteFunction", "Tune")
 local Admin = remote("RemoteFunction", "Admin")
 local Announce = remote("RemoteEvent", "Announce")
+local AdminEvent = remote("RemoteEvent", "AdminEvent") -- admin commands sent to one player's game (teleport, freeze, message)
 local BuySpecial = remote("RemoteEvent", "BuySpecial")
 remotes.Parent = ReplicatedStorage
 
@@ -755,7 +756,9 @@ Bank.OnServerEvent:Connect(function(player, points, zone, tandemPts, combo)
 	lastBank[player] = now
 	points = math.floor(math.min(points, 600000, since * 30000))
 	if points <= 0 then return end
-	p.credits += points // 10 -- as in the browser game: one credit per ten drift points
+	-- one credit per ten drift points (as in the browser game), times any admin "double credits" event
+	local mult = if (ReplicatedStorage:GetAttribute("KaidoMultUntil") or 0) > os.time() then (ReplicatedStorage:GetAttribute("KaidoMult") or 1) else 1
+	p.credits += (points // 10) * mult
 	p.best = math.max(p.best, points)
 	p.total += points
 	stats(player, p)
@@ -842,77 +845,313 @@ State.OnServerEvent:Connect(function(player, x, y, z, h, carId, paint, drifting)
 end)
 
 -- ===================== admin panel (owner only, checked on the server) =====================
+-- Every action is checked here: the panel is only drawn for admins, but this is what actually protects it.
+local banStore
+pcall(function() banStore = DataStoreService:GetDataStore("KaidoBans_v1") end)
+local bans = {} -- [userId] = { name, reason, by, untilTime (0 = forever) }
+local adminLog = {}
+local frozen, muted = {}, {}
+local serverStart = os.time()
+local setMuted
+local function log(admin, text)
+	table.insert(adminLog, 1, os.date("!%H:%M", os.time()) .. "  " .. admin.Name .. ": " .. text)
+	if #adminLog > 60 then table.remove(adminLog) end
+end
+local function loadBans()
+	if not banStore then return end
+	local ok, data = pcall(function() return banStore:GetAsync("list") end)
+	if ok and type(data) == "table" then bans = {} for k, v in data do bans[tonumber(k)] = v end end
+end
+local function saveBans()
+	if not banStore then return end
+	local out = {}
+	for k, v in bans do out[tostring(k)] = v end
+	pcall(function() banStore:SetAsync("list", out) end)
+end
+task.spawn(loadBans)
+local function banActive(uid)
+	local b = bans[uid]
+	if not b then return nil end
+	if b.untilTime and b.untilTime > 0 and os.time() > b.untilTime then bans[uid] = nil; return nil end
+	return b
+end
+local function banMessage(b)
+	local when = if b.untilTime and b.untilTime > 0 then ("until " .. os.date("!%d %b %H:%M UTC", b.untilTime)) else "permanently"
+	return "You are banned from Kaido Drift " .. when .. ". Reason: " .. (b.reason or "none")
+end
+-- banned players and (when the server is locked) everyone but admins are turned away at the door
+Players.PlayerAdded:Connect(function(pl)
+	local b = banActive(pl.UserId)
+	if b then pl:Kick(banMessage(b)); return end
+	if ReplicatedStorage:GetAttribute("KaidoLocked") and not isAdmin(pl) then pl:Kick("This server is locked by the game owner. Try another server.") end
+	if muted[pl.UserId] then task.delay(3, function() setMuted(pl, true) end) end
+end)
+
+-- chat mute through TextChatService (the player's TextSource in every channel)
+setMuted = function(pl, on)
+	muted[pl.UserId] = on or nil
+	local ok, channels = pcall(function() return game:GetService("TextChatService"):FindFirstChild("TextChannels") end)
+	if not (ok and channels) then return end
+	for _, ch in channels:GetChildren() do
+		for _, src in ch:GetChildren() do
+			if src:IsA("TextSource") and src.UserId == pl.UserId then src.CanSend = not on end
+		end
+	end
+end
+
 local function playerList()
 	local out = {}
 	for _, pl in Players:GetPlayers() do
 		local p = profiles[pl]
-		table.insert(out, { id = pl.UserId, name = pl.DisplayName .. " (@" .. pl.Name .. ")", credits = p and p.credits or 0, public = publicMode[pl] == true })
+		local ping = 0
+		pcall(function() ping = math.floor(pl:GetNetworkPing() * 1000) end)
+		table.insert(out, {
+			id = pl.UserId, name = pl.DisplayName .. " (@" .. pl.Name .. ")", credits = p and p.credits or 0, best = p and p.best or 0,
+			car = p and Config.car(p.selected).name or "?", public = publicMode[pl] == true, ping = ping,
+			frozen = frozen[pl] == true, muted = muted[pl.UserId] == true, admin = isAdmin(pl),
+		})
 	end
 	return out
 end
+local function serverInfo()
+	local mem = 0
+	pcall(function() mem = math.floor(game:GetService("Stats"):GetTotalMemoryUsageMb()) end)
+	local banList = {}
+	for uid, b in bans do
+		if banActive(uid) then table.insert(banList, { id = uid, name = b.name, reason = b.reason, untilTime = b.untilTime or 0, by = b.by }) end
+	end
+	return {
+		players = #Players:GetPlayers(), maxPlayers = Players.MaxPlayers, uptime = os.time() - serverStart, memory = mem,
+		fps = math.floor(workspace:GetRealPhysicsFPS()), locked = ReplicatedStorage:GetAttribute("KaidoLocked") == true,
+		mult = ReplicatedStorage:GetAttribute("KaidoMult") or 1, multUntil = ReplicatedStorage:GetAttribute("KaidoMultUntil") or 0,
+		timeOverride = ReplicatedStorage:GetAttribute("KaidoTime"), jobId = game.JobId, bans = banList, log = adminLog,
+	}
+end
+local function filtered(text, fromId, toId)
+	text = string.sub(tostring(text), 1, 160)
+	local ok, res = pcall(function()
+		local f = TextService:FilterStringAsync(text, fromId)
+		if toId then return f:GetNonChatStringForUserAsync(toId) end
+		return f:GetNonChatStringForBroadcastAsync()
+	end)
+	return ok and res or nil
+end
+
 Admin.OnServerInvoke = function(player, action, targetId, value)
 	if not isAdmin(player) then
 		warn("Kaido Drift: non-admin " .. player.Name .. " tried the admin panel")
 		return { ok = false, msg = "Not allowed" }
 	end
 	if type(action) ~= "string" then return { ok = false, msg = "Bad request" } end
-	if action == "list" then return { ok = true, players = playerList() } end
+	local function result(ok, msg, extra)
+		local r = { ok = ok, msg = msg, players = playerList(), server = serverInfo() }
+		if extra then for k, v in extra do r[k] = v end end
+		return r
+	end
+	if action == "list" then return result(true, "") end
+
+	-- ===== whole server =====
+	if action == "announce" then
+		if type(value) ~= "string" or #value == 0 then return result(false, "Type a message first") end
+		local text = filtered(value, player.UserId)
+		if not text then return result(false, "Roblox's text filter didn't answer, try again") end
+		Announce:FireAllClients(text, player.DisplayName)
+		log(player, "announced: " .. text)
+		return result(true, "Announced to everyone")
+	elseif action == "giveAll" then
+		local n = math.clamp(math.floor(tonumber(value) or 0), -10000000, 10000000)
+		for pl, p in profiles do
+			p.credits = math.max(0, p.credits + n); stats(pl, p); dirty[pl] = true
+			ProfileChanged:FireClient(pl, view(p), nil, "admin")
+		end
+		log(player, string.format("gave everyone %d CR", n))
+		return result(true, string.format("Gave everyone %d CR", n))
+	elseif action == "event" then
+		-- value = { mult, minutes }
+		local mult = math.clamp(math.floor(tonumber(type(value) == "table" and value[1]) or 2), 1, 10)
+		local mins = math.clamp(math.floor(tonumber(type(value) == "table" and value[2]) or 15), 1, 720)
+		ReplicatedStorage:SetAttribute("KaidoMult", mult)
+		ReplicatedStorage:SetAttribute("KaidoMultUntil", os.time() + mins * 60)
+		log(player, string.format("started a ×%d credits event for %d min", mult, mins))
+		return result(true, string.format("×%d credits for %d minutes, for everyone", mult, mins))
+	elseif action == "endEvent" then
+		ReplicatedStorage:SetAttribute("KaidoMultUntil", 0)
+		log(player, "ended the credits event")
+		return result(true, "Credits event ended")
+	elseif action == "time" then
+		local t = tonumber(value)
+		ReplicatedStorage:SetAttribute("KaidoTime", if t then math.clamp(t, 0, 23.99) else nil)
+		log(player, t and ("set everyone's time to " .. t) or "gave everyone their own time back")
+		return result(true, t and "Time of day set for everyone" or "Everyone's own time of day is back")
+	elseif action == "tpAll" then
+		local where = if value == "pass" then "pass" else "city"
+		for _, pl in Players:GetPlayers() do AdminEvent:FireClient(pl, "send", where) end
+		log(player, "sent everyone to the " .. where)
+		return result(true, "Sent everyone to the " .. where)
+	elseif action == "freezeAll" then
+		for _, pl in Players:GetPlayers() do if pl ~= player then frozen[pl] = value == true; AdminEvent:FireClient(pl, "freeze", value == true) end end
+		log(player, value and "froze everyone" or "unfroze everyone")
+		return result(true, value and "Everyone else is frozen" or "Everyone is unfrozen")
+	elseif action == "lock" then
+		ReplicatedStorage:SetAttribute("KaidoLocked", value == true)
+		log(player, value and "locked the server" or "unlocked the server")
+		return result(true, value and "Server locked: only admins can join" or "Server unlocked")
+	elseif action == "kickAll" or action == "shutdown" then
+		local reason = type(value) == "string" and value ~= "" and string.sub(value, 1, 80) or (action == "shutdown" and "The server was shut down by the game owner. Rejoin to play!" or "Removed by the game owner")
+		for _, pl in Players:GetPlayers() do
+			if pl ~= player or action == "shutdown" then
+				if pl ~= player then save(pl) end
+				task.defer(function() pl:Kick(reason) end)
+			end
+		end
+		if action == "shutdown" then save(player) end
+		log(player, action == "shutdown" and "shut the server down" or "kicked everyone")
+		return result(true, action == "shutdown" and "Shutting down…" or "Kicked everyone else")
+	elseif action == "unban" then
+		local uid = tonumber(value)
+		if uid and bans[uid] then
+			log(player, "unbanned " .. tostring(bans[uid].name))
+			bans[uid] = nil; saveBans()
+			return result(true, "Unbanned")
+		end
+		return result(false, "Not on the ban list")
+	elseif action == "banId" then
+		-- ban someone who isn't in this server, by user ID
+		local uid = tonumber(type(value) == "table" and value[1])
+		if not uid or uid <= 0 then return result(false, "Type a user ID") end
+		if uid == player.UserId then return result(false, "You can't ban yourself") end
+		local hours = tonumber(value[3]) or 0
+		local name = "user " .. uid
+		pcall(function() name = Players:GetNameFromUserIdAsync(uid) end)
+		bans[uid] = { name = name, reason = tostring(value[2] or "Banned"):sub(1, 80), by = player.Name, untilTime = if hours > 0 then os.time() + hours * 3600 else 0 }
+		saveBans()
+		local pl = Players:GetPlayerByUserId(uid)
+		if pl then pl:Kick(banMessage(bans[uid])) end
+		log(player, "banned " .. name)
+		return result(true, "Banned " .. name)
+	end
+
+	-- ===== one player =====
 	local target = type(targetId) == "number" and Players:GetPlayerByUserId(targetId) or nil
 	local tp = target and profiles[target]
+	if not (target and tp) then return result(false, "Pick a player first") end
 	local function done(msg)
-		if tp then
-			stats(target, tp)
-			dirty[target] = true
-			ProfileChanged:FireClient(target, view(tp), nil, "admin")
-		end
-		return { ok = true, msg = msg, players = playerList() }
+		stats(target, tp)
+		dirty[target] = true
+		ProfileChanged:FireClient(target, view(tp), nil, "admin")
+		log(player, msg .. " (" .. target.Name .. ")")
+		return result(true, msg)
 	end
-	if action == "announce" then
-		if type(value) ~= "string" or #value == 0 then return { ok = false, msg = "Type a message first" } end
-		local text = string.sub(value, 1, 120)
-		-- Roblox requires text shown to other players to go through its filter
-		local ok, filtered = pcall(function() return TextService:FilterStringAsync(text, player.UserId):GetNonChatStringForBroadcastAsync() end)
-		if not ok then return { ok = false, msg = "Couldn't filter the message, try again" } end
-		Announce:FireAllClients(filtered)
-		return { ok = true, msg = "Announced to everyone" }
-	end
-	if not tp then return { ok = false, msg = "Pick a player first" } end
 	if action == "credits" then
 		local n = math.clamp(math.floor(tonumber(value) or 0), -10000000, 10000000)
 		tp.credits = math.max(0, tp.credits + n)
 		return done(string.format("%s %d CR", n >= 0 and "Gave" or "Took", math.abs(n)))
+	elseif action == "setCredits" then
+		tp.credits = math.clamp(math.floor(tonumber(value) or 0), 0, 1000000000)
+		return done("Set credits to " .. tp.credits)
 	elseif action == "unlockAll" then
 		for _, c in Config.Cars do if not c.premium then tp.owned[c.id] = true end end
 		return done("Unlocked every garage car")
-	elseif action == "giveCar" then
+	elseif action == "giveCar" or action == "removeCar" or action == "setCar" then
 		local c = type(value) == "string" and Config.car(value)
-		if not c or c.id ~= value then return { ok = false, msg = "Unknown car" } end
-		tp.owned[c.id] = true
-		return done("Gave " .. c.name)
-	elseif action == "maxUpgrades" then
+		if not c or c.id ~= value then return result(false, "Unknown car") end
+		if action == "giveCar" then tp.owned[c.id] = true; return done("Gave " .. c.name) end
+		if action == "removeCar" then
+			if c.id == "ps13" then return result(false, "Everyone keeps the starter car") end
+			tp.owned[c.id] = nil
+			if tp.selected == c.id then tp.selected = "ps13" end
+			return done("Took away " .. c.name)
+		end
+		tp.owned[c.id] = true; tp.selected = c.id
+		return done("Put them in the " .. c.name)
+	elseif action == "maxUpgrades" or action == "resetUpgrades" then
 		local u = {}
-		for _, up in Config.Upgrades do u[up.key] = Config.UPGRADE_MAX end
+		for _, up in Config.Upgrades do u[up.key] = if action == "maxUpgrades" then Config.UPGRADE_MAX else 0 end
 		tp.upg[tp.selected] = u
-		return done("Maxed every upgrade on " .. Config.car(tp.selected).name)
+		return done((action == "maxUpgrades" and "Maxed" or "Reset") .. " the upgrades on " .. Config.car(tp.selected).name)
 	elseif action == "resetChallenges" then
 		tp.daily = nil
 		return done("Today's challenges reset")
+	elseif action == "completeChallenges" then
+		local dl = daily(tp)
+		for k, c in Config.dailyFor(dl.day) do
+			if not dl.done[k] then dl.done[k] = true; dl.prog[k] = c.goal; tp.credits += c.reward end
+		end
+		return done("Completed today's challenges (rewards paid)")
+	elseif action == "setBest" then
+		tp.best = math.max(0, math.floor(tonumber(value) or 0)); boardDirty[target] = true
+		return done("Set best drift to " .. tp.best)
 	elseif action == "removeFromBoards" then
 		pcall(function() if bestStore then bestStore:RemoveAsync(tostring(target.UserId)) end end)
 		pcall(function() if totalStore then totalStore:RemoveAsync(tostring(target.UserId)) end end)
 		tp.best, tp.total = 0, 0
 		boardDirty[target] = nil
 		return done("Removed from the leaderboards")
+	elseif action == "erase" then
+		local keepSettings, keepOwned, keepAdmin = tp.settings, tp.owned, tp.admin
+		local fresh = newProfile()
+		fresh.settings, fresh.admin = keepSettings, keepAdmin
+		for _, c in Config.Premium do if keepOwned[c.id] then fresh.owned[c.id] = true end end -- paid cars stay
+		for k, v in fresh do tp[k] = v end
+		for k in tp do if fresh[k] == nil then tp[k] = nil end end
+		return done("Erased all progress")
 	elseif action == "goto" then
 		local pos = lastPos[target]
-		if not pos then return { ok = false, msg = "They need to be on the public map" } end
-		return { ok = true, msg = "Teleported", pos = pos }
+		if not pos then return result(false, "They need to be on the public map") end
+		log(player, "teleported to " .. target.Name)
+		return result(true, "Teleported to " .. target.DisplayName, { pos = pos })
+	elseif action == "bring" then
+		-- value = the admin's own position { x, y, z, h }
+		if type(value) ~= "table" then return result(false, "Bad position") end
+		local x, y, z, h = tonumber(value[1]), tonumber(value[2]), tonumber(value[3]), tonumber(value[4]) or 0
+		if not (x and y and z) or x ~= x or y ~= y or z ~= z then return result(false, "Bad position") end
+		AdminEvent:FireClient(target, "tp", x + 14, y, z, h)
+		log(player, "brought " .. target.Name)
+		return result(true, "Brought " .. target.DisplayName .. " to you")
+	elseif action == "send" then
+		local where = if value == "pass" then "pass" else "city"
+		AdminEvent:FireClient(target, "send", where)
+		log(player, "sent " .. target.Name .. " to the " .. where)
+		return result(true, "Sent " .. target.DisplayName .. " to the " .. where)
+	elseif action == "freeze" then
+		if target == player then return result(false, "You can't freeze yourself") end
+		frozen[target] = value == true
+		AdminEvent:FireClient(target, "freeze", value == true)
+		log(player, (value and "froze " or "unfroze ") .. target.Name)
+		return result(true, (value and "Froze " or "Unfroze ") .. target.DisplayName)
+	elseif action == "mute" then
+		if target == player then return result(false, "You can't mute yourself") end
+		setMuted(target, value == true)
+		log(player, (value and "muted " or "unmuted ") .. target.Name)
+		return result(true, (value and "Muted " or "Unmuted ") .. target.DisplayName .. " in chat")
+	elseif action == "message" then
+		if type(value) ~= "string" or #value == 0 then return result(false, "Type a message first") end
+		local text = filtered(value, player.UserId, target.UserId)
+		if not text then return result(false, "Roblox's text filter didn't answer, try again") end
+		AdminEvent:FireClient(target, "message", text, player.DisplayName)
+		log(player, "messaged " .. target.Name .. ": " .. text)
+		return result(true, "Message sent to " .. target.DisplayName)
 	elseif action == "kick" then
-		if target == player then return { ok = false, msg = "You can't kick yourself" } end
+		if target == player then return result(false, "You can't kick yourself") end
 		local reason = type(value) == "string" and value ~= "" and string.sub(value, 1, 80) or "Removed by the game owner"
+		save(target)
 		target:Kick(reason)
-		return { ok = true, msg = "Kicked " .. target.Name, players = playerList() }
+		log(player, "kicked " .. target.Name .. ": " .. reason)
+		return result(true, "Kicked " .. target.DisplayName)
+	elseif action == "ban" then
+		-- value = { reason, hours (0 = forever) }
+		if target == player then return result(false, "You can't ban yourself") end
+		if isAdmin(target) then return result(false, "Admins can't be banned") end
+		local reason = type(value) == "table" and tostring(value[1] or "") or ""
+		if reason == "" then reason = "Banned by the game owner" end
+		local hours = tonumber(type(value) == "table" and value[2]) or 0
+		bans[target.UserId] = { name = target.Name, reason = reason:sub(1, 80), by = player.Name, untilTime = if hours > 0 then os.time() + hours * 3600 else 0 }
+		saveBans()
+		save(target)
+		target:Kick(banMessage(bans[target.UserId]))
+		log(player, "banned " .. target.Name .. (hours > 0 and (" for " .. hours .. "h") or " forever") .. ": " .. reason)
+		return result(true, "Banned " .. target.DisplayName)
 	end
-	return { ok = false, msg = "Unknown action" }
+	return result(false, "Unknown action")
 end
-Players.PlayerRemoving:Connect(function(pl) adminCache[pl], lastPos[pl] = nil, nil end)
+Players.PlayerRemoving:Connect(function(pl) adminCache[pl], lastPos[pl], frozen[pl] = nil, nil, nil end)
