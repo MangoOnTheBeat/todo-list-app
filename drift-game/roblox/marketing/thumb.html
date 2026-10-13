@@ -1,0 +1,33 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{margin:0;background:#000}
+.c{width:1920px;height:1080px;position:relative;overflow:hidden;font-family:"Inter Display","Inter",sans-serif;
+  background:radial-gradient(60% 70% at 30% 40%, #2a1240 0%, #12081f 55%, #07050d 100%)}
+.car{position:absolute;right:0;top:0;width:1250px;height:1080px;background-size:cover;background-position:62% 40%;
+  mask-image:linear-gradient(90deg,transparent 0%,#000 38%);-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 38%);filter:saturate(1.15) contrast(1.05)}
+.car::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(18,8,31,.75),rgba(18,8,31,0) 40%),linear-gradient(200deg,rgba(255,126,182,.18),rgba(0,0,0,0) 50%)}
+.grid{position:absolute;left:-10%;right:-10%;bottom:-4%;height:42%;transform:perspective(700px) rotateX(64deg);transform-origin:50% 100%;
+  background-image:linear-gradient(rgba(89,227,255,.32) 2px,transparent 2px),linear-gradient(90deg,rgba(89,227,255,.32) 2px,transparent 2px);
+  background-size:110px 110px;mask-image:linear-gradient(to top,#000 10%,transparent 95%)}
+.sun{position:absolute;left:300px;top:420px;width:640px;height:640px;border-radius:50%;
+  background:linear-gradient(#ffb36b,#ff7eb6 55%,#a77bff);opacity:.2;mask-image:repeating-linear-gradient(to bottom,#000 0 30px,transparent 30px 44px)}
+svg{position:absolute;inset:0}
+.k{position:absolute;left:118px;top:90px;font-family:"IPAGothic";font-size:360px;line-height:1;color:#ff8cc2;
+  text-shadow:0 0 18px #ff7eb6,0 0 60px rgba(255,126,182,.85),0 0 140px rgba(255,126,182,.5)}
+.t{position:absolute;left:110px;top:500px;font-weight:900;font-style:italic;font-size:190px;letter-spacing:-.02em;line-height:.88;color:#fff;
+  text-shadow:0 0 16px rgba(89,227,255,.9),0 0 50px rgba(89,227,255,.6),0 8px 0 rgba(0,0,0,.4)}
+.t span{color:#59e3ff;display:block}
+.tag{position:absolute;left:120px;top:880px;font-weight:800;font-size:34px;letter-spacing:.14em;text-transform:uppercase;color:#f6f3ee}
+.tag i{font-style:normal;color:#ff7eb6;padding:0 .5em}
+</style></head><body><div class="c">
+<div class="car" id="car"></div>
+<div class="sun"></div><div class="grid"></div>
+<svg viewBox="0 0 1920 1080"><defs><filter id="g"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<path d="M-40 1120 C 420 1070, 660 990, 1060 930 S 1620 820, 1980 680" fill="none" stroke="#59e3ff" stroke-width="16" stroke-linecap="round" filter="url(#g)"/>
+<path d="M-40 1150 C 440 1100, 700 1030, 1080 970 S 1640 860, 1980 730" fill="none" stroke="#ff7eb6" stroke-width="7" stroke-linecap="round" opacity=".85" filter="url(#g)"/>
+</svg>
+<div class="k">峠</div>
+<div class="t">KAIDO<span>DRIFT</span></div>
+<div class="tag">Drift<i>·</i>Combo<i>·</i>Upgrade<i>·</i>Tandem</div>
+</div>
+<script>const img=new URLSearchParams(location.search).get('img'); if(img) document.getElementById('car').style.backgroundImage=`url(${img})`; else document.getElementById('car').remove();</script>
+</body></html>

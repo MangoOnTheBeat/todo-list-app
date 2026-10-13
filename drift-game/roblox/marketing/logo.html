@@ -1,0 +1,25 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{margin:0;background:#000}
+.c{width:1024px;height:1024px;position:relative;overflow:hidden;font-family:"Inter Display","Inter",sans-serif;
+  background:radial-gradient(70% 55% at 50% 38%, #2a1240 0%, #12081f 55%, #07050d 100%)}
+.grid{position:absolute;left:-20%;right:-20%;bottom:-6%;height:46%;transform:perspective(500px) rotateX(62deg);transform-origin:50% 100%;
+  background-image:linear-gradient(rgba(89,227,255,.35) 2px,transparent 2px),linear-gradient(90deg,rgba(89,227,255,.35) 2px,transparent 2px);
+  background-size:80px 80px;mask-image:linear-gradient(to top,#000 10%,transparent 95%)}
+.sun{position:absolute;left:50%;top:56%;width:520px;height:520px;margin-left:-260px;border-radius:50%;
+  background:linear-gradient(#ffb36b,#ff7eb6 55%,#a77bff);opacity:.22;filter:blur(2px);
+  mask-image:repeating-linear-gradient(to bottom,#000 0 26px,transparent 26px 38px)}
+svg{position:absolute;inset:0}
+.k{position:absolute;left:0;right:0;top:74px;text-align:center;font-family:"IPAGothic";font-size:470px;line-height:1;color:#ff8cc2;
+  text-shadow:0 0 18px #ff7eb6,0 0 60px rgba(255,126,182,.85),0 0 140px rgba(255,126,182,.5)}
+.t{position:absolute;left:0;right:0;bottom:118px;text-align:center;font-weight:900;font-style:italic;font-size:132px;letter-spacing:-.02em;line-height:.9;color:#fff;
+  text-shadow:0 0 16px rgba(89,227,255,.9),0 0 50px rgba(89,227,255,.6),0 8px 0 rgba(0,0,0,.4)}
+.t span{color:#59e3ff}
+</style></head><body><div class="c">
+<div class="sun"></div><div class="grid"></div>
+<svg viewBox="0 0 1024 1024"><defs><filter id="g"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<path d="M-40 980 C 260 900, 180 760, 470 735 S 900 700, 1080 610" fill="none" stroke="#59e3ff" stroke-width="16" stroke-linecap="round" filter="url(#g)"/>
+<path d="M-40 1012 C 280 935, 210 800, 490 772 S 910 740, 1080 650" fill="none" stroke="#ff7eb6" stroke-width="7" stroke-linecap="round" opacity=".85" filter="url(#g)"/>
+</svg>
+<div class="k">峠</div>
+<div class="t">KAIDO <span>DRIFT</span></div>
+</div></body></html>
