@@ -146,6 +146,11 @@ input[type=range]{width:100%;accent-color:var(--sakura)}
 /* touch */
 #touch{position:absolute;inset:0;pointer-events:none}
 #steerZone{position:absolute;left:0;bottom:0;width:45%;height:55%;pointer-events:auto;touch-action:none}
+#steerBtns{display:none;position:absolute;left:calc(env(safe-area-inset-left,0px) + 18px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);gap:14px;pointer-events:auto;touch-action:none}
+#steerBtns button{width:88px;height:88px;border-radius:22px;font-size:30px;color:var(--text);background:rgba(20,22,40,.55);border:1.5px solid rgba(255,255,255,.28);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);touch-action:none;-webkit-user-select:none;user-select:none;transition:transform .12s cubic-bezier(.3,1.6,.5,1),background .12s}
+#steerBtns button.on{transform:scale(.92);background:rgba(89,227,255,.35);border-color:var(--neon)}
+body.steer-buttons #steerZone{display:none}
+body.steer-buttons #steerBtns{display:flex}
 #steerZone span{position:absolute;left:calc(env(safe-area-inset-left,0px) + 40px);bottom:calc(env(safe-area-inset-bottom,0px) + 26px);font-size:10px;letter-spacing:.24em;color:var(--dim)}
 #steerBase{position:absolute;left:calc(env(safe-area-inset-left,0px) + 30px);bottom:calc(env(safe-area-inset-bottom,0px) + 44px);width:170px;height:56px;border-radius:28px;border:1px solid var(--line);background:rgba(10,11,20,.35)}
 #steerKnob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4)}
@@ -257,6 +262,7 @@ body.touch #toast{font-size:16px}
   </div>
   <div id="touch" hidden>
     <div id="steerZone"><div id="steerBase"><div id="steerKnob"></div></div><span>DRAG TO STEER</span></div>
+    <div id="steerBtns"><button id="tLeft" type="button" aria-label="Steer left">◀</button><button id="tRight" type="button" aria-label="Steer right">▶</button></div>
     <div id="pedals">
       <button id="tHand" type="button">HAND<br>BRAKE</button>
       <button id="tBrake" type="button">BRAKE</button>
@@ -317,6 +323,8 @@ body.touch #toast{font-size:16px}
       <p class="fine">Every level uses the same four-tyre physics. Assists only help with steering and catching slides, like in sim drift games.</p></div>
     <div class="field"><label for="setCam">Camera</label>
       <select id="setCam"><option value="0">Chase</option><option value="1">Far chase</option><option value="2">Cockpit · first person</option><option value="3">Hood</option></select></div>
+    <div class="field" id="touchSteerField" hidden><label for="setTouchSteer">Touch steering</label>
+      <select id="setTouchSteer"><option value="slider">Slider · drag on the left side</option><option value="buttons">Buttons · ◀ ▶ arrows</option></select></div>
     <div class="field"><label for="setSens">Steering sensitivity</label><input id="setSens" type="range" min="0.5" max="1.6" step="0.05"></div>
     <div class="field"><label for="setSound">Sound</label><select id="setSound"><option value="1">On</option><option value="0">Off</option></select></div>
     <div class="field"><span class="eyebrow">Move progress to another device</span>
@@ -2628,8 +2636,26 @@ function playerChat(text) {
 /* =====================================================================
    Audio (synthesised, starts after the first tap/click)
    ===================================================================== */
+const SILENT_WAV = 'data:audio/wav;base64,UklGRvQHAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YdAHAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
 const AudioSys = {
   ctx: null,
+  // phones only allow sound that starts inside a tap, and iPhones mute web audio with the ringer switch
+  // unless the page is playing media; so every tap makes sure the audio is running
+  unlock() {
+    try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch (e) {}
+    if (!this.silentEl) {
+      const a = document.createElement('audio'); a.src = SILENT_WAV; a.loop = true; a.setAttribute('playsinline', ''); a.preload = 'auto';
+      this.silentEl = a;
+    }
+    if (this.silentEl.paused) { const pr = this.silentEl.play(); if (pr && pr.catch) pr.catch(() => {}); }
+    if (!this.ctx) this.init();
+    if (!this.ctx) return;
+    if (this.ctx.state !== 'running') { const r = this.ctx.resume(); if (r && r.catch) r.catch(() => {}); }
+    if (!this.warmed) {
+      // a one-sample sound played inside the tap is what actually wakes iOS audio
+      try { const b = this.ctx.createBuffer(1, 1, 22050), src = this.ctx.createBufferSource(); src.buffer = b; src.connect(this.ctx.destination); src.start(0); this.warmed = true; } catch (e) {}
+    }
+  },
   init() {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
     try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
@@ -2703,7 +2729,7 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());
-const touch = { steer: 0, gas: false, brake: false, hand: false, active: false };
+const touch = { steer: 0, gas: false, brake: false, hand: false, left: false, right: false, active: false };
 function setupTouch() {
   const zone = $('steerZone'), knob = $('steerKnob'), base = $('steerBase');
   let pid = null, startX = 0;
@@ -2717,12 +2743,18 @@ function setupTouch() {
     const up = () => { touch[key] = false; el.classList.remove('on'); };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
   }
+  for (const [id, key] of [['tLeft', 'left'], ['tRight', 'right']]) {
+    const el = $(id);
+    el.addEventListener('pointerdown', e => { touch[key] = true; touch.active = true; el.classList.add('on'); el.setPointerCapture(e.pointerId); e.preventDefault(); });
+    const up = () => { touch[key] = false; el.classList.remove('on'); };
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
+  }
   $('tReset').addEventListener('click', () => resetPlayer());
   addEventListener('contextmenu', e => { if (state === 'play') e.preventDefault(); });
 }
 let kbSteer = 0, kbThr = 0;
 function readInput(dt) {
-  const left = keys.has('a') || keys.has('arrowleft'), right = keys.has('d') || keys.has('arrowright');
+  const left = keys.has('a') || keys.has('arrowleft') || (touch.active && touch.left), right = keys.has('d') || keys.has('arrowright') || (touch.active && touch.right);
   const target = (right ? 1 : 0) - (left ? 1 : 0);
   const rate = target === 0 ? 7 : (Math.sign(target) !== Math.sign(kbSteer) && kbSteer !== 0 ? 9 : 4.2);
   kbSteer += clamp(target - kbSteer, -rate * dt, rate * dt);
@@ -2957,6 +2989,7 @@ function renderGarage() {
   }
 }
 function renderSettings() {
+  $('setTouchSteer').value = S.settings.touchSteer || 'slider';
   $('setTrans').value = S.settings.trans; $('setAssist').value = S.settings.assist; $('setCam').value = String(camMode); $('setQuality').value = S.settings.quality; $('setTime').value = S.settings.time; $('setSens').value = S.settings.sens; $('setSound').value = S.settings.sound ? '1' : '0';
   $('saveCode').value = exportCode(); $('importMsg').textContent = ''; $('resetYes').hidden = true;
 }
@@ -3005,6 +3038,7 @@ function wireUI() {
   $('nameInput').addEventListener('change', e => { const n = cleanName(e.target.value); if (n) { S.name = n; persist(); } e.target.value = S.name; });
   $('chatForm').addEventListener('submit', e => { e.preventDefault(); const i = $('chatInput'); playerChat(i.value); i.value = ''; i.blur(); });
   $('setQuality').onchange = e => { S.settings.quality = e.target.value; qName = S.settings.quality === 'auto' ? autoQuality() : S.settings.quality; applyQuality(); persist(); };
+  $('setTouchSteer').onchange = e => { S.settings.touchSteer = e.target.value; document.body.classList.toggle('steer-buttons', e.target.value === 'buttons'); persist(); };
   $('setTrans').onchange = e => { S.settings.trans = e.target.value; $('shiftBtns').hidden = S.settings.trans !== 'manual'; persist(); };
   $('setAssist').onchange = e => { S.settings.assist = e.target.value; persist(); };
   $('setCam').onchange = e => { camMode = +e.target.value; S.settings.cam = camMode; applyCamMode(); persist(); };
@@ -3029,7 +3063,9 @@ function wireUI() {
   $('consentOk').onclick = () => { S.consent = true; persist(); $('consent').hidden = true; };
   $('consentMore').onclick = () => { S.consent = true; persist(); $('consent').hidden = true; setState('legal'); };
   if (isTouch) {
-    document.body.classList.add('touch'); $('chat').classList.add('closed');
+    document.body.classList.add('touch');
+    $('touchSteerField').hidden = false;
+    document.body.classList.toggle('steer-buttons', S.settings.touchSteer === 'buttons'); $('chat').classList.add('closed');
     $('chatInput').placeholder = 'Type a message…';
     $('setTrans').options[1].textContent = 'Manual · ▲ ▼ buttons to shift';
     // touch players get the Easy drift assist once by default (they can change it in Settings)
@@ -3039,9 +3075,11 @@ function wireUI() {
   setupTouch();
   addEventListener('resize', onResize);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { if (state === 'play') setState('pause'); if (AudioSys.ctx) AudioSys.ctx.suspend(); }
+    if (document.hidden) { if (state === 'play') setState('pause'); if (AudioSys.ctx) AudioSys.ctx.suspend(); if (AudioSys.silentEl) AudioSys.silentEl.pause(); }
     else if (AudioSys.ctx && state === 'play') AudioSys.ctx.resume();
   });
+  // any tap, click or key (re)starts the sound: first visit, after switching apps, after a phone call
+  for (const ev of ['touchend', 'pointerup', 'click', 'keydown']) document.addEventListener(ev, () => AudioSys.unlock(), { capture: true, passive: true });
   addEventListener('pagehide', persist);
 }
 function onResize() {
@@ -3172,7 +3210,7 @@ if ('serviceWorker' in navigator && hostedPage && (!/localhost|127\.0\.0\.1/.tes
 }
 window.__kaido = {
   renderer, camera, lodTiles,
-  bootTimes, net: Net, assists: ASSISTS,
+  bootTimes, net: Net, assists: ASSISTS, audio: AudioSys,
   get player() { return player; }, get state() { return state; }, get S() { return S; }, get drift() { return drift; }, setState, bots, TRACK_LEN, N, track: { PX, PY, PZ, HEAD, K, RX, RZ }, zone: ZONE,
   set noWalls(v) { testNoWalls = !!v; },
   get scene() { return scene; },
