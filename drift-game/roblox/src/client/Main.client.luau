@@ -200,13 +200,20 @@ local function applyStyle(m, def)
 		end
 	end
 end
+-- building a car model for the first time yields for a moment, so a second spawn can start before the
+-- first one finishes: only the newest one is kept, and the old car stays until the new one is ready
+local spawnGen = 0
 local function spawnCar(id)
+	spawnGen += 1
+	local gen = spawnGen
+	local base = Config.car(id or profile.selected)
+	local def = Config.tuned(base, profile.upg and profile.upg[base.id]) -- garage upgrades change the real numbers
+	local m, mesh = buildCar(def, "MyCar", (paintOf(def.id)))
+	if gen ~= spawnGen then m:Destroy(); return end
 	if carModel then carModel:Destroy() end
 	if sound then sound:destroy(); sound = nil end
-	local base = Config.car(id or profile.selected)
-	carDef = Config.tuned(base, profile.upg and profile.upg[base.id]) -- garage upgrades change the real numbers
-	local col = paintOf(carDef.id)
-	carModel, usingMesh = buildCar(carDef, "MyCar", col)
+	carDef = def
+	carModel, usingMesh = m, mesh
 	carModel.Parent = workspace
 	for _, a in carModel.PrimaryPart:GetChildren() do
 		if a:IsA("Attachment") then
@@ -724,13 +731,31 @@ end
 local ghosts = {}
 local publicMap = false
 local mode = "title" -- title | garage | settings | pause | play
+local building = {} -- uid -> the car being built for that driver (building yields for a moment)
+local function dropGhost(uid)
+	local g = ghosts[uid]
+	if g then g.model:Destroy(); if g.sound then g.sound:destroy() end; ghosts[uid] = nil end
+end
 R.Others.OnClientEvent:Connect(function(uid, x, y, z, h, carId, paint, drifting)
 	if not publicMap or (mode ~= "play" and mode ~= "pause") then return end
+	if uid == player.UserId then return end
 	local g = ghosts[uid]
 	if not g or g.carId ~= carId or g.paint ~= paint then
-		if g then g.model:Destroy(); if g.sound then g.sound:destroy() end end
+		-- positions arrive 10 times a second: while this driver's car is being built, the next updates
+		-- must not start more builds, or every one of them leaves a copy of the car (and its engine) behind
+		local want = carId .. "/" .. paint
+		if building[uid] == want then return end
+		building[uid] = want
 		local car = Config.car(carId)
 		local m, mesh = buildCar(car, "Driver" .. uid, paint > 0 and Config.Paints[paint] or car.color)
+		-- the driver left, changed car again, or we left the public map while it was building
+		if building[uid] ~= want or not publicMap or (mode ~= "play" and mode ~= "pause") or not Players:GetPlayerByUserId(uid) then
+			if building[uid] == want then building[uid] = nil end
+			m:Destroy()
+			return
+		end
+		building[uid] = nil
+		dropGhost(uid)
 		local who = Players:GetPlayerByUserId(uid)
 		local tag = make("BillboardGui", { Size = UDim2.new(0, 160, 0, 24), StudsOffset = Vector3.new(0, 7, 0), AlwaysOnTop = true, MaxDistance = 500, Parent = m.PrimaryPart })
 		text({ Text = who and who.DisplayName or "Driver", TextSize = 15, FontFace = Ui.BOLD, TextColor3 = Ui.NEON, TextXAlignment = Enum.TextXAlignment.Center, Parent = tag })
@@ -744,11 +769,12 @@ R.Others.OnClientEvent:Connect(function(uid, x, y, z, h, carId, paint, drifting)
 	g.seen = os.clock()
 end)
 local function clearGhosts()
-	for uid, g in ghosts do g.model:Destroy(); if g.sound then g.sound:destroy() end; ghosts[uid] = nil end
+	table.clear(building)
+	for uid in ghosts do dropGhost(uid) end
 end
 Players.PlayerRemoving:Connect(function(p)
-	local g = ghosts[p.UserId]
-	if g then g.model:Destroy(); if g.sound then g.sound:destroy() end; ghosts[p.UserId] = nil end
+	building[p.UserId] = nil
+	dropGhost(p.UserId)
 end)
 
 -- ===================== screen switching =====================
@@ -1057,7 +1083,7 @@ local lapCP, prevIdx = 0, START
 local WALL = HALF + 0.65 -- guardrail line on the pass (studs from the centre)
 RunService.RenderStepped:Connect(function(dt)
 	dt = math.min(dt, 0.05)
-	if not carModel then spawnCar() end
+	if not carModel then return end -- still building the first car
 	local m = carModel :: Model
 	local c = carDef
 	if U.boost then
@@ -1301,7 +1327,7 @@ RunService.RenderStepped:Connect(function(dt)
 	-- other players glide to their latest positions
 	for uid, g in ghosts do
 		if os.clock() - g.seen > 3 then
-			g.model:Destroy(); if g.sound then g.sound:destroy() end; ghosts[uid] = nil
+			dropGhost(uid)
 		else
 			local before = g.cf.Position
 			g.cf = g.cf:Lerp(g.target, math.min(1, dt * 10))

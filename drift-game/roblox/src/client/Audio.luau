@@ -22,6 +22,9 @@ local KEYWORDS = {
 	wind = { "wind" },
 }
 local function learn(d: Instance)
+	-- skip the sounds this script makes for the cars: they reuse the ids found here, and learning them back
+	-- would make a Toolbox engine loop look like the full set and silence the engine below ~2,000 rpm
+	if d:GetAttribute("KaidoCar") then return end
 	local id = if d:IsA("Sound") then d.SoundId elseif d:IsA("AudioPlayer") then (d :: any).AssetId else nil
 	if not id or id == "" then return end
 	local key = string.lower(d.Name)
@@ -82,6 +85,7 @@ local function snd(parent, name, looped, spatial, override)
 	s.SoundId = override or ids[name] or ""
 	s.Looped = looped
 	s.Volume = 0
+	s:SetAttribute("KaidoCar", true)
 	if spatial then
 		s.RollOffMode = Enum.RollOffMode.InverseTapered
 		s.RollOffMinDistance, s.RollOffMaxDistance = 20, 400

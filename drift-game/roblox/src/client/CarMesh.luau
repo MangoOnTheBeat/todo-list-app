@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CarMesh = {}
 local folder = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CarMeshes")
 local templates = {}
+local building = {} -- car bodies being built right now (building one yields for a moment)
 CarMesh.lastError = nil
 
 local B64 = {}
@@ -89,9 +90,13 @@ end
 -- build (or clone) the browser model of car `def`
 function CarMesh.build(def, name: string, paint: Color3?)
 	local key = def.mesh or def.id -- special cars reuse a browser body
+	-- if this body is already being built (two cars of the same model arriving together), wait for it
+	-- instead of building it twice
+	while building[key] do task.wait() end
 	local tpl = templates[key]
 	if tpl == false then return nil end
 	if not tpl then
+		building[key] = true
 		local ok, res = pcall(function()
 			local src = require(folder:WaitForChild(key, 5))
 			local m = Instance.new("Model")
@@ -127,6 +132,7 @@ function CarMesh.build(def, name: string, paint: Color3?)
 			end
 			return m
 		end)
+		building[key] = nil
 		if not ok then
 			CarMesh.lastError = tostring(res)
 			templates[key] = false
