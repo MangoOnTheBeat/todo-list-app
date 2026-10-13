@@ -13,12 +13,32 @@ local LAYER_RPM = { 1800, 4200, 7000 }
 -- find each sound: a Sound or AudioPlayer whose name contains the file name (Studio may add a suffix
 -- like "kaido_engine_low (1)"), anywhere players can see, or an ID pasted into SoundIds
 local ids = {}
+-- or any sound from Roblox's free audio library (Toolbox › Audio) dropped into Workspace: one engine loop is
+-- enough (it's pitched with the revs), plus optional tyre screech and wind, found by words in their names
+local generic = {}
+local KEYWORDS = {
+	engine = { "engine", "motor", "exhaust", "rev" },
+	skid = { "skid", "screech", "squeal", "tire", "tyre", "drift" },
+	wind = { "wind" },
+}
 local function learn(d: Instance)
 	local id = if d:IsA("Sound") then d.SoundId elseif d:IsA("AudioPlayer") then (d :: any).AssetId else nil
 	if not id or id == "" then return end
 	local key = string.lower(d.Name)
+	local ours = false
 	for _, n in NAMES do
-		if string.find(key, n, 1, true) and not ids[n] then ids[n] = id end
+		if string.find(key, n, 1, true) then
+			ours = true
+			if not ids[n] then ids[n] = id end
+		end
+	end
+	if ours then return end
+	for kind, words in KEYWORDS do
+		if not generic[kind] then
+			for _, w in words do
+				if string.find(key, w, 1, true) then generic[kind] = id; break end
+			end
+		end
 	end
 end
 local function scan()
@@ -42,7 +62,11 @@ for _, where in { workspace, ReplicatedStorage, SoundService } do
 end
 
 function Audio.available(): boolean
-	return ids.kaido_engine_mid ~= nil
+	return ids.kaido_engine_mid ~= nil or generic.engine ~= nil
+end
+-- "full" (the game's own 7 sounds), "simple" (an engine sound from the Toolbox) or "none"
+function Audio.mode(): string
+	if ids.kaido_engine_mid then return "full" elseif generic.engine then return "simple" else return "none" end
 end
 
 -- how many of the 7 sound files this place has
@@ -52,10 +76,10 @@ function Audio.count(): number
 	return n
 end
 
-local function snd(parent, name, looped, spatial)
+local function snd(parent, name, looped, spatial, override)
 	local s = Instance.new("Sound")
 	s.Name = name
-	s.SoundId = ids[name] or ""
+	s.SoundId = override or ids[name] or ""
 	s.Looped = looped
 	s.Volume = 0
 	if spatial then
@@ -72,10 +96,14 @@ function Audio.new(carModel: Model, car, own: boolean)
 	local self = setmetatable({}, Audio)
 	local parent = own and SoundService or carModel.PrimaryPart
 	self.layers = {}
-	for k = 1, 3 do self.layers[k] = snd(parent, NAMES[k], true, not own) end
-	self.off = snd(parent, "kaido_engine_off", true, not own)
-	self.skid = snd(parent, "kaido_skid", true, not own)
-	self.wind = own and snd(parent, "kaido_wind", true, false) or nil
+	-- without the game's own sounds, one engine loop from the Toolbox plays in the middle layer only
+	self.single = ids.kaido_engine_mid == nil and generic.engine ~= nil
+	for k = 1, 3 do
+		self.layers[k] = snd(parent, NAMES[k], true, not own, if self.single then (if k == 2 then generic.engine else "") else nil)
+	end
+	self.off = snd(parent, "kaido_engine_off", true, not own, if self.single then "" else nil) -- one loop covers coasting too
+	self.skid = snd(parent, "kaido_skid", true, not own, if not ids.kaido_skid then generic.skid else nil)
+	self.wind = own and snd(parent, "kaido_wind", true, false, if not ids.kaido_wind then generic.wind else nil) or nil
 	self.blow = snd(parent, "kaido_blowoff", false, not own)
 	self.car = car
 	self.load = 0
@@ -95,7 +123,13 @@ function Audio:update(dt: number, rpm: number, thr: number, slide: number, kmh: 
 	local norm = rpm * (7000 / car.red) -- keep each engine's character across its rev range
 	local chop = (limiter and (math.sin(self.t * 2 * math.pi * 16) > 0)) and 0.35 or 1
 	local vol = (self.own and 0.9 or 0.7) * master * chop
-	for k, s in self.layers do
+	if self.single then
+		-- one engine loop: pitch follows the revs, volume follows the throttle
+		local s = self.layers[2]
+		s.PlaybackSpeed = math.clamp(norm / 3500 * pitch, 0.45, 2.3)
+		s.Volume = vol * (0.35 + 0.65 * self.load)
+	end
+	for k, s in (if self.single then {} else self.layers) do
 		local c = LAYER_RPM[k]
 		local w = math.clamp(1 - math.abs(math.log(norm / c) / math.log(2.1)), 0, 1)
 		if k == 1 and norm < c then w = 1 end

@@ -21,12 +21,14 @@ Double-click `KaidoDrift.rbxl` (Roblox Studio opens it) and press **Play**. The 
 starts, so the place looks empty in edit mode. The first start takes a few seconds while the hills fill in.
 
 ## 2. Add the sounds (once)
-Roblox only plays audio uploaded to Roblox, so upload the 7 files in `sounds/`:
-1. In Studio: **Window → Asset Manager → Bulk Import** (or Creator Hub → Creations → Audio → Upload), pick all 7 `.ogg` files.
-2. Open the **Toolbox → Inventory → My Audio** and click each one so it lands in Workspace. The game finds
-   them by name (`kaido_engine_low`, `kaido_engine_mid`, …), even with a suffix like "(1)".
-   Or paste just the ID numbers into `ReplicatedStorage › Shared › SoundIds`.
-   Settings › Sound in the game shows how many of the 7 it found.
+Roblox only plays audio that's on Roblox. Two ways:
+- **Quickest (no uploading):** in Studio open **Toolbox › Audio** (Creator Store), search "car engine loop",
+  click one so it lands in Workspace, and keep "engine" in its name. Do the same for "tire screech" (and
+  "wind" if you like). The game finds them by those words and pitches the engine loop with the revs.
+- **Full engine (the game's own sounds):** upload the 7 `kaido_*.ogg` files in `sounds/` (Window › Asset
+  Manager › Bulk Import), then click each one in Toolbox › Inventory › My Audio, or paste their IDs into
+  `ReplicatedStorage › Shared › SoundIds`. These give three rpm layers, crackle on lift-off and turbo blow-off.
+Settings › Sound in the game says which one it's using.
 
 ## 3. Special cars (Robux)
 Three special cars sit in their own garage section, each faster than the fastest credit car:

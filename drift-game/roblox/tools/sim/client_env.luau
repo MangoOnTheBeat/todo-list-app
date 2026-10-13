@@ -28,3 +28,6 @@ task.spawn = run
 task.defer = run
 task.delay = function(_, f, ...) if type(f) == "function" then run(f, ...) end end
 task.wait = function() if coroutine.isyieldable() then coroutine.yield() end return 0 end
+-- a sound inserted from the Toolbox (not the game's own files)
+local tb = Instance.new("Sound"); tb.Name = "Car Engine Loop"; tb.SoundId = "rbxassetid://123"; tb.Parent = workspace
+local tb2 = Instance.new("Sound"); tb2.Name = "Tire Screech"; tb2.SoundId = "rbxassetid://456"; tb2.Parent = workspace

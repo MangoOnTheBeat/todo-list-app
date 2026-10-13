@@ -2,8 +2,8 @@
 -- numbers live in CarPhysics, exactly as in the browser.
 local Config = {}
 
-Config.ROAD_HALF = 22 -- half the pass road width (studs): a wide, two-car road
-Config.SEG = 10 -- pass road sample spacing (studs)
+Config.ROAD_HALF = 30 -- half the pass road width (studs): 60 studs = about 17 m at car scale, room to drift two abreast
+Config.SEG = 13 -- pass road sample spacing (studs)
 Config.SCALE = 3.5 -- studs per metre for cars and physics
 
 Config.Cars = require(script.Parent.Cars)

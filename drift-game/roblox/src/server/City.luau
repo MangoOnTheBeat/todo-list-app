@@ -17,6 +17,20 @@ local DECK = 44 -- expressway deck width
 
 local SIGNS = { "ラーメン", "カラオケ", "居酒屋", "寿司", "ホテル", "薬", "焼肉", "ゲーム", "喫茶", "酒", "書店", "質", "パチンコ", "駐車場", "整骨院", "そば", "うどん", "コンビニ", "銭湯", "麻雀" }
 local SIGN_COLORS = { Color3.fromRGB(255, 70, 110), Color3.fromRGB(80, 220, 255), Color3.fromRGB(255, 200, 60), Color3.fromRGB(150, 255, 120), Color3.fromRGB(255, 120, 40), Color3.fromRGB(200, 120, 255), Color3.fromRGB(255, 255, 255) }
+-- ground-floor shops you'd see on a Japanese street. col: facade, glow: lit interior, sign: board colour,
+-- text: what the sign says, ink: text colour
+local SHOPS = {
+	boba = { col = Color3.fromRGB(255, 214, 226), glow = Color3.fromRGB(255, 236, 214), sign = Color3.fromRGB(120, 230, 214), text = "BOBA TEA  タピオカ", ink = Color3.fromRGB(70, 30, 60) },
+	ramen = { col = Color3.fromRGB(70, 44, 30), glow = Color3.fromRGB(255, 200, 130), sign = Color3.fromRGB(230, 40, 40), text = "ラーメン  RAMEN", ink = Color3.fromRGB(255, 240, 220) },
+	konbini = { col = Color3.fromRGB(244, 244, 240), glow = Color3.fromRGB(235, 250, 255), sign = Color3.fromRGB(40, 160, 90), text = "コンビニ  24h", ink = Color3.fromRGB(255, 255, 255) },
+	cafe = { col = Color3.fromRGB(120, 84, 60), glow = Color3.fromRGB(255, 214, 160), sign = Color3.fromRGB(240, 226, 200), text = "喫茶  CAFÉ", ink = Color3.fromRGB(70, 44, 30) },
+	arcade = { col = Color3.fromRGB(26, 22, 40), glow = Color3.fromRGB(190, 120, 255), sign = Color3.fromRGB(255, 70, 160), text = "ゲーム  GAME", ink = Color3.fromRGB(255, 255, 255) },
+	sushi = { col = Color3.fromRGB(226, 214, 190), glow = Color3.fromRGB(255, 230, 190), sign = Color3.fromRGB(30, 50, 110), text = "寿司  SUSHI", ink = Color3.fromRGB(255, 255, 255) },
+	karaoke = { col = Color3.fromRGB(46, 30, 70), glow = Color3.fromRGB(255, 120, 220), sign = Color3.fromRGB(160, 80, 255), text = "カラオケ", ink = Color3.fromRGB(255, 255, 255) },
+	drug = { col = Color3.fromRGB(240, 240, 236), glow = Color3.fromRGB(250, 250, 240), sign = Color3.fromRGB(255, 214, 40), text = "薬  DRUG", ink = Color3.fromRGB(30, 30, 30) },
+}
+local DOWNTOWN_SHOPS = { "boba", "boba", "ramen", "konbini", "konbini", "cafe", "arcade", "arcade", "sushi", "karaoke", "karaoke", "drug" }
+local SUBURB_SHOPS = { "boba", "ramen", "ramen", "konbini", "konbini", "cafe", "sushi", "drug" }
 local WINDOW = { Color3.fromRGB(255, 214, 150), Color3.fromRGB(255, 236, 200), Color3.fromRGB(190, 220, 255), Color3.fromRGB(150, 200, 255) }
 
 function City.build(ctx)
@@ -118,14 +132,14 @@ function City.build(ctx)
 
 	-- buildings
 	local buildingCount = 0
-	local function windowBands(b, size, cf, faces, color, every, tier)
+	local function windowBands(b, size, cf, faces, color, every, tier, minY)
 		-- strips of lit windows on the street faces (local -Z / +Z / -X / +X): towers get many, others five
 		every = math.max(every, (size.Y - 4) / (if size.Y > 140 then 16 else 5))
 		for _, f in faces do
 			local horiz = f == "z-" or f == "z+"
 			local w = horiz and size.X or size.Z
 			for y = every, size.Y - 4, every do
-				if rng:NextNumber() < 0.78 then
+				if y >= (minY or 0) and rng:NextNumber() < 0.78 then
 					local len = w * (0.35 + rng:NextNumber() * 0.55)
 					local off = (rng:NextNumber() - 0.5) * (w - len)
 					local pos
@@ -164,6 +178,92 @@ function City.build(ctx)
 		t.Text = table.concat(string.split(text, ""), "\n")
 		t.Parent = g
 		signs:SetAttribute("n", (signs:GetAttribute("n") or 0) + 1)
+	end
+
+	-- text on a sign face (hidden on low graphics, like the other signs)
+	local function signText(face, label, ink)
+		local g = Instance.new("SurfaceGui")
+		g.Face = Enum.NormalId.Front
+		g.PixelsPerStud = 20
+		g.LightInfluence = 0
+		g.Parent = face
+		local t = Instance.new("TextLabel")
+		t.Size = UDim2.fromScale(1, 1)
+		t.BackgroundTransparency = 1
+		t.TextScaled = true
+		t.Font = Enum.Font.GothamBlack
+		t.TextColor3 = ink
+		t.Text = label
+		t.Parent = g
+	end
+	-- the frame of a street face of a box: origin at the ground in the middle of that face, -Z pointing out
+	local function faceFrame(cf, w, l, h, f)
+		local out = if f == "z-" then Vector3.new(0, 0, -1) elseif f == "z+" then Vector3.new(0, 0, 1) elseif f == "x-" then Vector3.new(-1, 0, 0) else Vector3.new(1, 0, 0)
+		local half = if f == "z-" or f == "z+" then l / 2 else w / 2
+		local width = if f == "z-" or f == "z+" then w else l
+		local base = cf.Position + out * half - Vector3.new(0, h / 2, 0)
+		return CFrame.lookAt(base, base + out), width
+	end
+	-- a themed shop on the ground floor of a building face
+	local function shopFront(b, F, faceW, kind)
+		local k = SHOPS[kind]
+		local W = math.min(faceW * 0.86, 46)
+		local function at(x, y, z) return F * CFrame.new(x, y, z) end
+		local function deco(size, cf, color, mat, shape)
+			local q = part(b, size, cf, color, mat, shape); q.CanCollide, q.CanQuery = false, false; return q
+		end
+		deco(Vector3.new(W, 9, 0.4), at(0, 4.5, -0.25), k.col, if kind == "ramen" or kind == "cafe" then Enum.Material.WoodPlanks else Enum.Material.SmoothPlastic)
+		local glass = deco(Vector3.new(W * 0.8, 5.4, 0.12), at(0, 3.1, -0.5), k.glow, Enum.Material.Neon)
+		glass.Name = "Window"; glass:SetAttribute("Tier", 1); glass.Transparency = 0.1
+		deco(Vector3.new(W * 0.8, 5.4, 0.1), at(0, 3.1, -0.45), Color3.fromRGB(150, 170, 190), Enum.Material.Glass).Transparency = 0.5
+		local board = deco(Vector3.new(W * 0.74, 2.4, 0.5), at(0, 7.6, -0.75), Color3.fromRGB(20, 20, 24), Enum.Material.SmoothPlastic)
+		local face = deco(Vector3.new(W * 0.72, 2.1, 0.12), board.CFrame * CFrame.new(0, 0, -0.3), k.sign, Enum.Material.Neon)
+		face.Name = "SignFace"
+		signText(face, k.text, k.ink)
+		if kind == "boba" then
+			-- a giant tapioca cup on the sign: clear cup, pink tea, black pearls, a neon straw
+			local c0 = at(W * 0.3, 12.5, -1.4)
+			deco(Vector3.new(6, 4.6, 4.6), c0 * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(255, 190, 210), Enum.Material.Glass, Enum.PartType.Cylinder).Transparency = 0.25
+			deco(Vector3.new(0.6, 4.9, 4.9), c0 * CFrame.new(0, 3, 0) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
+			for p = 1, 3 do deco(Vector3.new(1.2, 1.2, 1.2), c0 * CFrame.new((p - 2) * 1.2, -2.2, (p % 2) * 0.6 - 0.3), Color3.fromRGB(30, 20, 20), Enum.Material.SmoothPlastic, Enum.PartType.Ball) end
+			deco(Vector3.new(0.5, 6, 0.5), c0 * CFrame.new(0.6, 4.6, 0) * CFrame.Angles(0, 0, math.rad(-12)), Color3.fromRGB(80, 230, 255), Enum.Material.Neon)
+			deco(Vector3.new(W * 0.8, 0.3, 3), at(0, 6.2, -1.9) * CFrame.Angles(math.rad(-14), 0, 0), Color3.fromRGB(150, 230, 220), Enum.Material.Fabric)
+		elseif kind == "ramen" or kind == "sushi" then
+			-- noren curtains over the door, paper lanterns either side
+			local cloth = if kind == "ramen" then Color3.fromRGB(150, 24, 30) else Color3.fromRGB(28, 44, 96)
+			for n = -1, 1 do deco(Vector3.new(2.2, 3.2, 0.1), at(n * 2.4, 4.6, -0.75), cloth, Enum.Material.Fabric) end
+			for _, x in { -W * 0.42, W * 0.42 } do
+				local lan = deco(Vector3.new(1.8, 2.6, 1.8), at(x, 5.2, -1.3), if kind == "ramen" then Color3.fromRGB(240, 50, 40) else Color3.fromRGB(255, 244, 220), Enum.Material.Neon, Enum.PartType.Ball)
+				lan.Name = "Lantern"
+			end
+		elseif kind == "konbini" then
+			-- the stripe band, bins and parked bikes out front
+			deco(Vector3.new(W, 0.7, 0.2), at(0, 6.1, -0.55), Color3.fromRGB(255, 140, 30), Enum.Material.SmoothPlastic)
+			deco(Vector3.new(W, 0.7, 0.2), at(0, 6.8, -0.55), Color3.fromRGB(40, 160, 90), Enum.Material.SmoothPlastic)
+			for n = 0, 1 do deco(Vector3.new(1.4, 2.6, 1.4), at(-W * 0.36 + n * 1.8, 1.3, -1.6), Color3.fromRGB(70, 110, 160), Enum.Material.SmoothPlastic) end
+			for n = 0, 1 do
+				local bx = W * 0.3 + n * 1.6
+				for _, z in { -2.4, -4.8 } do deco(Vector3.new(0.15, 2, 2), at(bx, 1, z) * CFrame.Angles(0, math.pi / 2, 0), Color3.fromRGB(30, 30, 34), Enum.Material.SmoothPlastic, Enum.PartType.Cylinder) end
+				deco(Vector3.new(0.2, 0.25, 2.6), at(bx, 1.5, -3.6), Color3.fromRGB(200, 40, 50), Enum.Material.Metal)
+			end
+		elseif kind == "cafe" then
+			for n = 0, 3 do
+				deco(Vector3.new(W * 0.8 / 4, 0.3, 3), at(-W * 0.3 + n * W * 0.2, 6.2, -1.9) * CFrame.Angles(math.rad(-14), 0, 0), if n % 2 == 0 then Color3.fromRGB(30, 90, 60) else Color3.fromRGB(240, 236, 226), Enum.Material.Fabric)
+			end
+			for _, x in { -W * 0.44, W * 0.44 } do
+				deco(Vector3.new(1.6, 1.6, 1.6), at(x, 0.8, -1.4), Color3.fromRGB(120, 70, 50), Enum.Material.Brick)
+				deco(Vector3.new(2.4, 2.4, 2.4), at(x, 2.6, -1.4), Color3.fromRGB(50, 110, 56), Enum.Material.Grass, Enum.PartType.Ball)
+			end
+		elseif kind == "arcade" then
+			for n = -1, 1 do deco(Vector3.new(0.4, 8, 0.3), at(n * W * 0.45, 4.5, -0.6), SIGN_COLORS[(n + 2) * 2], Enum.Material.Neon) end
+			for n = 0, 1 do
+				local cm = at(-W * 0.3 + n * 3.4, 0, -2)
+				deco(Vector3.new(3, 5.2, 3), cm * CFrame.new(0, 2.6, 0), Color3.fromRGB(180, 220, 255), Enum.Material.Glass).Transparency = 0.45
+				deco(Vector3.new(3.1, 0.8, 3.1), cm * CFrame.new(0, 5.6, 0), Color3.fromRGB(255, 80, 180), Enum.Material.Neon)
+			end
+		elseif kind == "karaoke" or kind == "drug" then
+			deco(Vector3.new(W, 0.6, 0.2), at(0, 6.4, -0.55), k.sign, Enum.Material.Neon)
+		end
 	end
 
 	local function building(x0, z0, x1, z1, d, streetSides)
@@ -243,20 +343,23 @@ function City.build(ctx)
 			roof2.CFrame = cf * CFrame.new(0, h / 2 + 2.5, l / 4 + 0.5) * CFrame.Angles(0, math.pi, 0)
 			roof2.Parent = b
 		end
-		if d >= 0.18 and d < 0.75 then
-			for _, f in streetSides do
-				local horiz = f == "z-" or f == "z+"
-				local off = if f == "z-" then CFrame.new(0, -h / 2 + 4, -l / 2 - 0.1) elseif f == "z+" then CFrame.new(0, -h / 2 + 4, l / 2 + 0.1) elseif f == "x-" then CFrame.new(-w / 2 - 0.1, -h / 2 + 4, 0) else CFrame.new(w / 2 + 0.1, -h / 2 + 4, 0)
-				local shop = part(b, if horiz then Vector3.new(w * 0.86, 5, 0.2) else Vector3.new(0.2, 5, l * 0.86), cf * off, ({ Color3.fromRGB(255, 236, 200), Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 200, 140) })[rng:NextInteger(1, 3)], Enum.Material.Neon)
-				shop.Name = "Window"; shop.CanCollide, shop.CanQuery = false, false; shop:SetAttribute("Tier", 1); shop.Transparency = 0.1
-				-- awning above the shop front
-				local aw = part(b, if horiz then Vector3.new(w * 0.86, 0.4, 3) else Vector3.new(3, 0.4, l * 0.86), cf * off * CFrame.new(0, 3.2, 0) * (if horiz then CFrame.new(0, 0, (f == "z-") and -1.4 or 1.4) else CFrame.new((f == "x-") and -1.4 or 1.4, 0, 0)), SIGN_COLORS[rng:NextInteger(1, #SIGN_COLORS)], Enum.Material.SmoothPlastic)
-				aw.CanCollide, aw.CanQuery = false, false
+		if d >= 0.18 and d < 0.6 and #streetSides > 0 then
+			-- a shop on the main street face of every mid-rise block, and sometimes round the corner too
+			for n, f in streetSides do
+				if n == 1 or rng:NextNumber() < 0.35 then
+					local F, fw = faceFrame(cf, w, l, h, f)
+					shopFront(b, F, fw, DOWNTOWN_SHOPS[rng:NextInteger(1, #DOWNTOWN_SHOPS)])
+				end
 			end
+		elseif d >= 0.6 and d < 0.9 and #streetSides > 0 and rng:NextNumber() < 0.4 then
+			-- a corner shop in a house
+			local F, fw = faceFrame(cf, w, l, h, streetSides[1])
+			shopFront(b, F, fw, SUBURB_SHOPS[rng:NextInteger(1, #SUBURB_SHOPS)])
+			b:SetAttribute("Shop", true)
 		end
 		if d < 0.6 then
-			windowBands(b, size, cf, streetSides, WINDOW[rng:NextInteger(1, #WINDOW)], every, tier)
-		elseif #streetSides > 0 then
+			windowBands(b, size, cf, streetSides, WINDOW[rng:NextInteger(1, #WINDOW)], every, tier, if mat == Enum.Material.Glass then 0 else 14) -- keep clear of the shops below
+		elseif #streetSides > 0 and not b:GetAttribute("Shop") then
 			-- a house: one lit window toward the street
 			local f = streetSides[1]
 			local off = if f == "z-" then CFrame.new(0, 1, -l / 2 - 0.08) elseif f == "z+" then CFrame.new(0, 1, l / 2 + 0.08) elseif f == "x-" then CFrame.new(-w / 2 - 0.08, 1, 0) else CFrame.new(w / 2 + 0.08, 1, 0)
@@ -358,10 +461,11 @@ function City.build(ctx)
 							local x0 = bx0 + 4 + a * lot + 2
 							local z0 = bz0 + 4 + c * lot + 2
 							local sides = {}
-							if a == 0 then table.insert(sides, "x-") end
-							if a == n - 1 then table.insert(sides, "x+") end
+							-- east-west streets first: that's where you start and where the lantern strings hang
 							if c == 0 then table.insert(sides, "z-") end
 							if c == n - 1 then table.insert(sides, "z+") end
+							if a == 0 then table.insert(sides, "x-") end
+							if a == n - 1 then table.insert(sides, "x+") end
 							local inset = if d < 0.24 then 6 else 2
 							if d < 0.6 or rng:NextNumber() < 0.72 then -- some suburban lots stay open
 								building(x0 + inset, z0 + inset, x0 + lot - 4 - inset, z0 + lot - 4 - inset, d, sides)
@@ -411,6 +515,72 @@ function City.build(ctx)
 					local lamp = part(deco, Vector3.new(1.6, 1.6, 0.3), CFrame.new(px2 + (((i + j) // 4) % 2 == 0 and -2 or 2), GY + CURB + 14.6, pz2 - c[2] * 11 - c[2] * 0.75), ((i + j) // 4) % 2 == 0 and Color3.fromRGB(60, 255, 150) or Color3.fromRGB(255, 50, 40), Enum.Material.Neon)
 					lamp.CanCollide, lamp.CanQuery = false, false
 					lamp.Name = "Signal"
+				end
+			end
+		end
+		breathe()
+	end
+
+	-- street life: utility poles and overhead wires in the suburbs, vending machines on corners, paper lantern
+	-- strings across the shopping streets
+	local poleCol, wireCol = Color3.fromRGB(150, 146, 136), Color3.fromRGB(26, 26, 28)
+	local function wire(a, b2)
+		local m = (a + b2) / 2
+		local wp = part(deco, Vector3.new(0.14, 0.14, (b2 - a).Magnitude), CFrame.lookAt(m, b2), wireCol, Enum.Material.SmoothPlastic)
+		wp.CanCollide, wp.CanQuery, wp.CastShadow = false, false, false
+	end
+	for j = 0, GRID do
+		local z = streetZ(j)
+		for i = 0, GRID - 1 do
+			local bx0 = X0 + i * PITCH + STREET
+			local d = district(bx0 + BLOCK / 2, z)
+			if d >= 0.55 then
+				-- two concrete poles per block on the north pavement, wired to each other and to the next block
+				local pz = z - STREET / 2 - 2.5
+				local tops = {}
+				for n, px in { bx0 + 20, bx0 + 120 } do
+					part(solid, Vector3.new(1.1, 26, 1.1), CFrame.new(px, GY + CURB + 13, pz), poleCol, Enum.Material.Concrete).Name = "Pole"
+					local arm = part(deco, Vector3.new(0.4, 0.4, 7), CFrame.new(px, GY + CURB + 24, pz), poleCol, Enum.Material.Concrete)
+					arm.CanCollide, arm.CanQuery = false, false
+					if n == 2 and rng:NextNumber() < 0.4 then
+						local tr = part(deco, Vector3.new(1.8, 2.6, 1.8), CFrame.new(px, GY + CURB + 20, pz + 1.2), Color3.fromRGB(120, 124, 128), Enum.Material.Metal, Enum.PartType.Cylinder)
+						tr.CFrame = tr.CFrame * CFrame.Angles(0, 0, math.pi / 2); tr.CanCollide, tr.CanQuery = false, false
+					end
+					tops[n] = px
+				end
+				for _, dz in { -2.8, 2.8 } do
+					local y = GY + CURB + 24
+					wire(Vector3.new(tops[1], y, pz + dz), Vector3.new(tops[2], y, pz + dz))
+					if i < GRID - 1 then wire(Vector3.new(tops[2], y, pz + dz), Vector3.new(tops[1] + PITCH, y, pz + dz)) end
+				end
+			elseif d >= 0.2 and d < 0.6 and j % 2 == 0 and j < GRID then
+				-- a string of paper lanterns across the shopping street, mid-block
+				local lx = bx0 + BLOCK / 2
+				local y = GY + CURB + 17
+				wire(Vector3.new(lx, y + 0.8, z - STREET / 2 - 2), Vector3.new(lx, y + 0.8, z + STREET / 2 + 2))
+				for n = 0, 6 do
+					local lz = z - STREET / 2 + 3 + n * (STREET - 6) / 6
+					local lan = part(deco, Vector3.new(1.6, 2.2, 1.6), CFrame.new(lx, y - (math.sin(n / 6 * math.pi) * 1.2), lz), if n % 2 == 0 then Color3.fromRGB(240, 50, 40) else Color3.fromRGB(255, 240, 210), Enum.Material.Neon, Enum.PartType.Ball)
+					lan.Name = "Lantern"; lan.CanCollide, lan.CanQuery = false, false
+				end
+			end
+		end
+		breathe()
+	end
+	-- vending machines: a pair or three on a pavement corner, glowing day and night
+	local VEND = { Color3.fromRGB(230, 236, 246), Color3.fromRGB(200, 30, 40), Color3.fromRGB(30, 90, 200), Color3.fromRGB(40, 160, 90) }
+	for i = 0, GRID do
+		for j = 0, GRID do
+			local x, z = streetX(i), streetZ(j)
+			local d = district(x, z)
+			if d > 0.22 and d < 0.9 and rng:NextNumber() < 0.35 then
+				local n = rng:NextInteger(2, 3)
+				for k = 0, n - 1 do
+					local base = Vector3.new(x - STREET / 2 - 3.2, GY + CURB, z + STREET / 2 + 8 + k * 3.8)
+					local face = CFrame.lookAt(base, base + Vector3.new(1, 0, 0))
+					part(solid, Vector3.new(3.6, 6.2, 2.4), face * CFrame.new(0, 3.1, 0), VEND[rng:NextInteger(1, #VEND)], Enum.Material.SmoothPlastic).Name = "Vending"
+					local glow = part(deco, Vector3.new(3, 3.4, 0.12), face * CFrame.new(0, 3.8, -1.22), Color3.fromRGB(200, 236, 255), Enum.Material.Neon)
+					glow.Name = "VendingFace"; glow.CanCollide, glow.CanQuery = false, false
 				end
 			end
 		end
@@ -561,7 +731,8 @@ function City.build(ctx)
 		bounds = { X0, Z0, X0 + SIZE, Z0 + SIZE },
 		junction = jIdx,
 		junctionSide = side,
-		spawn = { X0 + STREET / 2 + 10 * PITCH, GY, entryZ, 0 },
+		-- start downtown on a shopping street (lantern strings, shops both sides), facing +X
+		spawn = { streetX(6), GY, streetZ(8), 0 },
 		grid = { X0 = X0, Z0 = Z0, PITCH = PITCH, STREET = STREET, GRID = GRID },
 		ring = { ex0, ez0, ex1, ez1 },
 		buildings = buildingCount,

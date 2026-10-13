@@ -1,12 +1,12 @@
 """Converts the browser game's Hakone course (control points + real DEM heights) into
 roblox/src/shared/CourseData.luau: the road line, its real elevation profile, zones,
-the hills beside the road and Lake Ashi. Horizontal 2.2 studs per metre; heights 0.6 studs per metre."""
+the hills beside the road and Lake Ashi. Horizontal 3.0 studs per metre (close to the cars' 3.5, so roads and corners fit them); heights 0.6 studs per metre."""
 import re, json, base64, math, sys
 import numpy as np
 
 SRC = sys.argv[1] if len(sys.argv) > 1 else '../index.html'
 OUT = sys.argv[2] if len(sys.argv) > 2 else 'src/shared/CourseData.luau'
-H, V = 2.2, 0.6
+H, V = 3.0, 0.6
 
 s = open(SRC).read()
 DEM = json.loads(re.search(r'^const DEM = (\{.*?\});$', s, re.M).group(1))

@@ -36,6 +36,9 @@ local rem = RS:FindFirstChild("KaidoRemotes")
 local pr = rem:FindFirstChild("GetProfile"):InvokeServer()
 local skids = 0
 for _, p in workspace:FindFirstChild("KaidoSkids").__kids do if rawget(p, "Size") then skids += 1 end end
+local snds = {}
+for _, d in game:GetService("SoundService").__kids do if d.ClassName == "Sound" and rawget(d, "SoundId") and d.SoundId ~= "" then table.insert(snds, d.Name .. "=" .. d.SoundId .. " vol " .. string.format("%.2f", rawget(d, "Volume") or 0)) end end
+print("own car sounds:", table.concat(snds, ", "))
 print("driving ok · server credits", pr.credits, "total points", pr.total, "best", pr.best, "skid marks laid", skids)
 key("Escape"); frames(10)
 click("Photo mode"); frames(30)

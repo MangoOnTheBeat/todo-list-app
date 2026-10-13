@@ -612,11 +612,13 @@ do
 	local f = Ui.field("Sound", 8, sCol)
 	Ui.chips({ { true, "On" }, { false, "Off" } }, S.sound, function(v) S.sound = v; saveSettings() end, 1, f)
 	Ui.slider(0, 1, 0.05, S.volume, function(v) S.volume = v; saveSettings() end, 2, f)
-	local found = Audio.count()
-	if found < 7 then
-		Ui.fine(string.format('<font color="#ffc94d">Sound files found in this place: %d of 7.</font> Roblox only plays sounds uploaded to Roblox: upload the 7 kaido_*.ogg files (Asset Manager › Bulk Import), then click each one in Toolbox › Inventory › My Audio so it lands in Workspace — or paste their IDs into ReplicatedStorage › Shared › SoundIds.', found), 3, f)
+	local am = Audio.mode()
+	if am == "full" then
+		Ui.fine("Engine sound: the game's own engine sounds are installed.", 3, f)
+	elseif am == "simple" then
+		Ui.fine("Engine sound: using an engine sound from the Toolbox. Add a tyre screech too (name with \"tire\" or \"screech\").", 3, f)
 	else
-		Ui.fine("All 7 sound files found.", 3, f)
+		Ui.fine('<font color="#ffc94d">No engine sound in this place yet.</font> Quickest fix, no uploading: in Studio open Toolbox › Audio, search "car engine loop", click one so it lands in Workspace (keep "engine" in its name). Do the same for "tire screech". Or upload the game\'s own 7 kaido_*.ogg sounds for the full engine.', 3, f)
 	end
 end
 do
@@ -839,7 +841,7 @@ local function start(public)
 	if S.start == "city" then goCity() else resetCar(START); onPass = true end
 	lastZone = -1
 	showToast(public and "Public map · everyone here drives together" or "Solo · just you", public and Ui.NEON or Ui.TEXT)
-	if not warnedSound and Audio.count() < 7 then
+	if not warnedSound and not Audio.available() then
 		warnedSound = true
 		task.delay(2.6, function() showToast("No engine sound yet · see Settings › Sound", Ui.GOLD) end)
 	end

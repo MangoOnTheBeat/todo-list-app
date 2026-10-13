@@ -221,7 +221,7 @@ do
 	local k, placed = 1, 0
 	while k <= N do
 		local t = turnAt(k)
-		if 60 / math.max(math.abs(t), 1e-6) < 50 and not nearJunction(k) then
+		if 6 * Config.SEG / math.max(math.abs(t), 1e-6) < 68 and not nearJunction(k) then
 			-- a tight corner starts here: boards from a little before it, every 20 studs, up to 5
 			local a, b = ((k - 4) % N) + 1, ((k + 2) % N) + 1
 			local inward = (Track.TX[b] - Track.TX[a]) * Track.RX[k] + (Track.TZ[b] - Track.TZ[a]) * Track.RZ[k]
@@ -682,7 +682,7 @@ local updateNeonBoard
 do
 	-- the car starts facing +X along an east-west street; the gantry spans it half a block ahead
 	local sx, sy, sz = city.spawn[1], city.spawn[2], city.spawn[3]
-	local gx = sx + 124
+	local gx = sx + 70 -- clear of the mid-block lantern string
 	local folder = Instance.new("Folder")
 	folder.Name = "Leaderboard"
 	folder.Parent = map
