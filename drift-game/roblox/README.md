@@ -85,6 +85,14 @@ Driving straight for 1.4 s banks the chain (one credit per ten points); a crash 
 - **Daily challenges:** three a day for everyone (new at 00:00 UTC), each paying credits.
 - **Photo mode:** pause → Photo mode; drag to orbit, scroll or pinch to zoom.
 
+## Admin panel (only you)
+Once the game is published under your account you're the owner, and only the owner sees **Admin panel** on the
+title and pause menus (or presses **F2**). In Studio you're always admin. To add someone else, put their Roblox
+user ID in `Config.Admins`. Every action is checked again on the server, so other players can't use it even
+with a hacked client. It can give or take credits, unlock every garage car, give the special cars, max a car's
+upgrades, reset a player's daily challenges, remove a cheater from the leaderboards, teleport to a player on
+the public map, kick, and send an announcement to everyone (filtered by Roblox, as its rules require).
+
 ## Rebuild from source
 `rojo build -o KaidoDrift.rbxl` (Rojo 7) in this folder. `tools/make_course.py` regenerates
 `src/shared/CourseData.luau` from the browser game; `tools/make_sounds.py` regenerates `sounds/`.

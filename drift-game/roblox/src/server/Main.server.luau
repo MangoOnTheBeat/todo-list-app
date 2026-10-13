@@ -6,6 +6,8 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataStoreService = game:GetService("DataStoreService")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local TextService = game:GetService("TextService")
 local Lighting = game:GetService("Lighting")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -37,6 +39,8 @@ local State = remote("UnreliableRemoteEvent", "State")
 local Others = remote("UnreliableRemoteEvent", "Others")
 local ProfileChanged = remote("RemoteEvent", "Profile")
 local Tune = remote("RemoteFunction", "Tune")
+local Admin = remote("RemoteFunction", "Admin")
+local Announce = remote("RemoteEvent", "Announce")
 local BuySpecial = remote("RemoteEvent", "BuySpecial")
 remotes.Parent = ReplicatedStorage
 
@@ -391,6 +395,22 @@ map:SetAttribute("Ready", true)
 local store
 pcall(function() store = DataStoreService:GetDataStore("KaidoDrift_v2") end)
 local profiles, lastBank, lastLap, publicMode, dirty = {}, {}, {}, {}, {}
+-- admins: the owner (or the owning group's owner), anyone listed in Config.Admins, and you in Studio.
+-- Every admin action below is checked here on the server, so a hacked client can't use the panel.
+local adminCache = {}
+local function isAdmin(player)
+	if adminCache[player] ~= nil then return adminCache[player] end
+	local ok = table.find(Config.Admins, player.UserId) ~= nil
+	if not ok and game.CreatorType == Enum.CreatorType.User and player.UserId == game.CreatorId and game.CreatorId ~= 0 then ok = true end
+	if not ok and game.CreatorType == Enum.CreatorType.Group then
+		local okRank, rank = pcall(function() return player:GetRankInGroup(game.CreatorId) end)
+		ok = okRank and rank == 255
+	end
+	if not ok and RunService:IsStudio() then ok = true end
+	adminCache[player] = ok
+	return ok
+end
+
 -- global leaderboards (best single drift, total points banked)
 local bestStore, totalStore
 pcall(function()
@@ -477,6 +497,7 @@ local function load(player)
 	end
 	if p.wantSelected and p.owned[p.wantSelected] then p.selected = p.wantSelected end
 	p.wantSelected = nil
+	p.admin = isAdmin(player)
 	profiles[player] = p
 	stats(player, p)
 end
@@ -505,7 +526,7 @@ local function view(p)
 	local ch = {}
 	for k, c in list do ch[k] = { text = c.text, goal = c.goal, reward = c.reward, prog = math.min(dl.prog[k], c.goal), done = dl.done[k] } end
 	return { credits = p.credits, owned = owned, selected = p.selected, best = p.best, laps = p.laps, total = p.total, paint = p.paint,
-		upg = p.upg, cos = p.cos, daily = ch, settings = p.settings }
+		upg = p.upg, cos = p.cos, daily = ch, settings = p.settings, admin = p.admin == true }
 end
 
 Players.PlayerAdded:Connect(load)
@@ -626,6 +647,7 @@ Erase.OnServerInvoke = function(player)
 	local keep, old = p.settings, p.owned
 	p = newProfile()
 	p.settings = keep
+	p.admin = isAdmin(player)
 	-- paid cars stay: erasing progress never takes away something bought with Robux
 	for _, car in Config.Premium do if old[car.id] then p.owned[car.id] = true end end
 	profiles[player] = p
@@ -805,10 +827,12 @@ SetMode.OnServerEvent:Connect(function(player, mode)
 	publicMode[player] = mode == "public"
 end)
 
+local lastPos = {}
 State.OnServerEvent:Connect(function(player, x, y, z, h, carId, paint, drifting)
 	if not publicMode[player] then return end
 	if type(x) ~= "number" or type(y) ~= "number" or type(z) ~= "number" or type(h) ~= "number" or type(carId) ~= "string" then return end
 	if x ~= x or y ~= y or z ~= z or h ~= h then return end
+	lastPos[player] = { x, y, z, h }
 	paint = type(paint) == "number" and math.clamp(math.floor(paint), 0, #Config.Paints) or 0
 	for _, other in Players:GetPlayers() do
 		if other ~= player and publicMode[other] then
@@ -816,3 +840,79 @@ State.OnServerEvent:Connect(function(player, x, y, z, h, carId, paint, drifting)
 		end
 	end
 end)
+
+-- ===================== admin panel (owner only, checked on the server) =====================
+local function playerList()
+	local out = {}
+	for _, pl in Players:GetPlayers() do
+		local p = profiles[pl]
+		table.insert(out, { id = pl.UserId, name = pl.DisplayName .. " (@" .. pl.Name .. ")", credits = p and p.credits or 0, public = publicMode[pl] == true })
+	end
+	return out
+end
+Admin.OnServerInvoke = function(player, action, targetId, value)
+	if not isAdmin(player) then
+		warn("Kaido Drift: non-admin " .. player.Name .. " tried the admin panel")
+		return { ok = false, msg = "Not allowed" }
+	end
+	if type(action) ~= "string" then return { ok = false, msg = "Bad request" } end
+	if action == "list" then return { ok = true, players = playerList() } end
+	local target = type(targetId) == "number" and Players:GetPlayerByUserId(targetId) or nil
+	local tp = target and profiles[target]
+	local function done(msg)
+		if tp then
+			stats(target, tp)
+			dirty[target] = true
+			ProfileChanged:FireClient(target, view(tp), nil, "admin")
+		end
+		return { ok = true, msg = msg, players = playerList() }
+	end
+	if action == "announce" then
+		if type(value) ~= "string" or #value == 0 then return { ok = false, msg = "Type a message first" } end
+		local text = string.sub(value, 1, 120)
+		-- Roblox requires text shown to other players to go through its filter
+		local ok, filtered = pcall(function() return TextService:FilterStringAsync(text, player.UserId):GetNonChatStringForBroadcastAsync() end)
+		if not ok then return { ok = false, msg = "Couldn't filter the message, try again" } end
+		Announce:FireAllClients(filtered)
+		return { ok = true, msg = "Announced to everyone" }
+	end
+	if not tp then return { ok = false, msg = "Pick a player first" } end
+	if action == "credits" then
+		local n = math.clamp(math.floor(tonumber(value) or 0), -10000000, 10000000)
+		tp.credits = math.max(0, tp.credits + n)
+		return done(string.format("%s %d CR", n >= 0 and "Gave" or "Took", math.abs(n)))
+	elseif action == "unlockAll" then
+		for _, c in Config.Cars do if not c.premium then tp.owned[c.id] = true end end
+		return done("Unlocked every garage car")
+	elseif action == "giveCar" then
+		local c = type(value) == "string" and Config.car(value)
+		if not c or c.id ~= value then return { ok = false, msg = "Unknown car" } end
+		tp.owned[c.id] = true
+		return done("Gave " .. c.name)
+	elseif action == "maxUpgrades" then
+		local u = {}
+		for _, up in Config.Upgrades do u[up.key] = Config.UPGRADE_MAX end
+		tp.upg[tp.selected] = u
+		return done("Maxed every upgrade on " .. Config.car(tp.selected).name)
+	elseif action == "resetChallenges" then
+		tp.daily = nil
+		return done("Today's challenges reset")
+	elseif action == "removeFromBoards" then
+		pcall(function() if bestStore then bestStore:RemoveAsync(tostring(target.UserId)) end end)
+		pcall(function() if totalStore then totalStore:RemoveAsync(tostring(target.UserId)) end end)
+		tp.best, tp.total = 0, 0
+		boardDirty[target] = nil
+		return done("Removed from the leaderboards")
+	elseif action == "goto" then
+		local pos = lastPos[target]
+		if not pos then return { ok = false, msg = "They need to be on the public map" } end
+		return { ok = true, msg = "Teleported", pos = pos }
+	elseif action == "kick" then
+		if target == player then return { ok = false, msg = "You can't kick yourself" } end
+		local reason = type(value) == "string" and value ~= "" and string.sub(value, 1, 80) or "Removed by the game owner"
+		target:Kick(reason)
+		return { ok = true, msg = "Kicked " .. target.Name, players = playerList() }
+	end
+	return { ok = false, msg = "Unknown action" }
+end
+Players.PlayerRemoving:Connect(function(pl) adminCache[pl], lastPos[pl] = nil, nil end)

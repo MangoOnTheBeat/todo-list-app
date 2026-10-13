@@ -110,6 +110,10 @@ function Config.dailyFor(day: number)
 	return list
 end
 
+-- admin panel: the game's owner is always an admin (once published under your account). To add more
+-- people, put their Roblox user IDs here, e.g. { 12345678, 87654321 }. In Studio you are always admin.
+Config.Admins = {}
+
 -- assist levels (names and descriptions as in the browser settings)
 Config.Assists = {
 	{ id = "touch", name = "Easy drift", desc = "Best for touch: auto drift entry, throttle feed, countersteer" },

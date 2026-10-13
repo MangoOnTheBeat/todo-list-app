@@ -67,4 +67,19 @@ print("tandem link beams on:", beams, "ghost exists:", workspace:FindFirstChild(
 for _, d in gui:GetDescendants() do local t = rawget(d, "Text"); if type(t) == "string" and (t:find("TANDEM") or t:find("ANGLE")) then print("tag:", t) end end
 local myc = workspace:FindFirstChild("MyCar")
 for _, d in myc.PrimaryPart.__kids do print("root child", d.ClassName, d.Name) end
+-- admin panel: owner gives themself credits through the UI
+key("F2"); frames(5)
+for _, d in gui:GetDescendants() do if d.ClassName == "TextBox" and rawget(d, "PlaceholderText") and string.find(d.PlaceholderText, "Amount") then d.Text = "50000" end end
+local before = rem:FindFirstChild("GetProfile"):InvokeServer().credits
+click("Give credits"); frames(5)
+local after = rem:FindFirstChild("GetProfile"):InvokeServer().credits
+print("admin give credits:", before, "->", after)
+click("Unlock every garage car"); frames(5)
+print("owned after unlock:", #rem:FindFirstChild("GetProfile"):InvokeServer().owned)
+-- a cheater (not the owner) calling the admin remote directly
+local cheater = Instance.new("Player"); cheater.Name = "Cheater"; cheater.UserId = 88
+game:GetService("Players").PlayerAdded:Fire(cheater)
+local res = rawget(rem:FindFirstChild("Admin"), "OnServerInvoke")(cheater, "credits", 88, 999999)
+print("cheater admin call:", res.ok, res.msg)
+print("cheater sees admin flag:", rawget(rem:FindFirstChild("GetProfile"), "OnServerInvoke")(cheater).admin)
 print("CLIENT SIM OK")

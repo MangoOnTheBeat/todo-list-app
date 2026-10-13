@@ -264,6 +264,8 @@ U.bPublic = Ui.button("Play with others", "Public map · drift together · chat"
 U.bGarage = Ui.button("Garage", "Unlock & paint", nil, 3, tMenu)
 U.bSettings = Ui.button("Settings", "Graphics, gearbox, assists, sound", nil, 4, tMenu)
 U.bBoards = Ui.button("Leaderboards", "Best drift and total points, worldwide", nil, 5, tMenu)
+U.bAdmin = Ui.button("Admin panel", "Only you can see this", "ghost", 7, tMenu)
+U.bAdmin.Visible = profile.admin == true
 do
 	local f = Ui.field("Start at", 6, tMenu)
 	Ui.chips({ { "city", "Shin-Hakone city" }, { "pass", "Hakone pass" } }, S.start, function(v) S.start = v; saveSettings() end, 1, f)
@@ -500,6 +502,72 @@ local function renderBoards()
 	end
 end
 
+-- admin panel: only shown to admins (the server checks every action again, so this is just the UI)
+U.adminRoot, U.aCol = Ui.sheet(gui, true)
+Ui.heading("Admin", "管理", 1, U.aCol)
+Ui.fine("Only you can see and use this panel. Pick a player, then an action.", 2, U.aCol)
+U.aStatus = text({ Text = "", TextSize = 14, FontFace = Ui.BOLD, TextColor3 = Ui.NEON, LayoutOrder = 3, Parent = U.aCol })
+U.aPlayersF = Ui.field("Players in this server", 4, U.aCol)
+U.aPlayers = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 1, Parent = U.aPlayersF }, { Ui.list(6) })
+U.aTarget = nil
+local function adminBox(placeholder, order, parent)
+	local b = make("TextBox", { Size = UDim2.new(1, 0, 0, 40), Text = "", PlaceholderText = placeholder, ClearTextOnFocus = false,
+		TextColor3 = Ui.TEXT, PlaceholderColor3 = Ui.DIM, FontFace = Ui.BODY, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left,
+		LayoutOrder = order, Parent = parent }, { Ui.pad(12, 0, 12, 0) })
+	Ui.glass(b, 12, 0.45)
+	return b
+end
+local renderAdmin
+local function adminDo(action, value)
+	U.aStatus.Text, U.aStatus.TextColor3 = "Working…", Ui.DIM
+	task.spawn(function()
+		local res = R.Admin:InvokeServer(action, U.aTarget, value)
+		if not res then return end
+		U.aStatus.Text, U.aStatus.TextColor3 = res.msg or "", res.ok and Ui.NEON or Ui.DANGER
+		Ui.pop(U.aStatus, 1.1)
+		if res.players then U.aList = res.players; renderAdmin() end
+		if res.pos then placeAt(res.pos[1] + 6, res.pos[2] + 0.5, res.pos[3], res.pos[4]); U.setMode("play") end
+	end)
+end
+renderAdmin = function()
+	for _, c in U.aPlayers:GetChildren() do if c:IsA("GuiObject") then c:Destroy() end end
+	for k, pl in U.aList or {} do
+		local sel = pl.id == U.aTarget
+		local row = make("TextButton", { Size = UDim2.new(1, 0, 0, 40), Text = "", AutoButtonColor = false, LayoutOrder = k, Parent = U.aPlayers })
+		Ui.glass(row, 12, sel and 0.15 or 0.5)
+		if sel then Ui.stroke(Ui.SAKURA, 2, 0).Parent = row end
+		Ui.bouncy(row)
+		text({ Text = pl.name .. (pl.id == player.UserId and "  ·  you" or ""), TextSize = 15, FontFace = Ui.BOLD, TextColor3 = sel and Ui.SAKURA or Ui.TEXT, AutomaticSize = Enum.AutomaticSize.None,
+			Size = UDim2.new(1, -170, 1, 0), Position = UDim2.new(0, 14, 0, 0), TextWrapped = false, TextTruncate = Enum.TextTruncate.AtEnd, TextYAlignment = Enum.TextYAlignment.Center, Parent = row })
+		text({ Text = fmt(pl.credits) .. " CR", TextSize = 14, FontFace = Ui.BOLD, TextColor3 = Ui.GOLD, AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(0, 150, 1, 0),
+			Position = UDim2.new(1, -164, 0, 0), TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Center, TextWrapped = false, Parent = row })
+		row.Activated:Connect(function() U.aTarget = pl.id; renderAdmin() end)
+	end
+end
+do
+	local f = Ui.field("Credits", 5, U.aCol)
+	local amount = adminBox("Amount, e.g. 50000", 1, f)
+	local row = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 2, Parent = f }, { Ui.list(8) })
+	Ui.button("Give credits", nil, "primary", 1, row).Activated:Connect(function() adminDo("credits", tonumber(amount.Text) or 0) end)
+	Ui.button("Take credits", nil, nil, 2, row).Activated:Connect(function() adminDo("credits", -(tonumber(amount.Text) or 0)) end)
+	local f2 = Ui.field("Cars", 6, U.aCol)
+	Ui.button("Unlock every garage car", nil, nil, 1, f2).Activated:Connect(function() adminDo("unlockAll") end)
+	Ui.button("Max upgrades on their car", nil, nil, 2, f2).Activated:Connect(function() adminDo("maxUpgrades") end)
+	for k, c in Config.Premium do
+		Ui.button("Give " .. c.name, "Special car", nil, 2 + k, f2).Activated:Connect(function() adminDo("giveCar", c.id) end)
+	end
+	local f3 = Ui.field("Player", 7, U.aCol)
+	Ui.button("Teleport to them", "They must be on the public map", nil, 1, f3).Activated:Connect(function() adminDo("goto") end)
+	Ui.button("Reset today's challenges", nil, nil, 2, f3).Activated:Connect(function() adminDo("resetChallenges") end)
+	Ui.button("Remove from leaderboards", "For cheaters: clears their best and total", nil, 3, f3).Activated:Connect(function() adminDo("removeFromBoards") end)
+	local reason = adminBox("Kick reason (optional)", 4, f3)
+	Ui.button("Kick from server", nil, "ghost", 5, f3).Activated:Connect(function() adminDo("kick", reason.Text) end)
+	local f4 = Ui.field("Announcement to everyone", 8, U.aCol)
+	local msg = adminBox("Message (filtered by Roblox)", 1, f4)
+	Ui.button("Send announcement", nil, "primary", 2, f4).Activated:Connect(function() adminDo("announce", msg.Text); msg.Text = "" end)
+end
+U.aBack = Ui.button("Back", nil, nil, 9, U.aCol)
+
 -- settings
 local settings, sCol = Ui.sheet(gui)
 Ui.heading("Settings", "設定", 1, sCol)
@@ -583,6 +651,8 @@ U.pPass = Ui.button("Go to Hakone pass", "Start line at Kojiri", nil, 4, pMenu)
 U.pCity = Ui.button("Go to Shin-Hakone city", "Neon streets & expressway", nil, 5, pMenu)
 U.pPhoto = Ui.button("Photo mode", "Freeze the moment · drag to frame your shot", nil, 6, pMenu)
 U.pQuit = Ui.button("Main menu", nil, "ghost", 7, pMenu)
+U.pAdmin = Ui.button("Admin panel", "Only you can see this", "ghost", 8, pMenu)
+U.pAdmin.Visible = profile.admin == true
 
 -- ===================== HUD =====================
 local hud = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false, Parent = gui })
@@ -740,7 +810,11 @@ local function setMode(m)
 	mode = m
 	-- the new screen slides in on glass; the world behind blurs while a menu is open
 	if m == "boards" then renderBoards() end
-	for name, root in { title = title, garage = garage, settings = settings, pause = pause, boards = boards } do
+	if m == "admin" then
+		U.aStatus.Text = ""
+		task.spawn(function() local res = R.Admin:InvokeServer("list"); if res and res.players then U.aList = res.players; U.aTarget = U.aTarget or player.UserId; renderAdmin() end end)
+	end
+	for name, root in { title = title, garage = garage, settings = settings, pause = pause, boards = boards, admin = U.adminRoot } do
 		if name == m then
 			if not root.Visible then Ui.show(root) end
 		else
@@ -757,6 +831,7 @@ local function setMode(m)
 	if m == "play" and shiftRow then shiftRow.Visible = S.trans == "manual" end
 	if m ~= "play" and sound then sound:mute() end
 end
+U.setMode = setMode
 local function start(public)
 	publicMap = public
 	R.SetMode:FireServer(public and "public" or "solo")
@@ -776,6 +851,15 @@ U.bGarage.Activated:Connect(function() setMode("garage") end)
 U.bSettings.Activated:Connect(function() setMode("settings") end)
 U.bBoards.Activated:Connect(function() setMode("boards") end)
 U.boardsBack.Activated:Connect(function() setMode("title") end)
+U.bAdmin.Activated:Connect(function() U.adminFrom = "title"; setMode("admin") end)
+U.pAdmin.Activated:Connect(function() U.adminFrom = "pause"; setMode("admin") end)
+U.aBack.Activated:Connect(function() setMode(U.adminFrom or "title") end)
+-- announcements from the game owner reach everyone
+R.Announce.OnClientEvent:Connect(function(message)
+	if U.showCallout then U.showCallout("ANNOUNCEMENT", Ui.GOLD) end
+	showToast(message, Ui.GOLD)
+	toastT = 6
+end)
 ReplicatedStorage:GetAttributeChangedSignal("Boards"):Connect(function() if mode == "boards" then renderBoards() end end)
 U.gBack.Activated:Connect(function() setMode(returnTo) end)
 U.sBack.Activated:Connect(function() physSet.assist, physSet.trans, physSet.sens = S.assist, S.trans, S.sens; setMode(returnTo) end)
@@ -811,7 +895,16 @@ UserInputService.TouchPinch:Connect(function(_, scale, _, state)
 	if mode == "photo" and state == Enum.UserInputState.Change then U.photo.dist = math.clamp(U.photo.dist / math.max(scale, 0.5) ^ 0.05, 3, 30) end
 end)
 -- a special car bought with Robux: the server sends the new profile
-R.Profile.OnClientEvent:Connect(function(res, message)
+R.Profile.OnClientEvent:Connect(function(res, message, why)
+	if why == "admin" then
+		profile = res
+		profile.settings = S
+		spawnCar(profile.selected) -- picks up new cars and upgrades
+		showToast("Updated by the game owner", Ui.VIOLET)
+		if mode == "garage" then renderGarage() end
+		refreshTitle()
+		return
+	end
 	local carChanged = res.selected ~= profile.selected
 	profile = res
 	profile.settings = S
@@ -841,6 +934,11 @@ bPause.Activated:Connect(function() setMode("pause") end)
 UserInputService.InputBegan:Connect(function(io, processed)
 	if processed then return end
 	local k = io.KeyCode
+	if k == Enum.KeyCode.F2 and profile.admin and (mode == "play" or mode == "pause" or mode == "title") then
+		U.adminFrom = if mode == "title" then "title" else "pause"
+		setMode("admin")
+		return
+	end
 	if mode == "play" then
 		if k == Enum.KeyCode.C or k == Enum.KeyCode.V or k == Enum.KeyCode.ButtonY then cycleCam() end
 		if k == Enum.KeyCode.R or k == Enum.KeyCode.ButtonSelect then resetCar() end
