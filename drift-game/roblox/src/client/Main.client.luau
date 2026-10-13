@@ -33,6 +33,7 @@ local gui = make("ScreenGui", { Name = "KaidoUI", ResetOnSpawn = false, IgnoreGu
 -- ===================== loading =====================
 local loading = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Ui.INK, ZIndex = 50, Parent = gui })
 text({ Text = 'KAIDO <font color="#ff7eb6">峠</font> DRIFT', FontFace = Ui.DISPLAY, TextSize = 56, TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.new(0, 0, 0.4, -40), ZIndex = 51, Parent = loading })
+text({ Text = "VERSION " .. Config.VERSION, TextSize = 12, FontFace = Ui.BOLD, TextColor3 = Ui.DIM, TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.new(0, 0, 1, -40), ZIndex = 51, Parent = loading })
 local loadMsg = text({ Text = "Building Japan…", TextSize = 16, TextColor3 = Ui.DIM, TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.new(0, 0, 0.4, 30), ZIndex = 51, Parent = loading })
 U.barBack = make("Frame", { Size = UDim2.new(0, 260, 0, 3), Position = UDim2.new(0.5, -130, 0.4, 64), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.85, BorderSizePixel = 0, ZIndex = 51, Parent = loading })
 U.loadBar = make("Frame", { Size = UDim2.new(0.1, 0, 1, 0), BackgroundColor3 = Ui.SAKURA, BorderSizePixel = 0, ZIndex = 52, Parent = U.barBack })
@@ -805,6 +806,10 @@ end)
 -- ===================== screen switching =====================
 local returnTo = "title"
 local warnedSound = false
+-- version badge on the menus (bottom right)
+U.version = Ui.glass(make("TextLabel", { Size = UDim2.new(0, 0, 0, 28), AutomaticSize = Enum.AutomaticSize.X, AnchorPoint = Vector2.new(1, 1),
+	Position = UDim2.new(1, -16, 1, -16), Text = "Version " .. Config.VERSION, TextSize = 13, FontFace = Ui.BOLD, TextColor3 = Ui.TEXT, ZIndex = 20, Parent = gui },
+	{ Ui.pad(12, 0, 12, 0) }), 14, 0.45)
 local function setMode(m)
 	if (m == "garage" or m == "settings") and (mode == "pause" or mode == "play") then returnTo = "pause"
 	elseif m == "garage" or m == "settings" then returnTo = "title" end
@@ -824,6 +829,7 @@ local function setMode(m)
 		end
 	end
 	Ui.blur(m ~= "play" and m ~= "photo")
+	U.version.Visible = m ~= "play" and m ~= "photo"
 	U.photoBar.Visible = m == "photo"
 	if m ~= "play" then Fx.tandem(nil, nil, 0) end
 	if m == "photo" then U.photo.yaw, U.photo.pitch, U.photo.dist = P.h + math.pi * 0.75, 0.22, 8 end

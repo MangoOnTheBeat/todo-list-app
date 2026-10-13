@@ -2,6 +2,9 @@
 -- numbers live in CarPhysics, exactly as in the browser.
 local Config = {}
 
+-- shown on the menus; goes up by one with every release
+Config.VERSION = 1
+
 Config.ROAD_HALF = 30 -- half the pass road width (studs): 60 studs = about 17 m at car scale, room to drift two abreast
 Config.SEG = 13 -- pass road sample spacing (studs)
 Config.SCALE = 3.5 -- studs per metre for cars and physics

@@ -145,6 +145,8 @@ input[type=range]{width:100%;accent-color:var(--sakura)}
 
 /* touch */
 #touch{position:absolute;inset:0;pointer-events:none}
+#verBadge{position:fixed;right:calc(env(safe-area-inset-right,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 14px);z-index:30;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--text);background:rgba(20,22,40,.55);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);pointer-events:none}
+body.playing #verBadge{display:none}
 #steerZone{position:absolute;left:0;bottom:0;width:45%;height:55%;pointer-events:auto;touch-action:none}
 #steerBtns{display:none;position:absolute;left:calc(env(safe-area-inset-left,0px) + 18px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);gap:14px;pointer-events:auto;touch-action:none}
 #steerBtns button{width:88px;height:88px;border-radius:22px;font-size:30px;color:var(--text);background:rgba(20,22,40,.55);border:1.5px solid rgba(255,255,255,.28);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);touch-action:none;-webkit-user-select:none;user-select:none;transition:transform .12s cubic-bezier(.3,1.6,.5,1),background .12s}
@@ -274,6 +276,7 @@ body.touch #toast{font-size:16px}
   <div id="hint"></div>
 </div>
 
+<div id="verBadge">Version 1</div>
 <section id="sTitle" class="screen" hidden>
   <div class="sheet">
     <h1 class="logo">KAIDO DRIFT<span class="jp">街道 · 峠</span></h1>
@@ -2925,6 +2928,7 @@ function setState(s) {
   state = s;
   for (const k in screens) $(screens[k]).hidden = k !== s;
   $('hud').hidden = !(s === 'play');
+  document.body.classList.toggle('playing', s === 'play');
   $('touch').hidden = !(s === 'play' && (isTouch || touch.active));
   if (s === 'title') renderTitle();
   if (s === 'garage') renderGarage();
