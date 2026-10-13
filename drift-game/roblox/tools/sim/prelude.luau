@@ -120,7 +120,8 @@ function methods.FillWedge() end
 LOCALPLAYER = nil
 function methods.InvokeServer(self, ...) return rawget(self, "OnServerInvoke")(LOCALPLAYER, ...) end
 function methods.FireServer(self, ...) self.OnServerEvent:Fire(LOCALPLAYER, ...) end
-function methods.FireClient(self, pl, ...) self.OnClientEvent:Fire(...) end
+function methods.FireClient(self, pl, ...) if pl == LOCALPLAYER then self.OnClientEvent:Fire(...) end end
+function methods.FireAllClients(self, ...) self.OnClientEvent:Fire(...) end
 function methods.GetAttributeChangedSignal() return any("Signal") end
 function methods.IsDescendantOf() return true end
 function methods.PivotTo(self, c) self.__pivot = c end

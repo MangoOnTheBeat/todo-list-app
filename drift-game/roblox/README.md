@@ -88,12 +88,18 @@ Driving straight for 1.4 s banks the chain (one credit per ten points); a crash 
 - **Photo mode:** pause → Photo mode; drag to orbit, scroll or pinch to zoom.
 
 ## Admin panel (only you)
-Once the game is published under your account you're the owner, and only the owner sees **Admin panel** on the
-title and pause menus (or presses **F2**). In Studio you're always admin. To add someone else, put their Roblox
-user ID in `Config.Admins`. Every action is checked again on the server, so other players can't use it even
-with a hacked client. It can give or take credits, unlock every garage car, give the special cars, max a car's
-upgrades, reset a player's daily challenges, remove a cheater from the leaderboards, teleport to a player on
-the public map, kick, and send an announcement to everyone (filtered by Roblox, as its rules require).
+Only the game owner (or anyone in `Config.Admins`, or you in Studio) sees **Admin panel** on the menus or opens it
+with **F2**. Every action is checked again on the server. Tabs:
+- **Players:** give/take/set credits; give, take away or put them in any car (special cars too); unlock all; max or
+  reset upgrades; set best drift; complete or reset today's challenges; remove from leaderboards; erase progress;
+  go to them, bring them to you, send them to the city or pass, spectate; freeze; mute chat; private message;
+  kick; ban for 1 hour, 1 day, 7 days or forever.
+- **Server:** live stats; announcement banner for everyone (filtered by Roblox); give everyone credits; ×2–×10 credits
+  events with a countdown everyone sees; force the time of day; send or freeze everyone; lock the server; kick
+  everyone; shut down.
+- **Bans:** the ban list with Unban, and banning someone by user ID who isn't in the server.
+- **Log:** what admins did in this server.
+- **Me:** ghost mode (drive through walls), speed boost, teleports, 1,000,000 CR, unlock everything.
 
 ## Rebuild from source
 `rojo build -o KaidoDrift.rbxl` (Rojo 7) in this folder. `tools/make_course.py` regenerates

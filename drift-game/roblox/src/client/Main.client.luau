@@ -78,7 +78,9 @@ end
 -- ===================== graphics level and time of day (this device only) =====================
 local qAuto = touch and "low" or "high"
 local function qName() return S.quality == "auto" and qAuto or S.quality end
-local function night() return S.time < 6.2 or S.time > 17.8 end
+-- the time of day: yours, unless the game owner has set one for everyone
+local function curTime() return ReplicatedStorage:GetAttribute("KaidoTime") or S.time end
+local function night() local t = curTime(); return t < 6.2 or t > 17.8 end
 local trees = mapFolder:FindFirstChild("Trees")
 local lamps = mapFolder:FindFirstChild("Lamps")
 local village = mapFolder:FindFirstChild("Village")
@@ -131,9 +133,9 @@ local function setCarLights(m, on)
 	if root and root:FindFirstChild("Beam") then root.Beam.Enabled = on end
 end
 local function applyTime()
-	Lighting.ClockTime = S.time
+	Lighting.ClockTime = curTime()
 	local n = night()
-	local dusk = math.clamp(1 - math.min(math.abs(S.time - 6), math.abs(S.time - 18)) / 1.5, 0, 1)
+	local dusk = math.clamp(1 - math.min(math.abs(curTime() - 6), math.abs(curTime() - 18)) / 1.5, 0, 1)
 	Lighting.Ambient = n and Color3.fromRGB(34, 38, 62) or Color3.fromRGB(110, 110, 118)
 	Lighting.OutdoorAmbient = n and Color3.fromRGB(58, 64, 100) or Color3.fromRGB(130, 134, 146):Lerp(Color3.fromRGB(150, 110, 100), dusk)
 	Lighting.Brightness = n and 1.4 or 2.6
@@ -503,71 +505,17 @@ local function renderBoards()
 	end
 end
 
--- admin panel: only shown to admins (the server checks every action again, so this is just the UI)
-U.adminRoot, U.aCol = Ui.sheet(gui, true)
-Ui.heading("Admin", "管理", 1, U.aCol)
-Ui.fine("Only you can see and use this panel. Pick a player, then an action.", 2, U.aCol)
-U.aStatus = text({ Text = "", TextSize = 14, FontFace = Ui.BOLD, TextColor3 = Ui.NEON, LayoutOrder = 3, Parent = U.aCol })
-U.aPlayersF = Ui.field("Players in this server", 4, U.aCol)
-U.aPlayers = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 1, Parent = U.aPlayersF }, { Ui.list(6) })
-U.aTarget = nil
-local function adminBox(placeholder, order, parent)
-	local b = make("TextBox", { Size = UDim2.new(1, 0, 0, 40), Text = "", PlaceholderText = placeholder, ClearTextOnFocus = false,
-		TextColor3 = Ui.TEXT, PlaceholderColor3 = Ui.DIM, FontFace = Ui.BODY, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left,
-		LayoutOrder = order, Parent = parent }, { Ui.pad(12, 0, 12, 0) })
-	Ui.glass(b, 12, 0.45)
-	return b
-end
-local renderAdmin
-local function adminDo(action, value)
-	U.aStatus.Text, U.aStatus.TextColor3 = "Working…", Ui.DIM
-	task.spawn(function()
-		local res = R.Admin:InvokeServer(action, U.aTarget, value)
-		if not res then return end
-		U.aStatus.Text, U.aStatus.TextColor3 = res.msg or "", res.ok and Ui.NEON or Ui.DANGER
-		Ui.pop(U.aStatus, 1.1)
-		if res.players then U.aList = res.players; renderAdmin() end
-		if res.pos then placeAt(res.pos[1] + 6, res.pos[2] + 0.5, res.pos[3], res.pos[4]); U.setMode("play") end
-	end)
-end
-renderAdmin = function()
-	for _, c in U.aPlayers:GetChildren() do if c:IsA("GuiObject") then c:Destroy() end end
-	for k, pl in U.aList or {} do
-		local sel = pl.id == U.aTarget
-		local row = make("TextButton", { Size = UDim2.new(1, 0, 0, 40), Text = "", AutoButtonColor = false, LayoutOrder = k, Parent = U.aPlayers })
-		Ui.glass(row, 12, sel and 0.15 or 0.5)
-		if sel then Ui.stroke(Ui.SAKURA, 2, 0).Parent = row end
-		Ui.bouncy(row)
-		text({ Text = pl.name .. (pl.id == player.UserId and "  ·  you" or ""), TextSize = 15, FontFace = Ui.BOLD, TextColor3 = sel and Ui.SAKURA or Ui.TEXT, AutomaticSize = Enum.AutomaticSize.None,
-			Size = UDim2.new(1, -170, 1, 0), Position = UDim2.new(0, 14, 0, 0), TextWrapped = false, TextTruncate = Enum.TextTruncate.AtEnd, TextYAlignment = Enum.TextYAlignment.Center, Parent = row })
-		text({ Text = fmt(pl.credits) .. " CR", TextSize = 14, FontFace = Ui.BOLD, TextColor3 = Ui.GOLD, AutomaticSize = Enum.AutomaticSize.None, Size = UDim2.new(0, 150, 1, 0),
-			Position = UDim2.new(1, -164, 0, 0), TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Center, TextWrapped = false, Parent = row })
-		row.Activated:Connect(function() U.aTarget = pl.id; renderAdmin() end)
-	end
-end
-do
-	local f = Ui.field("Credits", 5, U.aCol)
-	local amount = adminBox("Amount, e.g. 50000", 1, f)
-	local row = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 2, Parent = f }, { Ui.list(8) })
-	Ui.button("Give credits", nil, "primary", 1, row).Activated:Connect(function() adminDo("credits", tonumber(amount.Text) or 0) end)
-	Ui.button("Take credits", nil, nil, 2, row).Activated:Connect(function() adminDo("credits", -(tonumber(amount.Text) or 0)) end)
-	local f2 = Ui.field("Cars", 6, U.aCol)
-	Ui.button("Unlock every garage car", nil, nil, 1, f2).Activated:Connect(function() adminDo("unlockAll") end)
-	Ui.button("Max upgrades on their car", nil, nil, 2, f2).Activated:Connect(function() adminDo("maxUpgrades") end)
-	for k, c in Config.Premium do
-		Ui.button("Give " .. c.name, "Special car", nil, 2 + k, f2).Activated:Connect(function() adminDo("giveCar", c.id) end)
-	end
-	local f3 = Ui.field("Player", 7, U.aCol)
-	Ui.button("Teleport to them", "They must be on the public map", nil, 1, f3).Activated:Connect(function() adminDo("goto") end)
-	Ui.button("Reset today's challenges", nil, nil, 2, f3).Activated:Connect(function() adminDo("resetChallenges") end)
-	Ui.button("Remove from leaderboards", "For cheaters: clears their best and total", nil, 3, f3).Activated:Connect(function() adminDo("removeFromBoards") end)
-	local reason = adminBox("Kick reason (optional)", 4, f3)
-	Ui.button("Kick from server", nil, "ghost", 5, f3).Activated:Connect(function() adminDo("kick", reason.Text) end)
-	local f4 = Ui.field("Announcement to everyone", 8, U.aCol)
-	local msg = adminBox("Message (filtered by Roblox)", 1, f4)
-	Ui.button("Send announcement", nil, "primary", 2, f4).Activated:Connect(function() adminDo("announce", msg.Text); msg.Text = "" end)
-end
-U.aBack = Ui.button("Back", nil, nil, 9, U.aCol)
+-- admin panel (its own module; only drawn for admins, the server checks every action again)
+U.adminPanel = require(script.Parent:WaitForChild("AdminPanel")).init({
+	Ui = Ui, R = R, U = U, gui = gui, player = player, Config = Config,
+	placeAt = function(x, y, z, h) placeAt(x, y, z, h); onPass = false end,
+	goCity = function() goCity() end,
+	goPass = function() resetCar(START); onPass = true end,
+	getPos = function() return P.x * K, posY, P.z * K, P.h end,
+	setMode = function(m) U.setMode(m) end,
+	setBoost = function() end, -- the drive loop builds the boosted car when U.boost is on
+})
+U.adminRoot = U.adminPanel.root
 
 -- settings
 local settings, sCol = Ui.sheet(gui)
@@ -817,10 +765,7 @@ local function setMode(m)
 	mode = m
 	-- the new screen slides in on glass; the world behind blurs while a menu is open
 	if m == "boards" then renderBoards() end
-	if m == "admin" then
-		U.aStatus.Text = ""
-		task.spawn(function() local res = R.Admin:InvokeServer("list"); if res and res.players then U.aList = res.players; U.aTarget = U.aTarget or player.UserId; renderAdmin() end end)
-	end
+	if m == "admin" then U.adminPanel.refresh() end
 	for name, root in { title = title, garage = garage, settings = settings, pause = pause, boards = boards, admin = U.adminRoot } do
 		if name == m then
 			if not root.Visible then Ui.show(root) end
@@ -861,13 +806,8 @@ U.bBoards.Activated:Connect(function() setMode("boards") end)
 U.boardsBack.Activated:Connect(function() setMode("title") end)
 U.bAdmin.Activated:Connect(function() U.adminFrom = "title"; setMode("admin") end)
 U.pAdmin.Activated:Connect(function() U.adminFrom = "pause"; setMode("admin") end)
-U.aBack.Activated:Connect(function() setMode(U.adminFrom or "title") end)
--- announcements from the game owner reach everyone
-R.Announce.OnClientEvent:Connect(function(message)
-	if U.showCallout then U.showCallout("ANNOUNCEMENT", Ui.GOLD) end
-	showToast(message, Ui.GOLD)
-	toastT = 6
-end)
+-- the game owner can force one time of day for everyone
+ReplicatedStorage:GetAttributeChangedSignal("KaidoTime"):Connect(function() applyTime(); applyWorld() end)
 ReplicatedStorage:GetAttributeChangedSignal("Boards"):Connect(function() if mode == "boards" then renderBoards() end end)
 U.gBack.Activated:Connect(function() setMode(returnTo) end)
 U.sBack.Activated:Connect(function() physSet.assist, physSet.trans, physSet.sens = S.assist, S.trans, S.sens; setMode(returnTo) end)
@@ -1120,10 +1060,25 @@ RunService.RenderStepped:Connect(function(dt)
 	if not carModel then spawnCar() end
 	local m = carModel :: Model
 	local c = carDef
+	if U.boost then
+		-- admin speed boost: double power, a little more grip, for your car only
+		if U.boostBase ~= carDef then
+			U.boostBase = carDef
+			U.boostDef = table.clone(carDef)
+			U.boostDef.torque *= 2
+			U.boostDef.mu *= 1.12
+		end
+		c = U.boostDef
+	end
 	physSet.assist, physSet.trans, physSet.sens = S.assist, S.trans, S.sens
 
 	if mode == "play" then
 		readInput(dt)
+		if U.frozen then
+			-- frozen by the game owner: no input, no movement
+			input.throttle, input.brake, input.hand, input.steer = 0, 1, true, 0
+			P.vx, P.vz, P.r = 0, 0, 0
+		end
 		local prev = Vector3.new(P.x * K, posY, P.z * K)
 		local steps = math.max(1, math.ceil(dt * 240))
 		for _ = 1, steps do CarPhysics.step(P, c, input, physSet, dt / steps) end
@@ -1136,7 +1091,9 @@ RunService.RenderStepped:Connect(function(dt)
 		local dd = math.sqrt((Track.X[idx] - X) ^ 2 + (Track.Z[idx] - Z) ^ 2)
 		onPass = dd < HALF + 10 and math.abs(posY - roadY) < 14
 		nearWall, tandem, tandemWith = false, 0, nil
-		if onPass and not nearJunction(idx) then
+		if U.noclip then
+			-- admin ghost mode: no guardrails, no walls
+		elseif onPass and not nearJunction(idx) then
 			local hl, hw = c.b.len / 2 - 0.05, c.b.wid / 2
 			local fx2, fz2 = math.sin(P.h), math.cos(P.h)
 			local lx2, lz2 = fz2, -fx2
@@ -1413,6 +1370,13 @@ RunService.RenderStepped:Connect(function(dt)
 		camera.CFrame = CFrame.lookAt(eye, Vector3.new(X + f.X * 2.5 * K, posY + look, Z + f.Z * 2.5 * K))
 		local fov = math.clamp(60 + sp * 0.32, 60, 82)
 		camera.FieldOfView += (fov - camera.FieldOfView) * math.min(1, dt * 3)
+	end
+	-- admin spectate: the camera follows another player's car
+	local spec = U.spectate and ghosts[U.spectate]
+	if mode == "play" and spec then
+		local gp = spec.cf.Position
+		local fwd = spec.cf.LookVector -- ghost CFrames are built with heading + pi, which points LookVector along the car's travel
+		camera.CFrame = CFrame.lookAt(gp - fwd * 9 * K + Vector3.new(0, 3.2 * K, 0), gp + Vector3.new(0, 0.8 * K, 0))
 	end
 	CarModel.setCabinVisible(m, not (mode == "play" and camMode == 2))
 end)

@@ -71,16 +71,56 @@ for _, d in gui:GetDescendants() do local t = rawget(d, "Text"); if type(t) == "
 local myc = workspace:FindFirstChild("MyCar")
 for _, d in myc.PrimaryPart.__kids do print("root child", d.ClassName, d.Name) end
 -- admin panel: owner gives themself credits through the UI
+local function clickExact(label)
+	for _, d in gui:GetDescendants() do
+		if d.ClassName == "TextButton" and rawget(d, "Text") == label then d.Activated:Fire(); print("clicked", label); return end
+	end
+	for _, d in gui:GetDescendants() do
+		if d.ClassName == "TextLabel" and rawget(d, "Text") == label then
+			local b = d
+			while b and b.ClassName ~= "TextButton" do b = rawget(b, "__parent") end
+			if b then b.Activated:Fire(); print("clicked", label); return end
+		end
+	end
+	error("no exact button: " .. label)
+end
+local function typeInto(placeholderStart, value)
+	for _, d in gui:GetDescendants() do
+		if d.ClassName == "TextBox" and rawget(d, "PlaceholderText") and string.find(d.PlaceholderText, placeholderStart, 1, true) then d.Text = value; return end
+	end
+	error("no box: " .. placeholderStart)
+end
 key("F2"); frames(5)
-for _, d in gui:GetDescendants() do if d.ClassName == "TextBox" and rawget(d, "PlaceholderText") and string.find(d.PlaceholderText, "Amount") then d.Text = "50000" end end
+for _, d in gui:GetDescendants() do local t = rawget(d, "Text"); if type(t) == "string" and (t:find("Players in") or t:find("Only you") or t:find("Working") or t:find("PLAYERS IN") or t:find("No answer")) then print("PANEL:", t) end end
+typeInto("Amount, e.g. 50000", "50000")
 local before = rem:FindFirstChild("GetProfile"):InvokeServer().credits
-click("Give credits"); frames(5)
+clickExact("Give"); frames(5)
 local after = rem:FindFirstChild("GetProfile"):InvokeServer().credits
 print("admin give credits:", before, "->", after)
-click("Unlock every garage car"); frames(5)
+clickExact("Unlock all garage cars"); frames(5)
 print("owned after unlock:", #rem:FindFirstChild("GetProfile"):InvokeServer().owned)
+clickExact("Max upgrades"); frames(5)
+print("upgrades:", rem:FindFirstChild("GetProfile"):InvokeServer().upg.ps13.engine)
+-- server tab: announcement shows the banner
+clickExact("Server"); frames(3)
+typeInto("Message (filtered", "Drift event at the city in 5 minutes!")
+clickExact("Send announcement"); frames(3)
+local bannerShown = false
+for _, d in gui:GetDescendants() do if d.ClassName == "TextLabel" and rawget(d, "Text") == "ANNOUNCEMENT" and rawget(d.__parent, "Visible") then bannerShown = true end end
+print("announcement banner visible:", bannerShown)
+clickExact("×2"); clickExact("Start credits event"); frames(3)
+print("credits event mult:", RS:GetAttribute("KaidoMult"), "running:", (RS:GetAttribute("KaidoMultUntil") or 0) > os.time())
+clickExact("Noon"); frames(3)
+print("forced time:", RS:GetAttribute("KaidoTime"))
+-- me tab: ghost mode + boost, then drive
+clickExact("Me"); frames(3)
+clickExact("Ghost mode: off"); clickExact("Speed boost: off"); frames(3)
+click("Back"); frames(5)
+KEYS["Enum.KeyCode.W"] = true; frames(120); KEYS["Enum.KeyCode.W"] = nil
+print("drove with ghost mode + boost")
 -- a cheater (not the owner) calling the admin remote directly
 local cheater = Instance.new("Player"); cheater.Name = "Cheater"; cheater.UserId = 88
+table.insert(PLAYERS, cheater)
 game:GetService("Players").PlayerAdded:Fire(cheater)
 local res = rawget(rem:FindFirstChild("Admin"), "OnServerInvoke")(cheater, "credits", 88, 999999)
 print("cheater admin call:", res.ok, res.msg)

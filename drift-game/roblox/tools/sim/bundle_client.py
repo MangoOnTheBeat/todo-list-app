@@ -1,7 +1,7 @@
 import sys, pathlib
 root = pathlib.Path(sys.argv[1])
 shared = ["Config", "Cars", "Track", "CourseData", "CarPhysics", "SoundIds", "CarModel"]
-client = ["Ui", "Audio", "CarMesh", "Fx", "World"]
+client = ["Ui", "Audio", "CarMesh", "Fx", "World", "AdminPanel"]
 out = [open("prelude.luau").read()]
 out.append('''
 local __src, __cache = {}, {}

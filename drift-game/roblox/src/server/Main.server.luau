@@ -922,7 +922,7 @@ local function serverInfo()
 		if banActive(uid) then table.insert(banList, { id = uid, name = b.name, reason = b.reason, untilTime = b.untilTime or 0, by = b.by }) end
 	end
 	return {
-		players = #Players:GetPlayers(), maxPlayers = Players.MaxPlayers, uptime = os.time() - serverStart, memory = mem,
+		players = #Players:GetPlayers(), maxPlayers = tonumber(Players.MaxPlayers) or 0, uptime = os.time() - serverStart, memory = mem,
 		fps = fps, locked = ReplicatedStorage:GetAttribute("KaidoLocked") == true,
 		mult = ReplicatedStorage:GetAttribute("KaidoMult") or 1, multUntil = ReplicatedStorage:GetAttribute("KaidoMultUntil") or 0,
 		timeOverride = ReplicatedStorage:GetAttribute("KaidoTime"), jobId = game.JobId, bans = banList, log = adminLog,

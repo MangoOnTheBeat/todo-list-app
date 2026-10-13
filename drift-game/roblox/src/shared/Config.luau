@@ -3,7 +3,7 @@
 local Config = {}
 
 -- shown on the menus; goes up by one with every release
-Config.VERSION = 2
+Config.VERSION = 3
 
 Config.ROAD_HALF = 30 -- half the pass road width (studs): 60 studs = about 17 m at car scale, room to drift two abreast
 Config.SEG = 13 -- pass road sample spacing (studs)

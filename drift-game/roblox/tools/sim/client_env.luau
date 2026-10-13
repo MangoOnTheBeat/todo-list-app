@@ -3,7 +3,9 @@ local plrs = game:GetService("Players")
 LOCALPLAYER = Instance.new("Player"); LOCALPLAYER.Name = "Tester"; LOCALPLAYER.UserId = 77; LOCALPLAYER.DisplayName = "Tester"
 local pg = Instance.new("PlayerGui"); pg.Name = "PlayerGui"; pg.Parent = LOCALPLAYER
 rawset(plrs, "LocalPlayer", LOCALPLAYER)
-rawset(plrs, "GetPlayerByUserId", function() return LOCALPLAYER end)
+PLAYERS = { LOCALPLAYER }
+rawset(plrs, "GetPlayers", function() return table.clone(PLAYERS) end)
+rawset(plrs, "GetPlayerByUserId", function(_, id) for _, p in PLAYERS do if p.UserId == id then return p end end return nil end)
 plrs.PlayerAdded:Fire(LOCALPLAYER)
 local camera = Instance.new("Camera"); camera.ViewportSize = Vector2.new(1280, 720); camera.CFrame = CFrame.identity; camera.FieldOfView = 70
 rawset(workspace, "CurrentCamera", camera)
@@ -31,3 +33,4 @@ task.wait = function() if coroutine.isyieldable() then coroutine.yield() end ret
 -- a sound inserted from the Toolbox (not the game's own files)
 local tb = Instance.new("Sound"); tb.Name = "Car Engine Loop"; tb.SoundId = "rbxassetid://123"; tb.Parent = workspace
 local tb2 = Instance.new("Sound"); tb2.Name = "Tire Screech"; tb2.SoundId = "rbxassetid://456"; tb2.Parent = workspace
+rawset(workspace, "GetServerTimeNow", function() return os.time() end)
