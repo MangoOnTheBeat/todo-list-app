@@ -49,9 +49,13 @@ CarX Drift Racing's physics code is private, so it is not copied; this is an ori
 Drift entry: steering firmly (over ~65 %) with the gas on above ~30 km/h kicks the rear out once per steer input, so a drift starts without the hand brake; it also links direction changes. Throttle feed eases the gas past ~26° of slide so a held GAS button holds the angle instead of spinning. Countersteer assist turns the front wheels toward where the front of the car is travelling, but only in a real slide (the car rotating against its path), so normal cornering is untouched. Slide damping slows sudden angle changes; it never pulls the car to a set angle. Measured with an automated driver trying 120 driving styles, the share that can hold a 6-second drift rises from 0 % on Pro to ~44 % on High.
 
 ## Drifting and progression
-Kick the rear out with the hand brake (or full throttle + steering), then hold the slide with throttle and countersteer. Score = speed × angle, with a combo multiplier up to ×5 and bonuses for **TANDEM** (drifting next to an AI car), **NEAR WALL**, **ANGLE** (> 45°) and **SPEED** (> 110 km/h). Hitting a wall hard loses the unbanked drift. Every 10 points banked = 1 credit; a full lap pays 500 credits.
+Kick the rear out with the hand brake (or full throttle + steering), then hold the slide with throttle and countersteer. Score = speed × angle × time, with a **combo** that grows every 2 s you keep sliding and each time you link the next drift (switch direction, or slide again within 1.4 s), up to ×6, plus bonuses for **TANDEM** (drifting next to another car), **NEAR WALL**, **ANGLE** (> 45°) and **SPEED** (> 110 km/h). Hitting a wall hard loses the unbanked drift and resets the combo. Every 10 points banked = 1 credit; a full lap pays 2,000 credits. Big drifts get a callout, and lifting off at high revs backfires flames.
 
 Credits unlock 6 more cars in the garage (starter: **Hoshi PS13 Spirit**, a 1989 pop-up-lamp coupe). Paint is free for owned cars.
+
+**Garage tuning:** Engine, Turbo, Tyres and Steering angle, three levels each, per car. **Cosmetics:** underglow neon and rim colour (unlock once, then any colour free). **Daily challenges:** three a day for bonus credits, shown on the title and pause screens with your five best drifts. **Photo mode** (pause menu): orbit the car with the HUD hidden and save a PNG.
+
+**Performance:** big scenery is split into tiles so anything behind the camera or past the view distance isn't drawn, the lake is built from long strips, the resolution drops a little by itself when frames get slow, and menus run at 30 fps to save battery.
 
 ## Play modes
 - **Solo**: just you; no AI, no chat. Works with no internet connection: `dist/kaido-drift.html` is fully self-contained (three.js bundled in), so it runs even opened straight from disk. When served from the server it also installs as an app (Add to Home Screen) and keeps working offline.
