@@ -109,14 +109,17 @@ export const World = {
   sweep(a, b, heading, size) {
     const d = b.sub(a), len = d.Magnitude;
     if (len < 1e-3) return null;
+    // like Roblox's Blockcast, walls the box already touches at the start don't count (pushOut handles those),
+    // so a car resting against a wall can always drive or reverse away from it
+    const skip = new Set(); overlap(a, heading, size, false, null, skip);
     const step = Math.max(0.4, Math.min(size.X, size.Z) * 0.25), n = Math.ceil(len / step);
     for (let k = 1; k <= n; k++) {
       const t = Math.min(len, k * step), p = a.add(d.mul(t / len));
-      const hit = overlap(p, heading, size, true);
+      const hit = overlap(p, heading, size, true, skip);
       if (hit) {
         // back off to the last clear spot
         let lo = (k - 1) * step, hi = t;
-        for (let it = 0; it < 6; it++) { const mid = (lo + hi) / 2; if (overlap(a.add(d.mul(mid / len)), heading, size, true)) hi = mid; else lo = mid; }
+        for (let it = 0; it < 6; it++) { const mid = (lo + hi) / 2; if (overlap(a.add(d.mul(mid / len)), heading, size, true, skip)) hi = mid; else lo = mid; }
         const at = a.add(d.mul(lo / len));
         const nrm = hit.normal;
         const ext = Math.abs(Math.sin(heading) * nrm.X + Math.cos(heading) * nrm.Z) * size.Z / 2 + Math.abs(Math.cos(heading) * nrm.X - Math.sin(heading) * nrm.Z) * size.X / 2;
@@ -134,13 +137,14 @@ export const World = {
 
 // separating-axis test of the car's box against wall boxes seen from above (World.pushOut in Roblox)
 const wc = [];
-function overlap(p, heading, size, first) {
+function overlap(p, heading, size, first, skip, touched) {
   const fx = Math.sin(heading), fz = Math.cos(heading), hl = size.Z / 2, hw = size.X / 2, hy = size.Y / 2;
   const ex = Math.abs(fx) * hl + Math.abs(fz) * hw, ez = Math.abs(fz) * hl + Math.abs(fx) * hw;
   WALLS.query(p.X - ex, p.Z - ez, p.X + ex, p.Z + ez, wc);
   let tx = 0, tz = 0, normal = null;
-  for (const q of wc) {
+  for (const q of [...wc]) {
     if (q.y1 < p.Y - hy || q.y0 > p.Y + hy) continue;
+    if (skip && skip.has(q)) continue;
     const e = q.p.m.elements;
     let rx = e[0], rz = e[2], lx = -e[8], lz = -e[10]; // RightVector, LookVector (-Z)
     const rl = Math.hypot(rx, rz), ll = Math.hypot(lx, lz);
@@ -157,6 +161,7 @@ function overlap(p, heading, size, first) {
       if (o < best) { const sg = dd >= 0 ? 1 : -1; best = o; nx0 = nx * sg; nz0 = nz * sg; }
     }
     if (best !== null) {
+      if (touched) touched.add(q);
       normal = new Vector3(nx0, 0, nz0);
       if (first) return { normal };
       tx += nx0 * (best + 0.03); tz += nz0 * (best + 0.03);

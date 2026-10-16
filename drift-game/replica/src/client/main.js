@@ -1001,5 +1001,5 @@ export function runClient({ gui, loading, loadMsg, mapFolder, R }) {
   loading.Destroy();
   setMode('title');
   // for tests
-  window.__kaido = { get P() { return P; }, get mode() { return mode; }, setMode, start, get profile() { return profile; }, input, get posY() { return posY; }, get onPass() { return onPass; }, resetCar, goCity };
+  window.__kaido = { get P() { return P; }, get mode() { return mode; }, setMode, start, get profile() { return profile; }, input, get posY() { return posY; }, get onPass() { return onPass; }, resetCar, goCity, placeAt, World };
 }

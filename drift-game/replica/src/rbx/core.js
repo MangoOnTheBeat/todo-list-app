@@ -114,6 +114,7 @@ class InputObject {
 const keysDown = new Set();
 let mouseDown = false;
 const touchIO = new Map(); // pointerId -> InputObject
+const activeTouches = () => [...touchIO.values()].filter(io => io.UserInputState !== Enum.UserInputState.End);
 export const UserInputService = {
   InputBegan: new Signal(), InputEnded: new Signal(), InputChanged: new Signal(), TouchPinch: new Signal(),
   TouchEnabled: matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0,
@@ -158,7 +159,7 @@ export function installInput(canvas) {
     if (e.pointerType === 'touch') {
       const io = new InputObject(Enum.UserInputType.Touch); io.Position = new Vector3(e.clientX, e.clientY, 0); touchIO.set(e.pointerId, io);
       UserInputService.InputBegan.Fire(io, proc);
-      if (touchIO.size === 2) { const [a, b] = [...touchIO.values()]; pinch0 = Math.hypot(a.Position.X - b.Position.X, a.Position.Y - b.Position.Y); }
+      if (activeTouches().length === 2) { const [a, b] = activeTouches(); pinch0 = Math.hypot(a.Position.X - b.Position.X, a.Position.Y - b.Position.Y); }
     } else {
       if (e.button === 0) mouseDown = true;
       lastX = e.clientX; lastY = e.clientY;
@@ -169,10 +170,10 @@ export function installInput(canvas) {
   addEventListener('pointermove', e => {
     const proc = processedBy(e.target);
     if (e.pointerType === 'touch') {
-      const io = touchIO.get(e.pointerId); if (!io) return;
+      const io = touchIO.get(e.pointerId); if (!io || io.UserInputState === Enum.UserInputState.End) return;
       io.Delta = new Vector3(e.clientX - io.Position.X, e.clientY - io.Position.Y, 0); io.Position = new Vector3(e.clientX, e.clientY, 0); io.UserInputState = Enum.UserInputState.Change;
       UserInputService.InputChanged.Fire(io, proc);
-      if (touchIO.size === 2 && pinch0 > 0) { const [a, b] = [...touchIO.values()]; const d = Math.hypot(a.Position.X - b.Position.X, a.Position.Y - b.Position.Y); UserInputService.TouchPinch.Fire([], d / pinch0, 0, Enum.UserInputState.Change, proc); }
+      if (activeTouches().length === 2 && pinch0 > 0) { const [a, b] = activeTouches(); const d = Math.hypot(a.Position.X - b.Position.X, a.Position.Y - b.Position.Y); UserInputService.TouchPinch.Fire([], d / pinch0, 0, Enum.UserInputState.Change, proc); }
     } else {
       const io = new InputObject(Enum.UserInputType.MouseMovement); io.Position = new Vector3(e.clientX, e.clientY, 0); io.Delta = new Vector3(e.clientX - lastX, e.clientY - lastY, 0);
       lastX = e.clientX; lastY = e.clientY; io.UserInputState = Enum.UserInputState.Change;
@@ -182,8 +183,12 @@ export function installInput(canvas) {
   const up = e => {
     const proc = processedBy(e.target);
     if (e.pointerType === 'touch') {
-      const io = touchIO.get(e.pointerId); if (!io) return; touchIO.delete(e.pointerId); io.UserInputState = Enum.UserInputState.End;
-      UserInputService.InputEnded.Fire(io, proc); if (touchIO.size < 2) pinch0 = 0;
+      const io = touchIO.get(e.pointerId); if (!io || io.UserInputState === Enum.UserInputState.End) return; io.UserInputState = Enum.UserInputState.End;
+      UserInputService.InputEnded.Fire(io, proc);
+      // keep the finger's InputObject until the buttons under it have had this event too (they look it up by
+      // pointer id), so a pedal's InputEnded gets the same object its InputBegan did and lets go
+      setTimeout(() => { if (touchIO.get(e.pointerId) === io) touchIO.delete(e.pointerId); }, 250);
+      if (activeTouches().length < 2) pinch0 = 0;
     } else {
       if (e.button === 0) mouseDown = false;
       const io = new InputObject(Enum.UserInputType.MouseButton1); io.Position = new Vector3(e.clientX, e.clientY, 0); io.UserInputState = Enum.UserInputState.End;
