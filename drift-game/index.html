@@ -586,15 +586,17 @@ const DAILY_POOL = [
   { kind: 'combo', text: 'Reach a ×{g} combo', goals: [3, 4, 5], reward: 6000 },
 ];
 const today = () => Math.floor(Date.now() / 86400000);
+const dailyCache = new Map();
 function dailyFor(day) {
-  const list = [], used = new Set(); let seed = day * 7919 % 2147483647;
-  while (list.length < 3) {
-    seed = (seed * 1103515245 + 12345) % 2147483648;
-    const k = seed % DAILY_POOL.length; if (used.has(k)) continue; used.add(k);
-    const c = DAILY_POOL[k]; seed = (seed * 1103515245 + 12345) % 2147483648;
-    const goal = c.goals[seed % c.goals.length];
-    list.push({ kind: c.kind, goal, reward: c.reward, text: c.text.replace('{g}', goal >= 1000 ? goal.toLocaleString('en-US') : String(goal)) });
-  }
+  if (dailyCache.has(day)) return dailyCache.get(day);
+  // shuffle the pool with a generator seeded by the day and take the first three (always finishes)
+  const rnd = mulberry32(day * 7919 + 17), order = DAILY_POOL.map((_, k) => k);
+  for (let k = order.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [order[k], order[j]] = [order[j], order[k]]; }
+  const list = order.slice(0, 3).map(k => {
+    const c = DAILY_POOL[k], goal = c.goals[Math.floor(rnd() * c.goals.length)];
+    return { kind: c.kind, goal, reward: c.reward, text: c.text.replace('{g}', goal >= 1000 ? goal.toLocaleString('en-US') : String(goal)) };
+  });
+  dailyCache.set(day, list);
   return list;
 }
 const PAINTS = ['#e9e6df', '#111318', '#b3121f', '#ff7eb6', '#ffcc00', '#ff6a00', '#2f9e44', '#3a6cf4', '#59e3ff', '#7b8794', '#6c2bd9', '#c9a227'];
