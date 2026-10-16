@@ -53,6 +53,10 @@ Kick the rear out with the hand brake (or full throttle + steering), then hold t
 
 Credits unlock 6 more cars in the garage (starter: **Hoshi PS13 Spirit**, a 1989 pop-up-lamp coupe). Paint is free for owned cars.
 
+**Shin-Hakone city** (same layout as the Roblox game, and where you start by default): a 24×24 street grid east of the pass with glass towers downtown, mid-rise blocks with shops (boba tea, ramen, konbini, café, arcade, sushi, karaoke, drugstore), vertical neon signs, paper lantern strings, vending machines, a red-and-white lattice tower, a scramble crossing with giant screens and an elevated expressway loop with a ramp. A link road leaves the pass through a gap in the guardrail at its eastern-most point. *Start at* on the title screen picks city or pass; the pause menu has *Go to the city* / *Go to the pass*. A daily challenge can ask for city drifts.
+
+**Special cars:** the Roblox game's three Robux cars (FD-7 Spirit Rotor, JZA-80 Apex Omega, R-34 Raijin Z-Tune) are unlocked with credits here (150k / 250k / 400k CR). **Stance kit:** lowers the body. **Tandem link:** a glowing line joins you to the car you're drifting next to.
+
 **Garage tuning:** Engine, Turbo, Tyres and Steering angle, three levels each, per car. **Cosmetics:** underglow neon and rim colour (unlock once, then any colour free). **Daily challenges:** three a day for bonus credits, shown on the title and pause screens with your five best drifts. **Photo mode** (pause menu): orbit the car with the HUD hidden and save a PNG.
 
 **Performance:** big scenery is split into tiles so anything behind the camera or past the view distance isn't drawn, the lake is built from long strips, the resolution drops a little by itself when frames get slow, and menus run at 30 fps to save battery.
