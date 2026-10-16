@@ -6,7 +6,7 @@ import Track from '../shared/track.js';
 import * as CarPhysics from '../shared/carphysics.js';
 import Ui from './ui.js';
 import { Audio, comboPing } from './audio.js';
-import { CarMesh, CarModel, applyStyle as styleCar } from './car.js';
+import { CarModel, applyStyle as styleCar } from './blockcar.js';
 import * as Fx from './fx.js';
 import { World } from '../world/query.js';
 import { camera, setQuality as rQuality, setBeam, getScene, setFocus } from './renderer.js';
@@ -94,18 +94,18 @@ export function runClient({ gui, loading, loadMsg, mapFolder, R }) {
   let roll = 0, rollV = 0, pitch = 0, pitchV = 0, fspin = 0;
   let garageSel = profile.selected;
   let sound = null;
-  const usingMesh = true;
+  const usingMesh = false; // your Roblox game draws the block car (CarModel), so the replica does too
   const input = { throttle: 0, brake: 0, hand: false, steer: 0 };
   const physSet = { assist: S.assist, trans: S.trans, sens: S.sens };
   const junction = mapFolder.GetAttribute('Junction') || 1;
   const nearJunction = k => { const d = Math.abs(k - junction); return Math.min(d, Track.N - d) <= 7; };
   const scene = getScene();
-  const buildCar = (def, name, paint) => CarMesh.build(def, name, paint);
-  const placeCar = (m, mesh, cf, steer, rf, rr) => CarMesh.place(m, cf, steer, rf, rr);
+  const buildCar = (def, name, paint) => CarModel.build(def, name, paint);
+  const placeCar = (m, mesh, cf, steer, rf) => CarModel.place(m, cf, steer, rf);
   const applyStyle = (m, def) => styleCar(m, def, profile.cos && profile.cos[def.id], Config);
 
   const spawnCar = id => {
-    if (carModel) CarMesh.destroy(carModel);
+    if (carModel) CarModel.destroy(carModel);
     if (sound) { sound.destroy(); sound = null; }
     const base = Config.car(id || profile.selected);
     carDef = Config.tuned(base, profile.upg && profile.upg[base.id]);
@@ -407,7 +407,7 @@ export function runClient({ gui, loading, loadMsg, mapFolder, R }) {
     const [f] = Ui.field('Sound', 8, sCol);
     Ui.chips([[true, 'On'], [false, 'Off']], S.sound, v => { S.sound = v; saveSettings(); }, 1, f);
     Ui.slider(0, 1, 0.05, S.volume, v => { S.volume = v; saveSettings(); }, 2, f);
-    Ui.fine("Engine sound: the game's own engine sounds are installed.", 3, f);
+    Ui.fine("Engine sound: Ferrari V8 with a Capristo exhaust (the engine sound in your Roblox game).", 3, f);
   }
   {
     const [f] = Ui.field('Your progress', 9, sCol);

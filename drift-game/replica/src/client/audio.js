@@ -2,16 +2,13 @@
 // (1,800 / 4,200 / 7,000 rpm) crossfaded and pitched to the live rpm, an off-throttle layer, tyre screech,
 // wind, a turbo blow-off when you lift at high revs, and a stutter on the rev limiter. Sound objects work like
 // Roblox's (Volume, PlaybackSpeed, Looped, Play) on top of Web Audio.
-import low from '../data/sounds/kaido_engine_low.ogg';
-import mid from '../data/sounds/kaido_engine_mid.ogg';
-import high from '../data/sounds/kaido_engine_high.ogg';
-import off from '../data/sounds/kaido_engine_off.ogg';
 import skid from '../data/sounds/kaido_skid.ogg';
-import blow from '../data/sounds/kaido_blowoff.ogg';
 import wind from '../data/sounds/kaido_wind.ogg';
 
-const FILES = { kaido_engine_low: low, kaido_engine_mid: mid, kaido_engine_high: high, kaido_engine_off: off, kaido_skid: skid, kaido_blowoff: blow, kaido_wind: wind };
-const NAMES = ['kaido_engine_low', 'kaido_engine_mid', 'kaido_engine_high', 'kaido_engine_off', 'kaido_skid', 'kaido_blowoff', 'kaido_wind'];
+// your Roblox game plays one engine loop from the Toolbox (a Ferrari V8 with a Capristo exhaust), so Audio.luau
+// runs in its "simple" mode: that loop pitched with the revs. The loop is made here (see makeV8).
+const FILES = { kaido_skid: skid, kaido_wind: wind };
+const NAMES = ['kaido_skid', 'kaido_wind'];
 const LAYER_RPM = [1800, 4200, 7000];
 let ctx = null, master = null;
 const buffers = {};
@@ -24,6 +21,8 @@ export function unlockAudio() {
       const bytes = FILES[n];
       ctx.decodeAudioData(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)).then(b => { buffers[n] = b; for (const s of live) if (s.name === n && s.Looped && s.playing) s.Play(); }).catch(() => { });
     }
+    buffers.engine = makeV8(ctx);
+    for (const s of live) if (s.name === 'engine' && s.playing) s.Play();
   }
   if (ctx.state === 'suspended') ctx.resume();
 }
@@ -50,50 +49,76 @@ class Sound {
 
 export const Audio = {
   available: () => true,
-  mode: () => 'full',
-  count: () => 7,
+  mode: () => 'simple',
+  count: () => 0,
 };
-// own = the player's car
+// own = the player's car (Audio.new in simple mode: one engine loop; tyre screech and wind)
 Audio.new = function (car, own) {
   const snd = (name, looped) => { const s = new Sound(name, looped); if (looped) s.Play(); return s; };
-  const self = {
-    layers: [snd(NAMES[0], true), snd(NAMES[1], true), snd(NAMES[2], true)], off: snd('kaido_engine_off', true), skid: snd('kaido_skid', true),
-    wind: own ? snd('kaido_wind', true) : null, blow: snd('kaido_blowoff', false), car, load: 0, lastThr: 0, own, t: 0, check: 0,
-  };
+  const self = { engine: snd('engine', true), skid: snd('kaido_skid', true), wind: own ? snd('kaido_wind', true) : null, car, load: 0, lastThr: 0, own, t: 0, check: 0 };
   // rpm, throttle (0..1), slide (0..1), speed in km/h, limiter on, master volume (0..1)
   self.update = function (dt, rpm, thr, slide, kmh, limiter, vol0) {
     this.t += dt;
     if (ctx && ctx.state === 'suspended') ctx.resume();
     this.check += dt;
-    if (this.check > 1) { this.check = 0; for (const s of [...this.layers, this.off, this.skid, this.wind]) if (s && !s.src) s.Play(); }
+    if (this.check > 1) { this.check = 0; for (const s of [this.engine, this.skid, this.wind]) if (s && !s.src) s.Play(); }
     const car = this.car, pitch = car.pitch || 1;
+    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
     this.load += (thr - this.load) * Math.min(1, dt * 8);
     const norm = rpm * (7000 / car.red);
     const chop = limiter && Math.sin(this.t * 2 * Math.PI * 16) > 0 ? 0.35 : 1;
     const vol = (this.own ? 0.9 : 0.7) * vol0 * chop;
-    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-    this.layers.forEach((s, k) => {
-      const c = LAYER_RPM[k];
-      let w = clamp(1 - Math.abs(Math.log(norm / c) / Math.log(2.1)), 0, 1);
-      if (k === 0 && norm < c) w = 1;
-      if (k === 2 && norm > c) w = 1;
-      s.PlaybackSpeed = clamp(norm / c * pitch, 0.4, 2.2);
-      s.Volume = vol * w * (0.25 + 0.75 * this.load);
-    });
-    this.off.PlaybackSpeed = clamp(norm / 3500 * pitch, 0.4, 2.2);
-    this.off.Volume = vol * 0.8 * (1 - this.load) * clamp((norm - 1100) / 1200, 0.15, 1);
+    // one engine loop: pitch follows the revs, volume follows the throttle
+    this.engine.PlaybackSpeed = clamp(norm / 3500 * pitch, 0.45, 2.3);
+    this.engine.Volume = vol * (0.35 + 0.65 * this.load);
     this.skid.Volume = vol0 * 0.65 * clamp(slide, 0, 1) * clamp(kmh / 30, 0, 1);
     this.skid.PlaybackSpeed = 0.85 + 0.25 * clamp(slide, 0, 1);
     if (this.wind) { this.wind.Volume = vol0 * 0.5 * clamp((kmh - 30) / 170, 0, 1); this.wind.PlaybackSpeed = 0.8 + kmh / 400; }
-    if (car.turbo && this.lastThr > 0.7 && thr < 0.2 && rpm > car.red * 0.55) {
-      this.blow.Volume = vol0 * 0.55; this.blow.PlaybackSpeed = 0.9 + Math.random() * 0.2; this.blow.Play();
-    }
     this.lastThr = thr;
   };
-  self.mute = function () { for (const s of this.layers) s.Volume = 0; this.off.Volume = 0; this.skid.Volume = 0; if (this.wind) this.wind.Volume = 0; };
-  self.destroy = function () { for (const s of [...this.layers, this.off, this.skid, this.blow, this.wind]) if (s) s.Destroy(); };
+  self.mute = function () { this.engine.Volume = 0; this.skid.Volume = 0; if (this.wind) this.wind.Volume = 0; };
+  self.destroy = function () { for (const s of [this.engine, this.skid, this.wind]) if (s) s.Destroy(); };
   return self;
 };
+
+// A Ferrari flat-plane V8 through a Capristo valved exhaust, recorded at 3,500 rpm (the speed the Roblox
+// script treats as normal pitch). Eight evenly spaced firing pulses every two turns of the crank, each one
+// ringing the exhaust's resonances, with the small cylinder-to-cylinder differences that give a real engine
+// its texture, then the raspy edge of a straight-through exhaust. 58 whole cycles, so the loop is seamless.
+function makeV8(ac) {
+  const SR = 44100, CYCLE = 1512, N = CYCLE * 58; // 720° at 3,500 rpm is exactly 1,512 samples
+  const buf = ac.createBuffer(1, N, SR), out = buf.getChannelData(0);
+  let seed = 4411; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const cyl = Array.from({ length: 8 }, (_, k) => 0.86 + 0.28 * rnd() + (k % 2 ? 0.05 : -0.05)); // bank to bank
+  // exhaust resonances: [frequency Hz, decay s, level]
+  const modes = [[118, 0.010, 0.55], [236, 0.008, 0.9], [470, 0.006, 0.75], [940, 0.0045, 0.55], [1650, 0.003, 0.42], [2900, 0.0018, 0.3], [4600, 0.0011, 0.18]];
+  const len = 900;
+  const noise = new Float32Array(len); for (let i = 0; i < len; i++) noise[i] = rnd() * 2 - 1;
+  for (let p = 0; p < 58 * 8; p++) {
+    const start = Math.round(p * CYCLE / 8), amp = cyl[p % 8] * (0.93 + 0.14 * rnd());
+    const ph = modes.map(() => rnd() * 0.6);
+    for (let i = 0; i < len; i++) {
+      const t = i / SR; let v = 0;
+      for (let k = 0; k < modes.length; k++) { const [f, d, a] = modes[k]; v += a * Math.exp(-t / d) * Math.sin(2 * Math.PI * f * t + ph[k]); }
+      v += 0.55 * noise[i] * Math.exp(-t / 0.0016) * amp;  // the crack of each exhaust pulse
+      out[(start + i) % N] += v * amp;
+    }
+  }
+  // low rumble at half order (the deep note under the scream) and the Capristo rasp (soft clipping)
+  let peak = 0;
+  for (let i = 0; i < N; i++) {
+    const t = i / SR;
+    let v = out[i] + 0.18 * Math.sin(2 * Math.PI * 116.67 * t) + 0.08 * Math.sin(2 * Math.PI * 58.33 * t);
+    v = Math.tanh(v * 0.7) + 0.06 * Math.tanh(v * 5);
+    out[i] = v; peak = Math.max(peak, Math.abs(v));
+  }
+  // gentle high cut so it's crisp but not fizzy
+  let y = 0; for (let i = 0; i < N * 2; i++) { const j = i % N; y += (out[j] - y) * 0.55; if (i >= N) out[j] = y; }
+  let mean = 0; for (let i = 0; i < N; i++) mean += out[i] / N;
+  peak = 0; for (let i = 0; i < N; i++) { out[i] -= mean; peak = Math.max(peak, Math.abs(out[i])); }
+  for (let i = 0; i < N; i++) out[i] *= 0.9 / peak;
+  return buf;
+}
 
 // the combo ping (Roblox's built-in electronicpingshort.wav): a short bright ping, pitched with the combo
 export function comboPing(volume, speed) {

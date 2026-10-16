@@ -93,7 +93,7 @@ export function material(name, mode = '') {
 }
 
 // ---- shapes (unit size; Roblox cylinders run along X, wedges slope down toward -Z) ----
-const GEO = {
+export const GEO = {
   Block: new THREE.BoxGeometry(1, 1, 1),
   Ball: new THREE.SphereGeometry(0.5, 10, 7),
   Cylinder: new THREE.CylinderGeometry(0.5, 0.5, 1, 14).rotateZ(Math.PI / 2),
