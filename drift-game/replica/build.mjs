@@ -35,4 +35,15 @@ self.addEventListener('activate', e => e.waitUntil((async () => {
 `);
 fs.writeFileSync(site + '/icon.svg', `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="96" fill="#0c0d16"/><text x="256" y="330" font-family="sans-serif" font-size="260" font-weight="900" text-anchor="middle" fill="#ff7eb6">峠</text><rect x="96" y="392" width="320" height="18" rx="9" fill="#59e3ff"/></svg>`);
 fs.writeFileSync(site + '/manifest.webmanifest', JSON.stringify({ name: 'Kaido Drift', short_name: 'Kaido Drift', start_url: './', scope: './', display: 'fullscreen', orientation: 'landscape', background_color: '#0c0d16', theme_color: '#0c0d16', icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }] }, null, 2));
+fs.copyFileSync('public/og-image.jpg', site + '/og-image.jpg');
+// for search engines: allow everything and list the page
+fs.writeFileSync(site + '/robots.txt', 'User-agent: *\nAllow: /\n\nSitemap: https://kaido-drift.pages.dev/sitemap.xml\n');
+fs.writeFileSync(site + '/sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://kaido-drift.pages.dev/</loc><lastmod>${new Date().toISOString().slice(0, 10)}</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
+</urlset>
+`);
+// kaido-drift.html is the same game: point search engines at the main address so it isn't listed twice
+fs.writeFileSync(site + '/_redirects', '/kaido-drift.html / 301\n');
+fs.rmSync(site + '/kaido-drift.html');
 console.log('dist/site ready');
