@@ -523,6 +523,28 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 .qm-list{flex:1;min-height:0}
 .qm-list .set-row{min-height:5.4rem}
 
+/* ---------- assistant ---------- */
+.layer.asst .panel{margin-bottom:3.4rem}
+.asst-panel{display:flex;gap:3rem;align-items:center;width:100rem;border-radius:calc(3rem * var(--rs));padding:2.8rem 3.2rem}
+.asst-panel>*{position:relative;z-index:1}
+.orb{position:relative;width:10rem;height:10rem;flex:0 0 auto}
+.orb i{position:absolute;inset:0;border-radius:50%;opacity:.55;transition:opacity .3s,transform .5s var(--spring)}
+.orb i:nth-child(1){background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.95),rgba(200,210,235,.35) 45%,transparent 70%)}
+.orb i:nth-child(2){inset:-.8rem;background:radial-gradient(closest-side,transparent 70%,rgba(255,255,255,.22) 86%,transparent 100%)}
+.orb i:nth-child(3){inset:-1.8rem;background:radial-gradient(closest-side,transparent 72%,rgba(255,255,255,.12) 88%,transparent 100%)}
+.orb b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:3.2rem;color:#0a0b0f}
+.orb b .i{stroke-width:2}
+[data-state="listening"] .orb i{animation:orb 1.1s ease-in-out infinite alternate}
+[data-state="listening"] .orb i:nth-child(2){animation-delay:.2s}[data-state="listening"] .orb i:nth-child(3){animation-delay:.4s}
+[data-state="speaking"] .orb i{animation:orb .45s ease-in-out infinite alternate}
+[data-state="thinking"] .orb i:nth-child(1){animation:orb .7s ease-in-out infinite alternate}
+@keyframes orb{from{transform:scale(.92);opacity:.45}to{transform:scale(1.08);opacity:1}}
+.reduce-motion .orb i{animation:none!important}
+.asst-body{min-width:0;flex:1}
+.asst-heard{font-size:calc(2.4rem * var(--ts));font-weight:650;letter-spacing:-.015em;line-height:1.2}
+.asst-reply{font-size:calc(1.5rem * var(--ts));color:var(--fg2);margin-top:.6rem;min-height:2rem}
+.asst-chips{display:flex;flex-wrap:wrap;gap:.8rem;margin-top:1.8rem}
+.asst-chips .opt .i{display:inline-block;font-size:1.7rem;stroke-width:2}
 #toast{position:fixed;left:50%;bottom:4.4rem;z-index:95;transform:translate3d(-50%,8rem,0);opacity:0;border-radius:3rem;padding:1.3rem 2.6rem;display:flex;align-items:center;gap:1rem;
   font-size:calc(1.35rem * var(--ts));font-weight:600;transition:opacity .25s,transform .55s var(--spring);pointer-events:none;max-width:96rem}
 #toast.show{opacity:1;transform:translate3d(-50%,0,0)}
@@ -583,6 +605,7 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
   <symbol id="i-cursor" viewBox="0 0 24 24"><path d="M5 3.5l13 7.2-5.6 1.5L9.6 18z"/></symbol>
   <symbol id="i-wand" viewBox="0 0 24 24"><path d="M4 20L15 9M14 4v3M19 9h-3M18 5.5l-2 2M10 5.5L11 7M17.5 13l-1-1"/></symbol>
   <symbol id="i-shift" viewBox="0 0 24 24"><path d="M12 4l7.5 8H15v7H9v-7H4.5z"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></symbol>
   <symbol id="i-keyb" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.1M9.5 10h.1M13 10h.1M16.5 10h.1M7 14h10"/></symbol>
 </svg>
 <svg id="vcursor" viewBox="0 0 34 34" aria-hidden="true"><circle class="ring" cx="6" cy="3" r="16"/><path d="M6 3l22 12.4-9.6 2.3L14 28z" fill="#fff" stroke="#000" stroke-width="1.6" stroke-linejoin="round"/></svg>
@@ -598,6 +621,7 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
       <div class="brand"><svg class="logo" aria-hidden="true"><use href="#i-logo"/></svg><span>lumora</span></div>
       <div class="status lg" data-row="home-top">
         <span class="stime" id="stime"></span>
+        <button class="icon-btn fx plain" data-f data-act="assist" aria-label="Lumora Assistant"><svg class="i"><use href="#i-mic"/></svg></button>
         <button class="icon-btn fx plain" data-f data-act="search" aria-label="Search the Store"><svg class="i"><use href="#i-search"/></svg></button>
         <button class="icon-btn fx plain" data-f data-act="open:browser" aria-label="Browser"><svg class="i"><use href="#i-globe"/></svg></button>
         <button class="icon-btn fx plain" data-f data-act="quick" aria-label="Control Centre"><svg class="i"><use href="#i-sliders"/></svg></button>
@@ -748,12 +772,15 @@ const ACCENT_HEX = Object.fromEntries(ACCENTS.map(a => [a[0], a[2]]));
 const KEY = 'lumora.settings.v2';
 /* ?tv=1 (used by the TV setup) opens services in the same tab so the remote's Back key returns to Lumora. */
 const TV_MODE = /[?&]tv=1\b/.test(location.search) || /Web0S|webOS|Tizen|SMART-TV|SmartTV/i.test(navigator.userAgent);
+/* Inside a preview pane or another page's frame, apps can't open in place. */
+const EMBEDDED = (() => { try { return window.top !== window; } catch (e) { return true; } })();
 const UI_DEFAULTS = () => ({accent:'app', glow:'medium', glass:'frosted', corners:'round', icons:'standard', names:'focus', clock:'large', clockWeight:'thin', shelf:'glass', games:true, dim:0, wpMotion:true});
 const DEFAULTS = () => ({
   theme:'dark', wallpaper:'liquid', clock: hour24Default() ? '24' : '12', ambientAfter:5,
   reduceMotion: mm('(prefers-reduced-motion: reduce)'), contrast: mm('(prefers-contrast: more)'), transparency:false, textSize:'default',
   effects:'auto', showFps:false, ui: UI_DEFAULTS(),
-  browser:{engine:'duckduckgo', cursorSpeed:'normal', openIn: TV_MODE ? 'same' : 'tab'},
+  assistant:{speak:true, voice:'', rate:1, voiceIn:'auto', lang:''},
+  browser:{engine:'duckduckgo', cursorSpeed:'normal', openIn: 'same', openInChosen: false},
   apps:['netflix','youtube','disney','prime','hbomax','iplayer','spotify','twitch','paramount','browser','wallpapers','store','settings'],
   games:['snake','xcloud','gfn','poki','lichess'],
   video:{res:'auto', hdr10:true, hdr10p:true, dv:true, hlg:true, mdr:true, atmos:true, mfr:false, upscale:'balanced'},
@@ -762,13 +789,13 @@ const DEFAULTS = () => ({
 });
 function hour24Default() { try { const hc = new Intl.DateTimeFormat(undefined, {hour:'numeric'}).resolvedOptions().hourCycle; return hc === 'h23' || hc === 'h24'; } catch (e) { return true; } }
 let S = load();
-if (TV_MODE) S.browser.openIn = 'same';
+if (TV_MODE || !S.browser.openInChosen) S.browser.openIn = 'same';
 function load() {
   const d = DEFAULTS();
   try {
     const raw = localStorage.getItem(KEY); if (!raw) return d;
     const o = JSON.parse(raw); const s = Object.assign(d, o);
-    for (const k of ['video', 'parental', 'browser', 'ui']) s[k] = Object.assign(DEFAULTS()[k], o[k] || {});
+    for (const k of ['video', 'parental', 'browser', 'ui', 'assistant']) s[k] = Object.assign(DEFAULTS()[k], o[k] || {});
     s.apps = (s.apps || []).filter(id => APPS[id]); s.games = (s.games || []).filter(id => APPS[id]);
     for (const sys of ['store', 'settings']) if (!s.apps.includes(sys) && !s.games.includes(sys)) s.apps.push(sys);
     if (!WALLS.find(w => w.id === s.wallpaper)) s.wallpaper = 'liquid';
@@ -806,6 +833,7 @@ function applySettings() {
   root.style.setProperty('--clock-w', {thin:200, regular:400, bold:700}[U.clockWeight] || 200);
   lite = S.effects === 'lite' || (S.effects === 'auto' && autoLite); root.classList.toggle('lite', lite);
 }
+if (window.speechSynthesis) speechSynthesis.addEventListener && speechSynthesis.addEventListener('voiceschanged', () => { if (curScreen === 'settings' && SET.sec === 'assistant') renderSection(); });
 darkMQ.addEventListener && darkMQ.addEventListener('change', () => { if (S.theme === 'auto') applySettings(); });
 
 /* ambient light that follows the focused app's brand colour */
@@ -1211,7 +1239,7 @@ function removeApp(id) {
   });
 }
 function openApp(id, el) { const a = APPS[id]; withPin(a, `Enter PIN to open ${a.name}`, () => launch(id, el)); }
-function launch(id, el) {
+function launch(id, el, opt = {}) {
   const a = APPS[id];
   if (a.builtin) {
     if (a.builtin === 'ambient') { enterAmbient(); return; }
@@ -1221,7 +1249,8 @@ function launch(id, el) {
     zoom(el, a, () => show(target));
     return;
   }
-  if (S.browser.openIn === 'same') { zoom(el, a, () => { location.href = a.url; }); return; }
+  if (S.browser.openIn === 'same' && !EMBEDDED) { try { sessionStorage.setItem('lumora.return', id); } catch (e) {} zoom(el, a, () => { location.href = a.url; }); return; }
+  if (opt.voice || EMBEDDED) { zoom(el, a, () => show('launch', {id, opened: false, voice: true})); return; }   // no key press behind a voice command, so the TV asks for one OK
   let w = null;
   try { w = window.open(a.url, '_blank'); if (w) w.opener = null; } catch (e) { w = null; }
   zoom(el, a, () => show('launch', {id, opened: !!w}));
@@ -1239,17 +1268,20 @@ function zoom(el, a, cb) {
   z.style.transform = 'translate3d(0,0,0) scale(1)';
   zoomT = setTimeout(() => { cb(); z.style.opacity = '0'; }, 280);
 }
-function launchEnter({id, opened}) {
+function launchEnter({id, opened, voice}) {
+  if (EMBEDDED) opened = false;
   const a = APPS[id];
   SCREENS.launch.el.innerHTML = `<div class="launch-bg" style="--glow:${a.glow}"></div>
   <div class="launch-card glass-strong">
     ${tileHTML(id, {cls: 'l-icon', nof: true})}
     <h1>${esc(a.name)}</h1><p class="host">${ico('ext')} ${esc(a.host)}</p>
-    <p class="msg">${opened ? `${esc(a.name)} opened on its official website in a new tab. Sign in, subscribe or manage your plan there — then switch back here any time.` : `Your browser blocked the new tab. Choose how to open ${esc(a.name)}.`}</p>
+    <p class="msg">${EMBEDDED ? `You’re viewing Lumora inside a preview, which can’t open apps. Open <b>index.html</b> in Chrome or Edge, or on your TV, and ${esc(a.name)} opens full screen right here — press Back to return.`
+      : opened ? `${esc(a.name)} opened in a new tab. To have apps open full screen inside Lumora instead, choose Settings → Browser &amp; Cursor → Open streaming apps → In Lumora.`
+      : `Press OK to open ${esc(a.name)}.`}</p>
     <div class="actions">
-      <button class="btn primary fx" data-f data-act="relaunch:${id}" ${opened ? '' : 'data-def'} tabindex="-1">${ico('ext')}Open ${esc(a.host)}</button>
-      <button class="btn fx" data-f data-act="here:${id}" tabindex="-1">Open in this tab</button>
-      <button class="btn fx" data-f data-act="home" ${opened ? 'data-def' : ''} tabindex="-1">${ico('home')}Back to Home</button>
+      ${EMBEDDED ? '' : `<button class="btn primary fx" data-f data-act="here:${id}" ${opened ? '' : 'data-def'} tabindex="-1">${ico('play')}Open ${esc(a.name)}</button>`}
+      ${EMBEDDED ? `<button class="btn fx" data-f data-act="relaunch:${id}" tabindex="-1">${ico('ext')}Try a new tab</button>` : ''}
+      <button class="btn fx" data-f data-act="home" ${opened || EMBEDDED ? 'data-def' : ''} tabindex="-1">${ico('home')}Back to Home</button>
     </div>
     <p class="safe-note">${ico('lock')} Your login and any subscription payment go straight to ${esc(a.name)}. Lumora never sees your password or card.</p>
   </div>`;
@@ -1497,6 +1529,7 @@ function brNormalize(t) {
 function brGo(input) {
   const url = brNormalize(input); if (!url) return;
   let host = ''; try { host = new URL(url).hostname; } catch (e) { toast('That address doesn’t look right', 'info'); return; }
+  if (NOFRAME.test(host) && S.browser.openIn === 'same' && !EMBEDDED) { location.href = url; return; }
   if (NOFRAME.test(host)) {
     const w = window.open(url, '_blank'); if (w) w.opener = null;
     toast(w ? `${host.replace(/^www\./, '')} opened in its own tab — it doesn't allow other apps to show it` : 'The new tab was blocked by your browser', 'ext');
@@ -1568,7 +1601,7 @@ function vcClick() {
 }
 
 /* ---------------- SETTINGS ---------------- */
-const SECTIONS = [['custom', 'Customise', 'wand'], ['appearance', 'Appearance', 'palette'], ['video', 'Video & Audio', 'tv'], ['access', 'Accessibility', 'hand'], ['parental', 'Parental Controls', 'shield'], ['browser', 'Browser & Cursor', 'globe'], ['perf', 'Performance', 'gauge'], ['remote', 'Remote & Keys', 'remote'], ['privacy', 'Privacy', 'lock'], ['about', 'About', 'info']];
+const SECTIONS = [['custom', 'Customise', 'wand'], ['assistant', 'Assistant', 'mic'], ['appearance', 'Appearance', 'palette'], ['video', 'Video & Audio', 'tv'], ['access', 'Accessibility', 'hand'], ['parental', 'Parental Controls', 'shield'], ['browser', 'Browser & Cursor', 'globe'], ['perf', 'Performance', 'gauge'], ['remote', 'Remote & Keys', 'remote'], ['privacy', 'Privacy', 'lock'], ['about', 'About', 'info']];
 const SET = {sec: 'custom', built: false, unlocked: false, renderT: 0};
 function setBuild() {
   SCREENS.settings.el.innerHTML = `<div class="scr-head"><div class="scr-title">${ico('gear')}<span>Settings</span></div><div></div></div>
@@ -1613,6 +1646,17 @@ const SECTION_HTML = {
     <div class="group">Wallpaper</div>
     ${actRow('openwall', 'Wallpapers', `${wallName()} — open the Wallpapers app to preview and apply`, 'open:wallpapers', ico('image'))}
     ${actRow('resetui', 'Reset customisation', 'Return every option on this page to its default.', 'resetui', ico('reload'))}`; },
+  assistant: () => { const A = S.assistant; const vs = (window.speechSynthesis && speechSynthesis.getVoices()) || []; const lang = (navigator.language || 'en').slice(0, 2);
+    const voices = vs.filter(v => v.lang.toLowerCase().startsWith(lang)).slice(0, 6);
+    return `<div class="set-h">Assistant</div><p class="set-lead">Ask Lumora to open apps, search, change the wallpaper or theme, and more. Press the mic in the top bar, the V key, or your remote's mic key if the browser receives it.</p>
+    ${toggleRow('assistant.speak', 'Spoken replies', window.speechSynthesis ? 'Lumora answers out loud using this device’s built-in voices.' : 'This browser has no built-in voices, so replies appear on screen only.', A.speak)}
+    ${voices.length ? choiceRow('assistant.voice', 'Voice', '', [['', 'Automatic'], ...voices.map(v => [v.name, esc(v.name.replace(/^(Microsoft|Google)\s+/, '').replace(/\s+-\s+.*$/, '').slice(0, 22))])], A.voice) : ''}
+    ${choiceRow('assistant.rate', 'Speaking speed', '', [[0.85, 'Relaxed'], [1, 'Normal'], [1.15, 'Quick']], A.rate)}
+    <div class="group">Listening</div>
+    ${choiceRow('assistant.voiceIn', 'Voice input', 'Private: on-device recognition, and Lumora asks before using the browser’s online speech service. Allow online: use it without asking (in Chrome, audio goes to Google).', [['auto', 'Private (ask first)'], ['online', 'Allow online'], ['off', 'Off — type only']], A.voiceIn)}
+    ${infoRow('asup', 'Speech recognition in this browser', BOX ? 'Lumora TV box: offline, on this device' : SR ? (typeof SR.available === 'function' ? 'Supported · on-device may be available' : 'Supported (online service)') : 'Not supported — type instead', REAL)}
+    ${actRow('astry', 'Try the assistant', 'Say “open Netflix” or “what time is it?”', 'assist', ico('mic'))}
+    <div class="note">${ico('info')}<div>Understanding your request happens on this TV — nothing is sent to Lumora. On Hisense, Samsung and LG TVs the built-in microphone and the remote’s voice button belong to the TV’s own assistant, so for voice in Lumora use a browser with speech recognition (for example Chrome on the Lumora TV box) with a USB or Bluetooth microphone or a voice remote.</div></div>`; },
   appearance: () => `<div class="set-h">Appearance</div><p class="set-lead">Light, dark and the clock.</p>
     ${choiceRow('theme', 'Theme', 'Dark is the default. Automatic follows your device.', [['dark', 'Dark'], ['light', 'Light'], ['auto', 'Automatic']], S.theme)}
     ${choiceRow('clock', 'Clock format', '', [['12', '12-hour'], ['24', '24-hour']], S.clock)}
@@ -1660,7 +1704,7 @@ const SECTION_HTML = {
   },
   browser: () => `<div class="set-h">Browser & Cursor</div><p class="set-lead">The built-in Browser works with the remote, a USB or Bluetooth mouse and keyboard, or touch.</p>
     ${choiceRow('browser.engine', 'Search with', 'Google, Bing and DuckDuckGo results open in their own tab because those sites don’t allow embedding. Wikipedia search opens inside the Browser.', Object.entries(ENGINES).map(([k, v]) => [k, v[0]]), S.browser.engine)}
-    ${choiceRow('browser.openIn', 'Open streaming apps', 'This tab suits TV browsers and the Lumora TV box: the remote\u2019s Back key brings you back to Lumora.', [['tab', 'New tab'], ['same', 'This tab']], S.browser.openIn)}
+    ${choiceRow('browser.openIn', 'Open streaming apps', 'In Lumora: the app fills the screen and your remote’s Back key returns to Lumora. New tab: keeps Lumora open in its own tab.', [['same', 'In Lumora'], ['tab', 'New tab']], S.browser.openIn)}
     ${choiceRow('browser.cursorSpeed', 'Remote cursor speed', 'How fast the on-screen cursor moves when you hold an arrow.', [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']], S.browser.cursorSpeed)}
     ${actRow('vct', 'Turn on remote cursor', 'Move with the arrows, click with OK, press Back to turn it off. Works across Lumora. Shortcut: C.', 'cursor', ico('cursor'))}
     <div class="note">${ico('info')}<div>A web page can't reach inside other websites, so the remote cursor and on-screen keyboard drive Lumora and the address bar, while a real mouse, keyboard or touch also works inside pages. Packaged as a native TV app, the same cursor could drive web pages directly.</div></div>`,
@@ -1676,6 +1720,7 @@ const SECTION_HTML = {
       ${infoRow('k4', 'Return home', 'Home key · H')}
       ${infoRow('k5', 'App options (move / remove)', 'Hold OK · Menu key · O')}
       ${infoRow('k6', 'Remote cursor', 'C · arrows move · OK clicks · Back off')}
+      ${infoRow('k6b', 'Lumora Assistant', 'V · mic key on supported remotes')}
       ${infoRow('k7', 'PIN entry', 'Number keys 0–9')}
       ${infoRow('k8', 'Mouse & touch', 'Hover / tap · right-click or long-press')}
     </div>
@@ -1683,6 +1728,7 @@ const SECTION_HTML = {
   privacy: () => `<div class="set-h">Privacy</div><p class="set-lead">Lumora has no accounts, no tracking and no analytics.</p>
     ${infoRow('pv1', 'Data collection by Lumora', 'None', '', 'No analytics, cookies or trackers. Lumora itself makes no network requests.')}
     ${infoRow('pv2', 'Where settings are kept', 'This TV only', '', 'Saved in local storage on this device. Nothing is uploaded.')}
+    ${infoRow('pv4', 'Voice', 'Your choice', '', 'Lumora understands commands on this TV. Listening uses on-device recognition when the browser has it; otherwise only with your permission, the browser sends audio to its own online service. Spoken replies use the device’s built-in voices.')}
     ${infoRow('pv3', 'Sign-in & subscriptions', 'With each service', '', 'You log in and pay for services like Disney+ on their official sites, under their own privacy policies. Lumora never sees your password or card.')}
     ${actRow('erase', 'Erase all local data', 'Resets every setting, your Home layout and the Parental Controls PIN.', 'erase', ico('trash'))}`,
   about: () => { const D = detectDisplay(); return `<div class="about-hero lg"><svg class="logo" aria-hidden="true"><use href="#i-logo"/></svg><div><h2>Lumora OS</h2><p>Version 2.0 · Concept build</p></div></div>
@@ -1706,6 +1752,7 @@ function doToggle(el, k) {
   save(); afterChange(k);
 }
 function doSet(el, k, v) {
+  if (k === 'browser.openIn') S.browser.openInChosen = true;
   const cur = getPath(k); setPath(k, typeof cur === 'number' ? Number(v) : typeof cur === 'boolean' ? v === 'true' : v);
   const seg = el.closest('.seg, .grp'); if (seg) $$('.opt', seg).forEach(o => { const s = o === el; o.classList.toggle('sel', s); o.setAttribute('aria-checked', s); });
   save(); afterChange(k);
@@ -1757,6 +1804,190 @@ function runDetection() {
   const n = $('#det-ch'); if (n) n.textContent = DET.ch;
 }
 
+/* =====================================================================
+   LUMORA ASSISTANT — understands commands on this device and answers
+   out loud with the device's own voices. Listening uses the browser's
+   speech recognition: on-device when the browser offers it, otherwise
+   only after the viewer agrees to the browser's online service.
+   ===================================================================== */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const AS = {L: null, rec: null, ws: null, state: 'idle', localOK: null};
+/* On the Lumora TV box (file://…?tv=1) an offline recogniser runs on the device itself: tv/raspberry-pi/voice-server.py */
+const BOX = location.protocol === 'file:' && /[?&]tv=1\b/.test(location.search);
+function boxListen() {
+  return new Promise(res => {
+    let ws, opened = false;
+    try { ws = new WebSocket('ws://127.0.0.1:8765'); } catch (e) { res(false); return; }
+    const t = setTimeout(() => { if (!opened) { try { ws.close(); } catch (e) {} res(false); } }, 1200);
+    ws.onopen = () => { opened = true; clearTimeout(t); AS.ws = ws; ws.send('listen'); asState('listening'); asText('Listening…', 'Say something like “open Netflix”.'); res(true); };
+    ws.onerror = () => { clearTimeout(t); if (!opened) res(false); };
+    ws.onmessage = ev => {
+      let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+      if (m.partial) asText('“' + m.partial + '”', null);
+      if (m.error) { ws.close(); AS.ws = null; asState('idle'); asText('No microphone found.', 'Plug in a USB microphone, or press Type.'); }
+      else if ('final' in m) { ws.close(); AS.ws = null; if (m.final.trim()) asHandle(m.final); else { asState('idle'); asText('I didn’t hear anything.', 'Press Speak to try again, or Type.'); } }
+    };
+  });
+}
+const EXTRA_ALIASES = {
+  netflix: ['net flix', 'netflicks'], youtube: ['you tube'], disney: ['disney plus', 'disney'], prime: ['amazon prime', 'amazon', 'prime'],
+  hbomax: ['hbo', 'max'], iplayer: ['i player', 'bbc'], paramount: ['paramount plus', 'paramount'], ch4: ['channel four'], itvx: ['itv'],
+  xcloud: ['xbox'], gfn: ['geforce', 'nvidia'], lichess: ['chess'], snake: ['snake'], weather: ['weather'], bbcsport: ['sport'],
+  sounds: ['radio'], fast: ['speed test', 'internet speed'], roku: ['roku'], skygo: ['sky'], nowtv: ['now tv'], my5: ['my 5', 'channel 5', 'channel five'],
+  pluto: ['pluto'], f1tv: ['formula 1', 'formula one', 'f1'], ytkids: ['youtube kids'], wallpapers: ['wallpaper app'], browser: ['web browser', 'internet', 'web'],
+  store: ['app store', 'apps store'], settings: ['preferences'], crunchyroll: ['crunchy roll', 'anime'], natgeokids: ['nat geo', 'national geographic'],
+};
+const anorm = t => String(t).toLowerCase().replace(/\+/g, ' plus ').replace(/&/g, ' and ').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+let PHRASES = null;
+function phrases() {
+  if (PHRASES) return PHRASES;
+  const list = [];
+  for (const [id, a] of Object.entries(APPS)) { list.push([anorm(a.name), id]); for (const x of EXTRA_ALIASES[id] || []) list.push([anorm(x), id]); }
+  return (PHRASES = list.sort((x, y) => y[0].length - x[0].length));
+}
+function lev(a, b) { const m = a.length, n = b.length; if (!m || !n) return m || n; let prev = Array.from({length: n + 1}, (_, i) => i); for (let i = 1; i <= m; i++) { const cur = [i]; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = cur; } return prev[n]; }
+function findApp(t) {
+  const padded = ' ' + t + ' ';
+  for (const [p, id] of phrases()) if (p && padded.includes(' ' + p + ' ')) return id;
+  const words = t.split(' ');   // forgive small mis-hearings ("netflicks", "spotfy")
+  let best = null, bs = 0;
+  for (const [p, id] of phrases()) {
+    if (p.length < 4) continue; const pw = p.split(' ').length;
+    for (let i = 0; i + pw <= words.length; i++) { const chunk = words.slice(i, i + pw).join(' '); const sc = 1 - lev(chunk, p) / Math.max(chunk.length, p.length); if (sc > bs) { bs = sc; best = id; } }
+  }
+  return bs >= .78 ? best : null;
+}
+const visibleTo = id => APPS[id] && !hiddenApp(id);
+function timeText() { const d = new Date(); return d.toLocaleTimeString(undefined, {hour: 'numeric', minute: '2-digit', hour12: S.clock === '12'}); }
+/* Turn a sentence into a reply and an action. Everything here runs locally. */
+function understand(text) {
+  const t = anorm(text);
+  if (!t) return {reply: "I didn't catch that."};
+  const off = /\b(off|disable|stop|no more)\b/.test(t);
+  if (/^(stop|cancel|never ?mind|close|exit|thanks|thank you)( lumora)?$/.test(t)) return {reply: 'Okay.', run: () => {}};
+  if (/\b(what can you do|help|commands|what can i say)\b/.test(t)) return {reply: 'Try “open Netflix”, “search for kids apps”, “change the wallpaper”, “light mode”, “play Glow Snake” or “what time is it”.', keep: true};
+  if (/^(hello|hi|hey|hiya|good (morning|afternoon|evening))( lumora| there)?$/.test(t)) return {reply: 'Hi! What would you like to watch?', keep: true};
+  if (/\bwhat( s| is)? the time\b|\bwhat time\b/.test(t)) return {reply: `It's ${timeText()}.`, keep: true};
+  if (/\b(what s the date|what is the date|what day|today s date)\b/.test(t)) return {reply: `It's ${new Date().toLocaleDateString(undefined, {weekday: 'long', day: 'numeric', month: 'long'})}.`, keep: true};
+  if (/\b(dark mode|dark theme|go dark)\b/.test(t)) return {reply: 'Dark mode on.', run: () => { S.theme = 'dark'; save(); afterChange('theme'); }};
+  if (/\b(light mode|light theme)\b/.test(t)) return {reply: 'Light mode on.', run: () => { S.theme = 'light'; save(); afterChange('theme'); }};
+  if (/\breduce(d)? motion\b|\banimations?\b/.test(t)) { const on = !off; return {reply: `Reduce Motion ${on ? 'on' : 'off'}.`, run: () => { S.reduceMotion = on; save(); afterChange('reduceMotion'); }}; }
+  if (/\b(bigger|larger|increase|zoom in)\b.*\btext\b|\btext\b.*\b(bigger|larger)\b/.test(t)) return {reply: 'Making text bigger.', run: () => { S.textSize = S.textSize === 'default' ? 'large' : 'xl'; save(); afterChange('textSize'); }};
+  if (/\b(smaller|decrease|zoom out)\b.*\btext\b|\btext\b.*\bsmaller\b/.test(t)) return {reply: 'Making text smaller.', run: () => { S.textSize = S.textSize === 'xl' ? 'large' : 'default'; save(); afterChange('textSize'); }};
+  if (/\b(wallpaper|background)s?\b/.test(t)) {
+    const w = WALLS.find(x => t.includes(anorm(x.name)) || t.includes(x.id));
+    if (w) return {reply: `Wallpaper set to ${w.name}.`, run: () => { S.wallpaper = w.id; save(); setWallpaper(w.id); }};
+    if (/\b(change|next|another|different|new|random|switch)\b/.test(t)) { const ix = WALLS.findIndex(x => x.id === S.wallpaper); const w2 = WALLS[(ix + 1) % WALLS.length]; return {reply: `Here's ${w2.name}.`, run: () => { S.wallpaper = w2.id; save(); setWallpaper(w2.id); }}; }
+    return {reply: 'Opening Wallpapers.', run: () => show('wall')};
+  }
+  if (/\b(ambient|screensaver|screen saver|good ?night|sleep|clock only)\b/.test(t)) return {reply: 'Goodnight.', run: () => enterAmbient()};
+  if (/\bfull ?screen\b/.test(t)) return {reply: 'Browsers only allow full screen from a button press, so I’ve opened Control Centre — press OK on Full screen.', run: () => openQuick()};
+  if (/\bcursor\b/.test(t)) { const on = !off; return {reply: `Remote cursor ${on ? 'on' : 'off'}.`, run: () => { if (VC.on !== on) vcToggle(on); }}; }
+  let m = t.match(/\b(?:search|look up|google)\s+(?:the\s+)?(?:web|internet|online)\s+(?:for\s+)?(.+)$/) || t.match(/^google\s+(.+)$/);
+  if (m) { const q = m[1]; return {reply: `Searching the web for ${q}.`, run: () => { show('browser'); brGo(q); }}; }
+  m = t.match(/\b(?:search|find|look for|look up|show me)\s+(?:for\s+)?(.+?)(?:\s+(?:apps?|in the store))?$/);
+  if (m && !findApp(m[1])) { const q = m[1].replace(/\b(an?|some|the)\b/g, '').trim(); return {reply: `Here's what I found for ${q}.`, run: () => { ST.q = q.slice(0, 24); show('store', {tab: 'search'}); renderResults(); }}; }
+  m = t.match(/\b(?:install|get|download|add)\s+(.+)$/);
+  if (m) { const id = findApp(m[1]); if (id && visibleTo(id) && !APPS[id].system) return installed(id) ? {reply: `${APPS[id].name} is already on your Home screen.`, keep: true} : {reply: `Here's ${APPS[id].name}. Installing it now.`, run: () => { show('store'); openDetail(id); install(id); }}; }
+  if (/\b(go )?home\b/.test(t) && !/\b(open|launch|start)\b/.test(t)) return {reply: 'Going home.', run: () => goHome()};
+  if (/\b(play|open|start)\b.*\bgames?\b/.test(t) && !findApp(t.replace(/games?/g, ''))) return {reply: 'Here are some games.', run: () => { show('store'); openCat('Games'); }};
+  const id = findApp(t);
+  if (id && visibleTo(id)) return openByVoice(id);
+  if (id) return {reply: "That app isn't available on this TV.", keep: true};
+  return {reply: "Sorry, I didn't understand. Try “open YouTube” or “search for music apps”.", keep: true};
+}
+function openByVoice(id) {
+  const a = APPS[id];
+  if (!installed(id) && !a.system) return {reply: `${a.name} isn't on your Home screen yet — here it is in the Store.`, run: () => { show('store'); openDetail(id); }};
+  return {reply: `Opening ${a.name}.`, run: () => {
+    const tile = $(`#home-stack [data-app="${id}"]`);
+    withPin(a, `Enter PIN to open ${a.name}`, () => launch(id, curScreen === 'home' ? tile : null, {voice: true}));
+  }};
+}
+function pickVoice() {
+  if (!window.speechSynthesis) return null;
+  const vs = speechSynthesis.getVoices(); if (!vs.length) return null;
+  if (S.assistant.voice) { const v = vs.find(x => x.name === S.assistant.voice); if (v) return v; }
+  const lang = (navigator.language || 'en-GB').toLowerCase();
+  const rank = v => (v.lang.toLowerCase() === lang ? 4 : v.lang.toLowerCase().startsWith(lang.slice(0, 2)) ? 2 : 0) + (/natural|neural|premium|enhanced/i.test(v.name) ? 2 : 0) + (v.localService ? 1 : 0);
+  return vs.slice().sort((a, b) => rank(b) - rank(a))[0];
+}
+function say(text) {
+  if (!S.assistant.speak || !window.speechSynthesis || !text) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text.replace(/[“”]/g, '')); const v = pickVoice();
+    if (v) { u.voice = v; u.lang = v.lang; }
+    u.rate = S.assistant.rate || 1;
+    u.onstart = () => asState('speaking'); u.onend = () => { if (AS.state === 'speaking') asState('idle'); };
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+function asState(s) { AS.state = s; if (AS.L) AS.L.panel.firstElementChild.dataset.state = s; }
+function asText(heard, reply) { if (!AS.L) return; if (heard != null) $('#as-heard', AS.L.panel).textContent = heard; if (reply != null) $('#as-reply', AS.L.panel).textContent = reply; }
+const SUGGEST = ['Open Netflix', 'Search for kids apps', 'Change the wallpaper', 'Light mode', 'What time is it?', 'Play Glow Snake'];
+function openAssistant(startListening = true) {
+  if (AS.L && layers.includes(AS.L)) { if (startListening) listen(); return; }
+  if (VC.on) vcToggle(false);
+  const L = openLayer({cls: 'sheet asst', label: 'Lumora Assistant', def: '[data-act="aslisten"]', html: `<div class="asst-panel glass-strong" data-state="idle">
+      <div class="orb" aria-hidden="true"><i></i><i></i><i></i><b>${ico('mic')}</b></div>
+      <div class="asst-body"><div class="asst-heard" id="as-heard" aria-live="polite">How can I help?</div><div class="asst-reply" id="as-reply" aria-live="polite">Say or type something like “open Netflix”.</div>
+        <div class="asst-chips" data-row="as-chips"><button class="opt fx" data-f data-act="aslisten" tabindex="-1">${ico('mic')}<span class="lbl2">Speak</span></button><button class="opt fx" data-f data-act="astype" tabindex="-1">${ico('keyb')}Type</button>${SUGGEST.map(s => `<button class="opt fx" data-f data-act="assay:${encodeURIComponent(s)}" tabindex="-1">${esc(s)}</button>`).join('')}</div></div></div>`,
+    onKey(k, e) {
+      if ((k === 'char' || k === 'digit') && !/^[vV]$/.test(e.key)) { asType(e.key); return true; }
+      return false;
+    },
+    onClose() { asStop(); }});
+  AS.L = L; L.onClose = () => { asStop(); AS.L = null; };
+  if (startListening) listen();
+}
+function asStop() { try { AS.rec && AS.rec.abort(); } catch (e) {} AS.rec = null; try { AS.ws && AS.ws.close(); } catch (e) {} AS.ws = null; try { window.speechSynthesis && speechSynthesis.cancel(); } catch (e) {} }
+function asType(first = '') { openKeyboard({title: 'Ask Lumora', value: first, ph: 'e.g. open YouTube', go: 'Ask', onDone: v => { if (v.trim()) asHandle(v); }}); }
+async function localAvailable(lang) {
+  if (AS.localOK !== null) return AS.localOK;
+  try {
+    if (SR && typeof SR.available === 'function') {
+      const st = await SR.available({langs: [lang], processLocally: true});
+      if (st === 'available') return (AS.localOK = true);
+      if ((st === 'downloadable' || st === 'downloading') && typeof SR.install === 'function') { asText(null, 'Downloading on-device speech for your language…'); const ok = await SR.install({langs: [lang], processLocally: true}); return (AS.localOK = !!ok); }
+    }
+  } catch (e) {}
+  return (AS.localOK = false);
+}
+async function listen() {
+  if (!AS.L) return;
+  asStop();
+  const mode = S.assistant.voiceIn;
+  if (BOX && mode !== 'off') { asText('Getting ready…', ''); if (await boxListen()) return; if (!AS.L) return; }
+  if (!SR || mode === 'off') { asState('idle'); asText(SR ? 'Voice input is off.' : 'This browser can’t listen.', 'Type a request or pick a suggestion — I’ll still answer out loud.'); return; }
+  const lang = S.assistant.lang || navigator.language || 'en-GB';
+  const local = await localAvailable(lang);
+  if (!AS.L) return;
+  if (!local && mode !== 'online') {
+    const L = confirmDlg('Use online speech recognition?', 'This browser can’t recognise speech on the TV itself. To listen, it sends your voice to its own online speech service (in Chrome, that’s Google). Lumora only receives the words. You can change this in Settings → Assistant.', 'Allow', () => { S.assistant.voiceIn = 'online'; save(); listen(); });
+    $('[data-act="dlgcancel"]', L.panel).textContent = 'Type instead';
+    L.onClose = () => asText('Okay — type instead.', 'Press Type, or pick a suggestion.');
+    return;
+  }
+  const r = new SR(); AS.rec = r;
+  r.lang = lang; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
+  if (local && 'processLocally' in r) r.processLocally = true;
+  let finalText = '';
+  r.onresult = e => { let txt = ''; for (const res of e.results) { txt += res[0].transcript; if (res.isFinal) finalText = txt; } asText('“' + txt.trim() + '”', null); };
+  r.onerror = e => { AS.rec = null; asState('idle'); const msg = {'not-allowed': 'Microphone access is blocked.', 'service-not-allowed': 'Microphone access is blocked.', 'no-speech': 'I didn’t hear anything.', 'audio-capture': 'No microphone found.', network: 'The speech service couldn’t be reached.', 'language-not-supported': 'Your language isn’t supported for listening.'}[e.error]; if (msg && e.error !== 'aborted') asText(msg, 'Press Speak to try again, or Type.'); };
+  r.onend = () => { if (AS.rec === r) AS.rec = null; if (finalText.trim()) asHandle(finalText); else if (AS.state === 'listening') { asState('idle'); asText('I didn’t hear anything.', 'Press Speak to try again, or Type.'); } };
+  try { r.start(); asState('listening'); asText('Listening…', 'Say something like “open Netflix”.'); } catch (e) { asState('idle'); asText('Couldn’t start listening.', 'Type a request instead.'); }
+}
+function asHandle(text) {
+  if (!AS.L || !layers.includes(AS.L)) openAssistant(false);
+  asState('thinking'); asText('“' + text.trim() + '”', '');
+  const res = understand(text);
+  asText(null, res.reply); say(res.reply);
+  if (!res.keep) { asState('idle'); setTimeout(() => { if (AS.L) closeLayer(AS.L, true); AS.L = null; if (res.run) res.run(); if (res.reply && res.reply !== 'Okay.') toast(res.reply, 'mic'); }, S.reduceMotion ? 300 : 700); }
+  else asState('idle');
+  return res;
+}
+
 /* Control Centre */
 function quickHTML() {
   return `<div class="glass-strong panel-bg"></div><div class="qm-h">${ico('sliders')} Control Centre</div><div class="qm-list vscroll" data-row="qm" data-vlock>
@@ -1764,6 +1995,7 @@ function quickHTML() {
     ${choiceRow('ui.accent', 'Accent', '', ACCENTS.slice(0, 3), S.ui.accent)}
     ${toggleRow('reduceMotion', 'Reduce Motion', '', S.reduceMotion)}
     ${actRow('qwall', 'Wallpapers', wallName(), 'screen:wall', ico('image'))}
+    ${actRow('qassist', 'Lumora Assistant', 'Open apps and change settings by voice', 'assist', ico('mic'))}
     ${actRow('qcursor', 'Remote cursor', 'Point and click with the arrows', 'cursor', ico('cursor'))}
     ${actRow('amb', 'Ambient screen', 'Show only the clock', 'ambient', ico('moon'))}
     ${actRow('fs', 'Full screen', '', 'fullscreen', ico('full'))}
@@ -1854,10 +2086,14 @@ function activate(el) {
     case 'open': openApp(v, el); break;
     case 'search': show('store', {tab: 'search'}); break;
     case 'quick': openQuick(); break;
+    case 'assist': openAssistant(); break;
+    case 'aslisten': listen(); break;
+    case 'astype': asType(); break;
+    case 'assay': asHandle(decodeURIComponent(v)); break;
     case 'screen': closeAllLayers(); if (v !== curScreen) show(v); break;
     case 'home': goHome(); break;
     case 'relaunch': { const a = APPS[v]; const w = window.open(a.url, '_blank'); if (w) w.opener = null; else toast('The new tab was blocked — try “Open in this tab”', 'info'); break; }
-    case 'here': location.href = APPS[v].url; break;
+    case 'here': try { sessionStorage.setItem('lumora.return', v); } catch (e) {} location.href = APPS[v].url; break;
     case 'tab': selectTab(v); { const p = $(`#p-${v}`); const f = p && $$('[data-f]', p).find(visible); if (f) setFocus(f, {dir: 'down'}); } break;
     case 'cat': openCat(v); break;
     case 'app': openDetail(v); break;
@@ -1902,6 +2138,7 @@ function keyOf(e) {
   if (k === 'Backspace' || c === 8) return 'backspace';
   if (k === 'Home' || k === 'BrowserHome' || k === 'GoHome' || c === 36) return 'home';
   if (k === 'ContextMenu' || k === 'Info' || c === 93 || c === 457) return 'menu';
+  if (k === 'MicrophoneToggle' || k === 'SpeechInputToggle' || k === 'LaunchAssistant' || k === 'VoiceDial') return 'assist';
   if (k === 'Tab') return e.shiftKey ? 'left' : 'right';
   if (k === ' ' || k === 'Spacebar') return 'space';
   if (/^[0-9]$/.test(k)) return 'digit';
@@ -1934,6 +2171,7 @@ document.addEventListener('keydown', e => {
   if (k === 'char') {
     const c = e.key.toLowerCase();
     if (c === 'h') k = 'home'; else if (c === 'o' || c === 'm') k = 'menu';
+    else if (c === 'v' && !e.repeat) { openAssistant(); return; }
     else if (c === 'c' && !layers.length && !e.repeat) { vcToggle(true); toast('Remote cursor on — arrows move, OK clicks, Back turns it off', 'cursor'); return; }
     else return;
   }
@@ -1950,6 +2188,7 @@ document.addEventListener('keydown', e => {
     case 'back': case 'backspace': if (!e.repeat) goBack(); break;
     case 'home': if (!e.repeat) goHome(); break;
     case 'menu': if (!e.repeat && !moving && F.cur && F.cur.dataset.hold) openOptions(F.cur); break;
+    case 'assist': if (!e.repeat) openAssistant(); break;
   }
   setTimeout(ensureFocus, 0);
 });
@@ -2044,12 +2283,14 @@ tick();
 renderHome();
 SCREENS.home.el.classList.add('active'); SCREENS.home.el.removeAttribute('inert'); root.classList.add('on-home');
 ensureFocus();
+try { const back = sessionStorage.getItem('lumora.return'); sessionStorage.removeItem('lumora.return'); const t = back && $(`#home-stack [data-app="${CSS.escape(back)}"]`); if (t) { setFocus(t); toast(`Back from ${APPS[back].name}`, 'home'); } } catch (e) {}
+if (EMBEDDED) toast('Preview mode — open index.html in Chrome, Edge or on your TV so apps open inside Lumora', 'info');
 if (F.cur && F.cur.dataset.app) { glowFor(F.cur.dataset.app, true); shelfInfo(F.cur.dataset.app, true); }
 bootMs = Math.round(performance.now());
 requestAnimationFrame(frame);
 bumpIdle();
 setInterval(() => { if (!(curScreen === 'game' && G.run) && !isAmbient()) ensureFocus(); }, 800);
-window.__lumora = {S, F, get screen() { return curScreen; }, layers, ST, SET, BR, VC, get bootMs() { return bootMs; }};
+window.__lumora = {ask: t => asHandle(t), understand: t => understand(t), S, F, get screen() { return curScreen; }, layers, ST, SET, BR, VC, get bootMs() { return bootMs; }};
 })();
 </script>
 </body>

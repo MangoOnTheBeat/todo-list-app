@@ -32,12 +32,31 @@ if [ -z "$CHROMIUM" ]; then
   CHROMIUM="$(command -v chromium-browser || command -v chromium)"
 fi
 
+echo "==> Setting up offline voice for the Lumora Assistant (speech is recognised on the Pi)"
+VOICE_OK=0
+if sudo apt-get install -y python3-venv libportaudio2 unzip wget \
+  && python3 -m venv "$APP_DIR/voice-venv" \
+  && "$APP_DIR/voice-venv/bin/pip" install --quiet vosk sounddevice websockets; then
+  cp "$SRC_DIR/tv/raspberry-pi/voice-server.py" "$APP_DIR/voice-server.py"
+  if [ ! -d "$APP_DIR/vosk-model" ]; then
+    MODEL=vosk-model-small-en-us-0.15   # about 40 MB; other languages: https://alphacephei.com/vosk/models
+    wget -q -O "/tmp/$MODEL.zip" "https://alphacephei.com/vosk/models/$MODEL.zip" \
+      && unzip -q -o "/tmp/$MODEL.zip" -d "$APP_DIR" && mv "$APP_DIR/$MODEL" "$APP_DIR/vosk-model" && rm -f "/tmp/$MODEL.zip"
+  fi
+  [ -d "$APP_DIR/vosk-model" ] && VOICE_OK=1
+fi
+[ "$VOICE_OK" = 1 ] || echo "   (Offline voice couldn't be set up — the assistant still works by typing)"
+
 echo "==> Writing the launcher"
 cat > "$APP_DIR/start-lumora.sh" <<EOF
 #!/usr/bin/env bash
 # Starts Lumora full screen and restarts it if the browser ever closes.
 exec 9>"\$HOME/.lumora.lock"
 flock -n 9 || exit 0          # already running
+# Offline voice for the assistant (only listens when you ask it to).
+if [ -x "$APP_DIR/voice-venv/bin/python" ] && [ -d "$APP_DIR/vosk-model" ]; then
+  ( while true; do "$APP_DIR/voice-venv/bin/python" "$APP_DIR/voice-server.py"; sleep 3; done ) &
+fi
 while true; do
   "$CHROMIUM" --kiosk --noerrdialogs --disable-infobars --no-first-run \\
     --disable-session-crashed-bubble --password-store=basic \\
@@ -95,6 +114,8 @@ Done. Reboot to start Lumora:   sudo reboot
   * Arrows, OK and Back on your TV remote reach Lumora over HDMI-CEC (turn on CEC in the TV's
     settings; brands call it Anynet+, SimpLink, Bravia Sync, etc.). If your TV doesn't pass keys
     through, a cheap USB "air mouse" remote works and also drives the on-screen cursor.
+  * Lumora Assistant: plug in a USB microphone (or a voice remote that works as a USB mic), then press the
+    mic button or V. Speech is recognised offline on the Pi. Your TV's own built-in mic stays with the TV.
   * To update Lumora later, copy the new index.html and run this script again.
   * To stop it starting automatically:  rm ~/.config/autostart/lumora.desktop
     (and remove the start-lumora line from ~/.config/labwc/autostart if present).
