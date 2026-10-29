@@ -1,0 +1,1728 @@
+<!doctype html>
+<html lang="en" class="theme-dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="description" content="Lumora OS — a concept smart-TV interface. Not affiliated with any TV platform or streaming service.">
+<title>Lumora OS</title>
+<style>
+/* =========================================================================
+   Lumora OS — concept TV interface. Layout is drawn on a 120rem x 67.5rem
+   canvas, so it scales identically at 720p, 1080p and 4K.
+   Only transform and opacity are ever animated.
+   ========================================================================= */
+:root{
+  --spring:cubic-bezier(.3,1.35,.55,1);
+  --spring-soft:cubic-bezier(.25,1.1,.4,1);
+  --out:cubic-bezier(.16,1,.3,1);
+  --ts:1;
+  --blur:2rem;
+  --font:system-ui,"Segoe UI",Roboto,"Noto Sans","Helvetica Neue",Arial,sans-serif;
+  --accent:#8b9cff; --accent2:#4fe3c1;
+}
+@supports (transition-timing-function:linear(0,1)){
+  :root{
+    --spring:linear(0,.0459,.1556,.2958,.4431,.5823,.7046,.806,.8857,.9451,.9868,1.0139,1.0296,1.0369,1.0383,1.0359,1.0314,1.0259,1.0203,1.015,1.0105,1.0068,1.0039,1.0017,1.0003,.9993,.9988,.9986,.9985,.9986,.9988,.999,1);
+    --spring-soft:linear(0,.063,.1991,.3555,.5042,.6324,.7361,.8163,.8761,.9191,.9491,.9695,.9828,.9912,.9963,.9992,1.0007,1.0014,1.0015,1.0014,1.0012,1.001,1.0008,1.0006,1);
+  }
+}
+.theme-dark{
+  --bg:#06070b; --fg:#f3f5fa; --fg2:rgba(243,245,250,.66); --fg3:rgba(243,245,250,.42);
+  --glass:rgba(30,33,46,.46); --glass-solid:#1a1d27; --glass-strong:rgba(20,22,31,.78);
+  --chip:rgba(255,255,255,.09); --chip-sel:rgba(255,255,255,.18); --stroke:rgba(255,255,255,.11);
+  --focus-bg:#f3f5fa; --focus-fg:#0a0c12; --shadow:rgba(0,0,0,.6);
+  --veil:#04060c; --veil-home:.12; --veil-app:.62; --scrim-top:rgba(0,0,0,.35); --scrim-bot:rgba(0,0,0,.62);
+}
+.theme-light{
+  --bg:#e8ecf4; --fg:#0d111c; --fg2:rgba(13,17,28,.66); --fg3:rgba(13,17,28,.45);
+  --glass:rgba(255,255,255,.52); --glass-solid:#f4f6fa; --glass-strong:rgba(250,251,253,.86);
+  --chip:rgba(13,17,28,.07); --chip-sel:rgba(13,17,28,.14); --stroke:rgba(13,17,28,.1);
+  --focus-bg:#0d111c; --focus-fg:#ffffff; --shadow:rgba(20,30,60,.35);
+  --veil:#eef1f7; --veil-home:.5; --veil-app:.78; --scrim-top:rgba(255,255,255,.3); --scrim-bot:rgba(255,255,255,.5);
+}
+.hc.theme-dark{--fg2:#fff;--fg3:#e6e6e6;--glass:#000;--glass-strong:#000;--glass-solid:#000;--chip:#1c1c1c;--chip-sel:#3a3a3a;--stroke:#fff;--veil-app:.92;--veil-home:.45}
+.hc.theme-light{--fg2:#000;--fg3:#1a1a1a;--glass:#fff;--glass-strong:#fff;--glass-solid:#fff;--chip:#e2e2e2;--chip-sel:#c4c4c4;--stroke:#000;--veil-app:.95;--veil-home:.7}
+
+*{box-sizing:border-box}
+html{font-size:max(7px,min(calc(100vw / 120),calc(100vh / 67.5)));height:100%;background:var(--bg)}
+body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font-family:var(--font);
+  -webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;
+  font-size:calc(1.5rem * var(--ts));line-height:1.35}
+.kbd body,.kbd *{cursor:none!important}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0}
+[data-f]{outline:none}
+svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---------- wallpaper ---------- */
+#wall{position:fixed;inset:0;overflow:hidden;z-index:0}
+#wall-inner{position:absolute;inset:-5%;transition:transform 1s var(--spring-soft)}
+.wp{position:absolute;inset:0;overflow:hidden;opacity:0;transition:opacity 1.2s ease}
+.wp.on{opacity:1}
+.wp i{position:absolute;display:block;will-change:transform}
+.wp-aurora{background:radial-gradient(140% 100% at 50% 120%,#101848 0%,#070914 55%,#04050a 100%)}
+.wp-aurora .b1{width:80vmax;height:80vmax;left:-20vmax;top:-30vmax;background:radial-gradient(closest-side,rgba(96,112,255,.75),rgba(96,112,255,0));animation:dr1 34s ease-in-out infinite alternate}
+.wp-aurora .b2{width:70vmax;height:70vmax;right:-20vmax;top:-10vmax;background:radial-gradient(closest-side,rgba(40,220,190,.55),rgba(40,220,190,0));animation:dr2 41s ease-in-out infinite alternate}
+.wp-aurora .b3{width:75vmax;height:75vmax;left:20vmax;bottom:-45vmax;background:radial-gradient(closest-side,rgba(220,80,200,.45),rgba(220,80,200,0));animation:dr3 47s ease-in-out infinite alternate}
+@keyframes dr1{to{transform:translate3d(28vw,16vh,0) scale(1.25)}}
+@keyframes dr2{to{transform:translate3d(-30vw,22vh,0) scale(.85)}}
+@keyframes dr3{to{transform:translate3d(-18vw,-20vh,0) scale(1.15)}}
+.wp-nebula{background:radial-gradient(90% 70% at 70% 30%,#2a1350 0%,#120a2a 45%,#05040c 100%)}
+.wp-nebula .cloud{inset:-10%;background:radial-gradient(40% 30% at 30% 65%,rgba(255,90,170,.28),transparent 70%),radial-gradient(35% 28% at 72% 35%,rgba(90,140,255,.32),transparent 70%);animation:neb 60s ease-in-out infinite alternate}
+.wp-nebula .s1,.wp-nebula .s2{width:2px;height:2px;border-radius:50%;left:0;top:0;background:transparent}
+.wp-nebula .s1{animation:twk 5s ease-in-out infinite alternate}
+.wp-nebula .s2{animation:twk 7s ease-in-out -3s infinite alternate}
+.wp-nebula .rot{inset:-30%;animation:spin 400s linear infinite}
+@keyframes neb{to{transform:scale(1.12) translate3d(-3vw,2vh,0)}}
+@keyframes twk{from{opacity:.25}to{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.wp-tide{background:linear-gradient(180deg,#0d2c4a 0%,#145a74 45%,#0a3346 70%,#061a26 100%)}
+.wp-tide .sun{width:40vmax;height:40vmax;left:50%;top:8%;margin-left:-20vmax;background:radial-gradient(closest-side,rgba(255,214,150,.55),rgba(255,214,150,0));animation:sun 20s ease-in-out infinite alternate}
+.wp-tide .w{left:0;width:200%;height:40%;bottom:0;background-repeat:repeat-x;background-size:50% 100%}
+.wp-tide .w1{bottom:14%;opacity:.35;animation:wave 38s linear infinite}
+.wp-tide .w2{bottom:6%;opacity:.5;animation:wave 26s linear infinite}
+.wp-tide .w3{bottom:-4%;opacity:.8;animation:wave 18s linear infinite}
+@keyframes wave{to{transform:translate3d(-50%,0,0)}}
+@keyframes sun{to{transform:translate3d(0,3vh,0) scale(1.08)}}
+.wp-still{background-size:cover;background-position:center}
+.reduce-motion .wp *,.lite .wp *,.ambient-paused .wp *{animation-play-state:paused!important}
+
+#veil{position:fixed;inset:0;z-index:1;background:var(--veil);opacity:var(--veil-home);transition:opacity .5s ease;pointer-events:none}
+.on-app #veil{opacity:var(--veil-app)}
+#scrim{position:fixed;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,var(--scrim-top) 0%,transparent 28%,transparent 50%,var(--scrim-bot) 100%);transition:opacity .5s}
+.on-app #scrim{opacity:0}
+
+/* ---------- glass ---------- */
+.glass{background:var(--glass);-webkit-backdrop-filter:blur(var(--blur)) saturate(170%);backdrop-filter:blur(var(--blur)) saturate(170%);border:1px solid var(--stroke)}
+.glass-strong{background:var(--glass-strong);-webkit-backdrop-filter:blur(var(--blur)) saturate(170%);backdrop-filter:blur(var(--blur)) saturate(170%);border:1px solid var(--stroke)}
+.lite .glass,.lite .glass-strong,.no-transp .glass,.no-transp .glass-strong,.hc .glass,.hc .glass-strong{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--glass-solid)}
+
+/* ---------- screens ---------- */
+#screens{position:fixed;inset:0;z-index:2}
+.screen{position:absolute;inset:0;opacity:0;visibility:hidden;transform:scale(1.035);
+  transition:opacity .32s ease,transform .6s var(--spring-soft),visibility 0s linear .6s}
+.screen.active{opacity:1;visibility:visible;transform:none;transition:opacity .32s ease,transform .6s var(--spring-soft),visibility 0s}
+.screen.behind{transform:scale(.965)}
+.reduce-motion .screen{transform:none!important}
+
+/* ---------- generic focusables (.fx) ---------- */
+.fx{position:relative;isolation:isolate;transition:transform .42s var(--spring)}
+.fx::before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--chip);z-index:-2}
+.fx::after{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--focus-bg);opacity:0;z-index:-1;transition:opacity .16s ease;box-shadow:0 1.2rem 2.6rem var(--shadow)}
+.fx.focused{color:var(--focus-fg);transform:scale(1.045)}
+.fx.focused::after{opacity:1}
+.fx.plain::before{background:transparent}
+.fx.sel:not(.focused)::before{background:var(--chip-sel)}
+.reduce-motion .fx.focused{transform:none}
+.hc .fx.focused::after{box-shadow:0 0 0 .3rem var(--accent)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.8rem;min-height:4.6rem;padding:0 2.4rem;border-radius:2.3rem;font-size:calc(1.45rem * var(--ts));font-weight:600;white-space:nowrap}
+.btn.primary::before{background:var(--chip-sel)}
+.btn .i{font-size:1.5em}
+.icon-btn{width:4.6rem;height:4.6rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:2rem}
+.icon-btn .i{font-size:2.1rem}
+[aria-disabled="true"]{opacity:.38}
+
+/* bump when hitting an edge */
+.bump-left{animation:bl .32s var(--out)}.bump-right{animation:br .32s var(--out)}
+.bump-up{animation:bu .32s var(--out)}.bump-down{animation:bd .32s var(--out)}
+@keyframes bl{30%{translate:-.6rem 0}}@keyframes br{30%{translate:.6rem 0}}
+@keyframes bu{30%{translate:0 -.6rem}}@keyframes bd{30%{translate:0 .6rem}}
+.reduce-motion [class*="bump-"]{animation:none}
+
+/* ---------- tiles ---------- */
+.tile{position:relative;flex:0 0 auto;width:var(--tw,17.5rem);--px:0;--py:0;--s:1;--ly:0rem}
+.t-lift{position:relative;transform:perspective(60rem) translate3d(0,var(--ly),0) scale(var(--s)) rotateX(calc(var(--py) * -14deg)) rotateY(calc(var(--px) * 16deg));
+  transition:transform .55s var(--spring);will-change:transform}
+.tile.focused{--s:1.11;--ly:-.5rem;z-index:3}
+.tile.tracking .t-lift{transition:transform .14s linear}
+.t-shadow{position:absolute;inset:6% 4% 0;border-radius:1.6rem;box-shadow:0 2.2rem 3.4rem var(--shadow);opacity:0;transition:opacity .3s ease}
+.tile.focused .t-shadow{opacity:1}
+.t-card{position:relative;aspect-ratio:var(--ar,5/3);border-radius:1.5rem;overflow:hidden;isolation:isolate;
+  background:linear-gradient(145deg,var(--c1),var(--c2));box-shadow:0 .6rem 1.4rem rgba(0,0,0,.28);transform:translateZ(0)}
+.t-art{position:absolute;inset:-6%;transform:translate3d(calc(var(--px) * -1.2rem),calc(var(--py) * -1.2rem),0);transition:transform .55s var(--spring)}
+.t-art::before{content:"";position:absolute;inset:0;background:radial-gradient(90% 70% at 20% 0%,rgba(255,255,255,.22),transparent 60%),radial-gradient(70% 60% at 100% 100%,rgba(0,0,0,.35),transparent 70%)}
+.t-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.t-name{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:1rem 1.2rem;text-align:center;color:#fff;
+  font-weight:700;font-size:calc(1.95rem * var(--ts));letter-spacing:-.01em;line-height:1.1;text-shadow:0 .2rem .8rem rgba(0,0,0,.35);
+  transform:translate3d(calc(var(--px) * 1rem),calc(var(--py) * 1rem),0);transition:transform .55s var(--spring)}
+.t-name.long{font-size:calc(1.55rem * var(--ts))}
+.t-name .i{font-size:4.2rem;stroke-width:1.6}
+.t-name small{font-size:calc(1.2rem * var(--ts));font-weight:600;opacity:.92}
+.t-spec{position:absolute;inset:-50%;background:radial-gradient(closest-side,rgba(255,255,255,.28),transparent);opacity:0;
+  transform:translate3d(calc(var(--px) * 40%),calc(var(--py) * 40%),0);transition:opacity .3s,transform .55s var(--spring)}
+.tile.focused .t-spec{opacity:.7}
+.t-glint{position:absolute;top:-20%;bottom:-20%;left:0;width:60%;background:linear-gradient(100deg,transparent 0%,rgba(255,255,255,0) 30%,rgba(255,255,255,.55) 50%,rgba(255,255,255,0) 70%,transparent 100%);
+  transform:translate3d(-120%,0,0) skewX(-12deg);opacity:0;pointer-events:none}
+.tile.focused .t-glint{animation:glint 1s var(--out) .06s 1 both}
+@keyframes glint{0%{transform:translate3d(-120%,0,0) skewX(-12deg);opacity:1}100%{transform:translate3d(260%,0,0) skewX(-12deg);opacity:1}}
+.t-ring{position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 .22rem rgba(255,255,255,.75);opacity:0;transition:opacity .2s}
+.tile.focused .t-ring{opacity:1}
+.hc .tile.focused .t-ring{box-shadow:inset 0 0 0 .4rem #fff,0 0 0 .3rem #000}
+.t-title{margin-top:1rem;text-align:center;font-size:calc(1.3rem * var(--ts));font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  opacity:0;transform:translate3d(0,-.4rem,0);transition:opacity .2s,transform .4s var(--spring)}
+.tile.focused .t-title,.tile.show-title .t-title{opacity:1;transform:translate3d(0,.3rem,0)}
+.t-sub{display:block;font-weight:500;color:var(--fg2);font-size:calc(1.1rem * var(--ts));overflow:hidden;text-overflow:ellipsis}
+.t-badge{position:absolute;top:.8rem;right:.8rem;width:2.4rem;height:2.4rem;border-radius:50%;background:rgba(255,255,255,.92);color:#0a0c12;display:flex;align-items:center;justify-content:center;font-size:1.4rem;z-index:2}
+.t-badge .i{stroke-width:3}
+.t-lock{position:absolute;top:.8rem;left:.8rem;width:2.4rem;height:2.4rem;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.3rem;z-index:2}
+.t-prog{position:absolute;left:1rem;right:1rem;bottom:1rem;height:.5rem;border-radius:.3rem;background:rgba(0,0,0,.35);overflow:hidden;z-index:2}
+.t-prog b{position:absolute;inset:0;background:#fff;transform-origin:0 50%;transform:scaleX(0);transition:transform .12s linear}
+.tile.moving .t-lift{animation:jiggle .28s ease-in-out infinite alternate}
+.tile.moving{--s:1.14}
+@keyframes jiggle{from{transform:perspective(60rem) translate3d(0,-.5rem,0) scale(1.14) rotate(-1.4deg)}to{transform:perspective(60rem) translate3d(0,-.5rem,0) scale(1.14) rotate(1.4deg)}}
+.reduce-motion .tile{--px:0!important;--py:0!important}
+.reduce-motion .tile.focused{--s:1.05;--ly:0rem}
+.reduce-motion .t-glint,.reduce-motion .t-spec{display:none}
+.reduce-motion .t-lift,.reduce-motion .t-art,.reduce-motion .t-name{transition:transform .2s ease}
+.reduce-motion .tile.moving .t-lift{animation:none}
+.lite .t-shadow{display:none}
+.poster{--tw:24rem;--ar:16/9}
+.poster .t-name{justify-content:flex-end;align-items:flex-start;text-align:left;padding:1.4rem 1.6rem;background:linear-gradient(0deg,rgba(0,0,0,.6),transparent 60%);font-size:calc(1.7rem * var(--ts))}
+.poster .t-name small{font-weight:500;opacity:.85}
+
+/* rows */
+.track{position:relative;display:flex;gap:2.2rem;overflow-x:auto;overflow-y:hidden;padding:1.6rem 6rem 3.4rem;margin-bottom:-2.4rem;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.track::-webkit-scrollbar,.vscroll::-webkit-scrollbar{display:none}
+.row-h{display:flex;align-items:baseline;justify-content:space-between;margin:0 6rem;font-size:calc(1.5rem * var(--ts));font-weight:650;color:var(--fg2);letter-spacing:.01em}
+.row-h .hint{font-size:calc(1.15rem * var(--ts));font-weight:500;color:var(--fg3)}
+.vscroll{overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+
+/* ---------- HOME ---------- */
+#s-home .topbar{position:absolute;top:3.4rem;left:6rem;right:6rem;display:flex;align-items:center;justify-content:space-between;z-index:3;transition:opacity .5s,transform .6s var(--spring-soft)}
+.brand{display:flex;align-items:center;gap:1rem;font-weight:700;font-size:calc(1.7rem * var(--ts));letter-spacing:.02em}
+.brand .logo{width:3.2rem;height:3.2rem}
+.top-actions{display:flex;gap:1.2rem}
+.clock-wrap{position:absolute;left:6rem;top:12rem;transform-origin:0 0;transition:opacity .45s ease,transform .7s var(--spring-soft)}
+.clock{font-size:calc(11rem * min(var(--ts),1.12));font-weight:250;letter-spacing:-.035em;line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 .4rem 3rem rgba(0,0,0,.25)}
+.theme-light .clock{text-shadow:none}
+.clock .ampm{font-size:.3em;font-weight:400;letter-spacing:0;margin-left:.6rem;opacity:.75}
+.date{font-size:calc(2.2rem * var(--ts));font-weight:500;margin-top:1rem;opacity:.92}
+.greet{font-size:calc(1.5rem * var(--ts));color:var(--fg2);margin-top:.6rem}
+.home-shifted .clock-wrap{opacity:0;transform:translate3d(0,-5rem,0) scale(.92)}
+#home-stack{position:absolute;left:0;right:0;top:41rem;transition:transform .65s var(--spring-soft)}
+.hrow{padding-bottom:.6rem;transition:opacity .35s ease}
+.hrow.above{opacity:0;pointer-events:none}
+.hrow .row-h{transition:opacity .3s}
+.ambient #s-home .topbar,.ambient #home-stack{opacity:0;transform:translate3d(0,4rem,0);pointer-events:none}
+.ambient #home-stack{transition:opacity .6s,transform .8s var(--spring-soft)}
+.ambient .clock-wrap{opacity:1!important;transform:translate3d(0,14rem,0) scale(1.18)!important}
+.ambient #veil{opacity:.35}
+.ambient #toast{opacity:0}
+
+/* ---------- launch screen ---------- */
+#zoom{position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:40;transform-origin:0 0;opacity:0;pointer-events:none;border-radius:1.5rem;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:5rem;overflow:hidden}
+#s-launch .launch-bg{position:absolute;inset:0;background:linear-gradient(145deg,var(--c1),var(--c2));opacity:.85}
+#s-launch .launch-card{position:absolute;left:50%;top:50%;width:76rem;transform:translate(-50%,-50%);border-radius:3rem;padding:4.4rem 5rem;text-align:center}
+.launch-card h1{margin:0;font-size:calc(4.4rem * var(--ts));letter-spacing:-.02em}
+.launch-card .host{margin:.8rem 0 0;font-size:calc(1.6rem * var(--ts));color:var(--fg2)}
+.launch-card .msg{margin:2.2rem auto 0;max-width:60rem;font-size:calc(1.5rem * var(--ts));color:var(--fg2)}
+.launch-card .actions{display:flex;justify-content:center;gap:1.6rem;margin-top:3rem;flex-wrap:wrap}
+.safe-note{display:flex;gap:.8rem;align-items:center;justify-content:center;margin-top:2.6rem;font-size:calc(1.2rem * var(--ts));color:var(--fg3)}
+
+/* ---------- headers (store/settings) ---------- */
+.scr-head{position:absolute;top:3.4rem;left:6rem;right:6rem;height:5rem;display:flex;align-items:center;justify-content:space-between;z-index:3}
+.scr-title{display:flex;align-items:center;gap:1rem;font-size:calc(2rem * var(--ts));font-weight:700}
+.scr-title .i{font-size:2.6rem}
+.tabs{display:flex;gap:.6rem;padding:.5rem;border-radius:3rem;transition:opacity .3s,transform .5s var(--spring-soft)}
+.tab{padding:0 2.2rem;height:4rem;border-radius:2rem;display:flex;align-items:center;font-weight:600;font-size:calc(1.4rem * var(--ts))}
+.tab::before{background:transparent}
+.tab.sel:not(.focused)::before{background:var(--chip-sel)}
+.head-spacer{min-width:12rem;display:flex;justify-content:flex-end;white-space:nowrap}
+
+/* ---------- STORE ---------- */
+.st-body{position:absolute;left:0;right:0;top:10rem;bottom:0}
+.pane{position:absolute;inset:0;opacity:0;visibility:hidden;transform:translate3d(3rem,0,0);transition:opacity .28s ease,transform .5s var(--spring-soft),visibility 0s linear .5s}
+.pane.on{opacity:1;visibility:visible;transform:none;transition:opacity .28s ease,transform .5s var(--spring-soft),visibility 0s}
+.pane.left{transform:translate3d(-3rem,0,0)}
+.pane.vscroll{padding-bottom:6rem}
+.hero{position:relative;margin:1.8rem 6rem 1rem;height:30rem;border-radius:2.4rem;transition:transform .5s var(--spring)}
+.hero .slides{position:absolute;inset:0;border-radius:inherit;overflow:hidden;isolation:isolate;transform:translateZ(0)}
+.hero .slide{position:absolute;inset:0;opacity:0;transition:opacity .7s ease;background:linear-gradient(120deg,var(--c1),var(--c2))}
+.hero .slide.on{opacity:1}
+.hero .slide img{position:absolute;right:0;top:0;height:100%;width:62%;object-fit:cover;opacity:.9;-webkit-mask-image:linear-gradient(90deg,transparent,#000 40%);mask-image:linear-gradient(90deg,transparent,#000 40%)}
+.hero .copy{position:absolute;left:4.4rem;top:50%;transform:translateY(-50%);max-width:52rem;color:#fff}
+.hero .kicker{font-size:calc(1.2rem * var(--ts));font-weight:700;letter-spacing:.14em;text-transform:uppercase;opacity:.8}
+.hero h2{margin:.6rem 0 .6rem;font-size:calc(4.2rem * var(--ts));letter-spacing:-.02em;line-height:1.05}
+.hero p{margin:0;font-size:calc(1.5rem * var(--ts));opacity:.88}
+.hero .cta{margin-top:2rem;display:inline-flex;align-items:center;gap:.8rem;height:4.4rem;padding:0 2.2rem;border-radius:2.2rem;background:rgba(255,255,255,.2);font-weight:650}
+.hero.focused{transform:scale(1.02)}
+.hero.focused .cta{background:#fff;color:#0a0c12}
+.hero .ring{position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 .25rem rgba(255,255,255,.8);opacity:0;transition:opacity .2s}
+.hero.focused .ring{opacity:1}
+.hero .dots{position:absolute;right:3rem;bottom:2.4rem;display:flex;gap:.8rem}
+.hero .dots i{width:.9rem;height:.9rem;border-radius:50%;background:#fff;opacity:.35;transition:opacity .3s,transform .3s var(--spring)}
+.hero .dots i.on{opacity:1;transform:scale(1.25)}
+.hero .arrows{position:absolute;left:4.4rem;bottom:2.4rem;font-size:calc(1.15rem * var(--ts));color:rgba(255,255,255,.75);opacity:0;transition:opacity .3s}
+.hero.focused .arrows{opacity:1}
+.reduce-motion .hero.focused{transform:none}
+.st-row{margin-top:1.4rem}
+.st-row .tile{--tw:16rem}
+.st-row .t-title,.grid .t-title{opacity:1;transform:none}
+.cats{display:grid;grid-template-columns:repeat(3,1fr);gap:2.6rem;padding:2.2rem 6rem}
+.cat{height:15rem;border-radius:2rem;display:flex;flex-direction:column;justify-content:flex-end;padding:2.2rem 2.6rem;color:#fff;overflow:hidden}
+.cat::before{background:linear-gradient(140deg,var(--c1),var(--c2))!important}
+.cat .i{position:absolute;right:2.4rem;top:2.2rem;font-size:5rem;opacity:.85;stroke-width:1.5}
+.cat b{font-size:calc(2.4rem * var(--ts));letter-spacing:-.01em}
+.cat span{font-size:calc(1.25rem * var(--ts));opacity:.85}
+.cat.focused{color:#fff}
+.cat.focused::after{background:transparent;box-shadow:inset 0 0 0 .25rem #fff,0 1.8rem 3rem var(--shadow)}
+.list-head{display:flex;align-items:center;gap:1.4rem;padding:1.6rem 6rem 0;font-size:calc(3rem * var(--ts));font-weight:700;letter-spacing:-.01em}
+.list-head .i{font-size:3.4rem}
+.list-head small{font-size:calc(1.4rem * var(--ts));font-weight:500;color:var(--fg2)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,16rem);gap:2.2rem 2.4rem;padding:2rem 6rem 4rem;justify-content:start}
+.grid .tile{--tw:16rem}
+/* search */
+.search{display:grid;grid-template-columns:44rem 1fr;gap:4rem;padding:1.6rem 6rem 0;height:100%}
+.qbox{height:6rem;border-radius:1.6rem;display:flex;align-items:center;gap:1.2rem;padding:0 2rem;font-size:calc(2rem * var(--ts));margin-bottom:2rem}
+.qbox .q{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qbox .q:empty::before{content:"Search apps and games";color:var(--fg3)}
+.qbox .caret{width:.2rem;height:2.6rem;background:var(--accent);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.reduce-motion .qbox .caret{animation:none}
+.kb{display:grid;grid-template-columns:repeat(6,1fr);gap:1rem}
+.key{height:5.4rem;border-radius:1.2rem;display:flex;align-items:center;justify-content:center;font-size:calc(1.8rem * var(--ts));font-weight:600;text-transform:uppercase}
+.key.w2{grid-column:span 2;font-size:calc(1.3rem * var(--ts));text-transform:none}
+.key .i{font-size:2.2rem}
+.results{min-width:0;height:100%}
+.results .grid{padding:0 0 6rem;grid-template-columns:repeat(auto-fill,15rem)}
+.results .grid .tile{--tw:15rem}
+.res-h{font-size:calc(1.5rem * var(--ts));font-weight:650;color:var(--fg2);margin:.4rem 0 1.4rem}
+.empty{color:var(--fg2);font-size:calc(1.6rem * var(--ts));padding:2rem 0}
+/* detail */
+.detail{padding:1.4rem 6rem 6rem}
+.d-top{display:grid;grid-template-columns:30rem 1fr;gap:4.4rem;align-items:center}
+.d-icon{--tw:30rem}
+.d-icon .t-name{font-size:calc(3rem * var(--ts))}
+.d-icon .t-name .i{font-size:7rem}
+.d-name{margin:0;font-size:calc(4.2rem * var(--ts));letter-spacing:-.02em;line-height:1.05}
+.d-dev{margin:.6rem 0 0;font-size:calc(1.5rem * var(--ts));color:var(--fg2)}
+.chips{display:flex;flex-wrap:wrap;gap:1rem;margin-top:1.8rem}
+.chip{display:inline-flex;align-items:center;gap:.6rem;height:3.4rem;padding:0 1.4rem;border-radius:1.7rem;background:var(--chip);font-size:calc(1.25rem * var(--ts));font-weight:600}
+.chip .i{font-size:1.5rem}
+.stars{display:inline-flex;gap:.15rem;color:#ffd166}
+.stars .i{fill:currentColor;stroke:none}
+.stars .i.off{fill:rgba(255,255,255,.25)}
+.theme-light .stars .i.off{fill:rgba(0,0,0,.18)}
+.d-actions{display:flex;gap:1.4rem;margin-top:2.4rem;flex-wrap:wrap}
+.install{min-width:20rem;overflow:hidden}
+.install .pbar{position:absolute;inset:0;border-radius:inherit;background:var(--accent);opacity:.6;transform-origin:0 50%;transform:scaleX(0);z-index:0;transition:transform .12s linear}
+.install .lbl,.install .i{position:relative;z-index:1}
+.set-row .val .i{font-size:2.2rem}
+.install:not(.busy) .pbar{opacity:0}
+.d-sec{margin-top:3.4rem}
+.d-sec h3{margin:0 0 .4rem;font-size:calc(1.6rem * var(--ts));color:var(--fg2);font-weight:650}
+.d-sec .track{padding-left:0;padding-right:0;margin:0 -1rem;padding:1.6rem 1rem 1.2rem}
+.shot{--tw:34rem;--ar:16/9}
+.d-cols{display:grid;grid-template-columns:1.4fr 1fr;gap:3rem;margin-top:1.4rem}
+.card{border-radius:2rem;padding:2.4rem 2.8rem;font-size:calc(1.4rem * var(--ts));line-height:1.5}
+.card.fx::before{background:var(--chip)}
+.card p{margin:0 0 1rem}.card p:last-child{margin:0}
+.card h4{margin:0 0 1rem;font-size:calc(1.5rem * var(--ts))}
+.bars{display:grid;gap:.7rem;margin-top:1rem}
+.bar{display:grid;grid-template-columns:2rem 1fr;gap:1rem;align-items:center;font-size:calc(1.1rem * var(--ts))}
+.bar span{height:.7rem;border-radius:.4rem;background:var(--chip);overflow:hidden;position:relative}
+.bar span b{position:absolute;inset:0;background:currentColor;opacity:.7;transform-origin:0 50%}
+.sim{font-size:calc(1.05rem * var(--ts));color:var(--fg3);margin-top:1rem}
+
+/* ---------- SETTINGS ---------- */
+.set-side{position:absolute;left:4rem;top:11rem;bottom:4rem;width:32rem;border-radius:2.6rem;padding:1.6rem}
+.set-side .vscroll{height:100%}
+.side-item{display:flex;width:100%;align-items:center;gap:1.4rem;height:5.4rem;padding:0 1.8rem;border-radius:1.6rem;font-size:calc(1.5rem * var(--ts));font-weight:600;margin-bottom:.4rem}
+.side-item::before{background:transparent}
+.side-item.sel:not(.focused)::before{background:var(--chip-sel)}
+.side-item .i{font-size:2.2rem}
+.set-main{position:absolute;left:40rem;right:4rem;top:11rem;bottom:0;padding:0 2rem 6rem}
+.set-panel{transition:opacity .25s ease,transform .45s var(--spring-soft)}
+.set-panel.enter{opacity:0;transform:translate3d(2.4rem,0,0)}
+.set-h{font-size:calc(3rem * var(--ts));font-weight:700;letter-spacing:-.015em;margin:.4rem 0 .4rem}
+.set-lead{color:var(--fg2);font-size:calc(1.4rem * var(--ts));margin:0 0 1.8rem;max-width:70rem}
+.group{margin:2.6rem 0 .8rem;font-size:calc(1.2rem * var(--ts));font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3)}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:2.4rem;min-height:6rem;padding:1.2rem 2.2rem;border-radius:1.6rem;margin-bottom:.8rem}
+.set-row .txt{min-width:0}
+.set-row .lbl{font-size:calc(1.55rem * var(--ts));font-weight:600;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+.set-row .sub{font-size:calc(1.2rem * var(--ts));color:var(--fg2);margin-top:.3rem}
+.fx.focused .sub,.fx.focused .val,.fx.focused .t-sub{color:inherit;opacity:.72}
+.set-row .val{font-size:calc(1.4rem * var(--ts));color:var(--fg2);white-space:nowrap;text-align:right}
+.set-row.static{background:var(--chip)}
+.set-row.choice{background:transparent;padding-left:2.2rem;padding-right:0;flex-wrap:wrap;row-gap:1rem}
+.set-row.choice .txt{flex:1 1 24rem}
+.seg{display:flex;gap:.8rem;flex:0 0 auto;justify-content:flex-end}
+.opt{height:4.4rem;padding:0 2rem;border-radius:2.2rem;display:inline-flex;align-items:center;gap:.6rem;font-size:calc(1.3rem * var(--ts));font-weight:600;white-space:nowrap}
+.opt .i{font-size:1.5rem;stroke-width:3;display:none}
+.opt.sel .i{display:inline-block}
+.switch{position:relative;width:6rem;height:3.4rem;border-radius:1.7rem;flex:0 0 auto}
+.switch::before{content:"";position:absolute;inset:0;border-radius:inherit;background:rgba(128,128,140,.45)}
+.switch::after{content:"";position:absolute;inset:0;border-radius:inherit;background:#34c77b;opacity:0;transition:opacity .2s}
+.switch.on::after{opacity:1}
+.switch i{position:absolute;left:.3rem;top:.3rem;width:2.8rem;height:2.8rem;border-radius:50%;background:#fff;z-index:1;box-shadow:0 .2rem .6rem rgba(0,0,0,.3);transition:transform .45s var(--spring)}
+.switch.on i{transform:translate3d(2.6rem,0,0)}
+.badge{display:inline-flex;white-space:nowrap;align-items:center;height:2.3rem;padding:0 1rem;border-radius:1.2rem;font-size:calc(1rem * var(--ts));font-weight:700;letter-spacing:.06em;text-transform:uppercase;vertical-align:middle}
+.badge.sim{background:rgba(255,170,60,.18);color:#ffb35c;margin:0}
+.badge.real{background:rgba(52,199,123,.18);color:#43d68b}
+.theme-light .badge.sim{color:#a35a00;background:rgba(255,150,0,.16)}
+.theme-light .badge.real{color:#127a43}
+.hc .badge.sim,.hc .badge.real{background:transparent;border:2px solid currentColor}
+.fx.focused .badge{background:rgba(128,128,128,.25);color:inherit}
+.wp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2.4rem 2.4rem;padding:.6rem 0 1rem}
+.wp-grid .tile{--tw:100%;--ar:16/9}
+.wp-grid .t-title{opacity:1;transform:none}
+.note{display:flex;gap:1.2rem;align-items:flex-start;padding:1.6rem 2rem;border-radius:1.6rem;background:rgba(255,170,60,.12);color:var(--fg);font-size:calc(1.3rem * var(--ts));margin:1rem 0}
+.note .i{font-size:2.2rem;color:#ffb35c;margin-top:.1rem}
+.det-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem 1.2rem}
+.det-grid .set-row{margin:0}
+.about-hero{display:flex;align-items:center;gap:2.6rem;padding:2.6rem 3rem;border-radius:2.4rem;margin-bottom:1.4rem}
+.about-hero .logo{width:9rem;height:9rem}
+.about-hero h2{margin:0;font-size:calc(3.4rem * var(--ts));letter-spacing:-.02em}
+.about-hero p{margin:.4rem 0 0;color:var(--fg2)}
+.concept{border:.2rem solid rgba(255,179,92,.65)!important}
+.concept b{color:#ffb35c}
+.theme-light .concept b{color:#a35a00}
+.kbd-table .set-row .val{font-family:ui-monospace,Menlo,Consolas,monospace}
+
+/* ---------- layers ---------- */
+.layer{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center}
+.layer .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;transition:opacity .3s ease}
+.layer.open .backdrop{opacity:1}
+.layer .panel{position:relative;isolation:isolate;opacity:0;transform:translate3d(0,2.4rem,0) scale(.95);transition:opacity .22s ease,transform .55s var(--spring)}
+.layer.open .panel{opacity:1;transform:none}
+.layer.side{justify-content:flex-end}
+.layer.side .panel{height:calc(100% - 4rem);margin-right:2rem;width:44rem;border-radius:2.8rem;transform:translate3d(110%,0,0);opacity:1;padding:2.6rem 2rem;display:flex;flex-direction:column}
+.layer.side.open .panel{transform:none}
+.layer.sheet{align-items:flex-end}
+.layer.sheet .panel{transform:translate3d(0,110%,0);opacity:1;margin-bottom:3rem}
+.layer.sheet.open .panel{transform:none}
+.reduce-motion .layer .panel{transform:none!important;transition:opacity .2s ease}
+.reduce-motion .layer.side .panel,.reduce-motion .layer.sheet .panel{opacity:0}
+.reduce-motion .layer.open .panel{opacity:1}
+.dlg{width:64rem;border-radius:2.8rem;padding:3.6rem 4rem;text-align:center}
+.dlg h2{margin:0;font-size:calc(2.6rem * var(--ts));letter-spacing:-.01em}
+.dlg p{margin:1.2rem 0 0;color:var(--fg2);font-size:calc(1.45rem * var(--ts))}
+.dlg .actions{display:flex;justify-content:center;gap:1.4rem;margin-top:2.8rem;flex-wrap:wrap}
+.opts{border-radius:2.6rem;padding:2.2rem;display:flex;gap:1.2rem;align-items:center}
+.opts .who{font-weight:700;font-size:calc(1.6rem * var(--ts));padding:0 1.6rem 0 1rem}
+.pin{width:48rem;padding:3.4rem 3.6rem 3rem}
+.pdots{display:flex;justify-content:center;gap:2rem;margin:2.4rem 0 .6rem}
+.pdots i{width:2rem;height:2rem;border-radius:50%;border:.2rem solid var(--fg);position:relative}
+.pdots i::after{content:"";position:absolute;inset:.2rem;border-radius:50%;background:var(--fg);transform:scale(0);transition:transform .3s var(--spring)}
+.pdots i.on::after{transform:scale(1)}
+.pdots.shake{animation:shake .45s var(--out)}
+@keyframes shake{20%{translate:-1.2rem 0}40%{translate:1rem 0}60%{translate:-.7rem 0}80%{translate:.4rem 0}}
+.pin-msg{min-height:2.2rem;font-size:calc(1.25rem * var(--ts));color:#ff7a7a}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem;margin-top:1.2rem}
+.pad .key{height:6rem;font-size:calc(2.2rem * var(--ts))}
+.pad .key.small{font-size:calc(1.3rem * var(--ts))}
+.qm-h{display:flex;align-items:center;gap:1rem;font-size:calc(2rem * var(--ts));font-weight:700;margin:0 1rem 1.6rem}
+.qm-list{flex:1;min-height:0}
+.qm-list .set-row{min-height:5.4rem}
+.show-dlg{width:80rem;border-radius:2.8rem;overflow:hidden;padding:0;text-align:left}
+.show-dlg img{display:block;width:100%;aspect-ratio:16/7;object-fit:cover}
+.show-dlg .body{padding:2.8rem 3.4rem 3.2rem}
+.show-dlg .actions{justify-content:flex-start}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:4.4rem;z-index:60;transform:translate3d(-50%,8rem,0);opacity:0;border-radius:3rem;padding:1.3rem 2.6rem;display:flex;align-items:center;gap:1rem;
+  font-size:calc(1.4rem * var(--ts));font-weight:600;transition:opacity .25s,transform .55s var(--spring);pointer-events:none;max-width:90rem}
+#toast.show{opacity:1;transform:translate3d(-50%,0,0)}
+#toast .i{font-size:2rem;color:var(--accent2)}
+#fps{position:fixed;top:1rem;right:1rem;z-index:70;font:600 1.2rem/1 ui-monospace,Menlo,Consolas,monospace;padding:.6rem .9rem;border-radius:.8rem;background:rgba(0,0,0,.6);color:#9dffb0;display:none}
+.show-fps #fps{display:block}
+
+/* game */
+#s-game .g-wrap{position:absolute;left:50%;top:53%;width:96rem;transform:translate(-50%,-50%)}
+#s-game canvas{display:block;width:96rem;height:54rem;border-radius:2rem;background:#05080c}
+.g-hud{display:flex;justify-content:space-between;font-size:calc(1.6rem * var(--ts));font-weight:650;margin-bottom:1.2rem;padding:0 .4rem}
+.g-hud span{color:var(--fg2);font-weight:500}
+.g-over{position:absolute;left:50%;top:calc(50% + 1.5rem);transform:translate(-50%,-50%);text-align:center;border-radius:2.6rem;padding:3rem 4rem;transition:opacity .25s}
+.g-over.off{opacity:0;pointer-events:none}
+.g-over h2{margin:0 0 .6rem;font-size:calc(3rem * var(--ts))}
+.g-over p{margin:0 0 2rem;color:var(--fg2)}
+.g-over .actions{display:flex;gap:1.4rem;justify-content:center}
+
+@media (prefers-reduced-motion:reduce){.wp *{animation-play-state:paused!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="lg-logo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9aa8ff"/><stop offset="1" stop-color="#4fe3c1"/></linearGradient>
+  </defs>
+  <symbol id="i-logo" viewBox="0 0 48 48"><circle cx="22" cy="26" r="15" fill="none" stroke="url(#lg-logo)" stroke-width="5.5"/><path d="M22 18a8 8 0 0 1 8 8" fill="none" stroke="currentColor" stroke-opacity=".55" stroke-width="2.4" stroke-linecap="round"/><circle cx="37" cy="10.5" r="5" fill="currentColor"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/><path d="M12 12.2l.9 1.9 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.6M12 18.9v2.6M21.5 12h-2.6M5.1 12H2.5M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8M18.7 18.7l-1.8-1.8M7.1 7.1L5.3 5.3"/><circle cx="12" cy="12" r="7"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
+  <symbol id="i-snake" viewBox="0 0 24 24"><path d="M4 17c2.5 0 2.5-4 5-4s2.5 4 5 4 2.5-6 5-6"/><circle cx="19" cy="7" r="1.6"/><path d="M4 10h3"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></symbol>
+  <symbol id="i-tv" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 20.5h8"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><circle cx="12" cy="4.5" r="1.8"/><path d="M5 8.5l7 1.5 7-1.5M12 10v4.5M12 14.5l-3.5 6M12 14.5l3.5 6"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.2-7.5 9.5-4.3-1.3-7.5-4.9-7.5-9.5V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4.5 17a8.5 8.5 0 1 1 15 0"/><path d="M12 14l4-4.5"/><circle cx="12" cy="14" r="1.4"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.1"/></symbol>
+  <symbol id="i-remote" viewBox="0 0 24 24"><rect x="7.5" y="2.5" width="9" height="19" rx="4.5"/><circle cx="12" cy="8" r="2"/><path d="M12 13.5v.1M12 17v.1"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.3-1.2-1.6-1.2-2.8 0-1 .8-1.6 1.8-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7.2" r="1.1"/><circle cx="15" cy="7.6" r="1.1"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9.5h18M3 14.5h18M8 5v14M16 5v14"/></symbol>
+  <symbol id="i-pad" viewBox="0 0 24 24"><path d="M7.5 7h9a4.5 4.5 0 0 1 4.4 5.4l-.9 4.4a2.3 2.3 0 0 1-4 1l-2-2.3h-4l-2 2.3a2.3 2.3 0 0 1-4-1l-.9-4.4A4.5 4.5 0 0 1 7.5 7z"/><path d="M8 10.5v3M6.5 12h3M15.5 11.2v.1M17 12.8v.1"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5.5l11-2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol>
+  <symbol id="i-kids" viewBox="0 0 24 24"><path d="M12 3c3.3 0 6 2.6 6 6 0 3.6-3 6.5-6 6.5S6 12.6 6 9c0-3.4 2.7-6 6-6z"/><path d="M12 15.5l-1 1.5h2zM12 17c0 2 1.5 2.5 1.5 4"/></symbol>
+  <symbol id="i-ball" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5l3.2 2.3-1.2 3.7H10l-1.2-3.7zM12 3v4.5M15.2 9.8l5-1.3M14 13.5l2.8 4.6M10 13.5l-2.8 4.6M8.8 9.8l-5-1.3"/></symbol>
+  <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.5 6.5a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3l7.5-7.5"/><path d="M14.5 6.5L17 4l3 3-2.5 2.5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/></symbol>
+  <symbol id="i-move" viewBox="0 0 24 24"><path d="M3 12h18M6.5 8.5L3 12l3.5 3.5M17.5 8.5L21 12l-3.5 3.5"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-del" viewBox="0 0 24 24"><path d="M9 5h11v14H9l-6-7z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M21.5 12h-2M4.5 12h-2M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4M18.7 18.7l-1.4-1.4M6.7 6.7L5.3 5.3"/></symbol>
+  <symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17.5l5-4.5 4 3.5 3-2.5 4 3.5"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-6.5 8 6.5M6.5 9.5V20h11V9.5"/></symbol>
+</svg>
+
+<div id="wall"><div id="wall-inner"></div></div>
+<div id="veil"></div>
+<div id="scrim"></div>
+
+<main id="screens">
+  <!-- HOME -->
+  <section class="screen" id="s-home" aria-label="Home">
+    <div class="topbar">
+      <div class="brand"><svg class="logo" aria-hidden="true"><use href="#i-logo"/></svg><span>lumora</span></div>
+      <div class="top-actions" data-row="home-top">
+        <button class="icon-btn fx" data-f data-act="search" aria-label="Search the Store"><svg class="i"><use href="#i-search"/></svg></button>
+        <button class="icon-btn fx" data-f data-act="quick" aria-label="Quick menu"><svg class="i"><use href="#i-sliders"/></svg></button>
+      </div>
+    </div>
+    <div class="clock-wrap" aria-live="off">
+      <div class="clock" id="clock">--:--</div>
+      <div class="date" id="date"></div>
+      <div class="greet" id="greet"></div>
+    </div>
+    <div id="home-stack">
+      <div class="hrow" data-hrow="apps">
+        <div class="row-h"><span>Apps</span><span class="hint">Hold OK or press Menu to move or remove</span></div>
+        <div class="track" data-row="home-apps" id="row-apps"></div>
+      </div>
+      <div class="hrow" data-hrow="games">
+        <div class="row-h"><span>Games</span></div>
+        <div class="track" data-row="home-games" id="row-games"></div>
+      </div>
+      <div class="hrow" data-hrow="spot">
+        <div class="row-h"><span>Spotlight</span><span class="hint">Fictional concept titles</span></div>
+        <div class="track" data-row="home-spot" id="row-spot"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STORE -->
+  <section class="screen" id="s-store" aria-label="Store" inert></section>
+  <!-- SETTINGS -->
+  <section class="screen" id="s-settings" aria-label="Settings" inert></section>
+  <!-- LAUNCH -->
+  <section class="screen" id="s-launch" aria-label="Opening app" inert></section>
+  <!-- GAME -->
+  <section class="screen" id="s-game" aria-label="Glow Snake" inert></section>
+</main>
+
+<div id="zoom" aria-hidden="true"></div>
+<div id="toast" class="glass-strong" role="status" aria-live="polite"></div>
+<div id="fps" aria-hidden="true"></div>
+<noscript><p style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font:24px system-ui">Lumora OS needs JavaScript.</p></noscript>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const root = document.documentElement;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ico = (n, cls = '') => `<svg class="i ${cls}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const mm = q => { try { return matchMedia(q).matches; } catch (e) { return false; } };
+
+/* =====================================================================
+   DATA — service names are shown as plain text only (no logos/artwork).
+   ===================================================================== */
+const CATS = [
+  {id:'Entertainment', icon:'film',  c:['#2a1b6e','#7a55ff'], d:'Films, series and video'},
+  {id:'Games',         icon:'pad',   c:['#063a2e','#17c39a'], d:'Cloud gaming and play'},
+  {id:'Music',         icon:'music', c:['#3d0f2c','#e0478f'], d:'Streaming music and radio'},
+  {id:'Kids',          icon:'kids',  c:['#3a2a05','#f2a516'], d:'Made for younger viewers'},
+  {id:'Sports',        icon:'ball',  c:['#08263f','#2a8fe0'], d:'Live sport and highlights'},
+  {id:'Utilities',     icon:'tool',  c:['#1e2230','#69728c'], d:'Handy tools and info'},
+];
+const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
+const A = (name, cat, url, c1, c2, rating, reviews, age, blurb) => ({name, cat, url, c:[c1, c2], rating, reviews, age, blurb});
+const APPS = {
+  netflix:  A('Netflix','Entertainment','https://www.netflix.com','#2a0a0e','#9e1b25',4.5,'1.2M','13+','Series and films on the official website.'),
+  youtube:  A('YouTube','Entertainment','https://www.youtube.com','#2d0f12','#b8322f',4.6,'3.4M','12+','Videos, creators and live streams.'),
+  disney:   A('Disney+','Entertainment','https://www.disneyplus.com','#0b1640','#2554bd',4.4,'860K','12+','Family films and series.'),
+  prime:    A('Prime Video','Entertainment','https://www.primevideo.com','#06202e','#167ea3',4.3,'990K','16+','Films, series and live events.'),
+  iplayer:  A('BBC iPlayer','Entertainment','https://www.bbc.co.uk/iplayer','#2a0c33','#b81a6c',4.5,'410K','12+','UK television on demand.'),
+  spotify:  A('Spotify','Music','https://open.spotify.com','#06210f','#1a9c4a',4.7,'2.1M','4+','Music and podcasts in the web player.'),
+  twitch:   A('Twitch','Entertainment','https://www.twitch.tv','#1c0f3a','#6b3fc9',4.2,'520K','16+','Live streams and communities.'),
+  itvx:     A('ITVX','Entertainment','https://www.itv.com','#0e2a24','#22a37f',4.1,'150K','12+','UK channels and box sets.'),
+  ch4:      A('Channel 4','Entertainment','https://www.channel4.com','#151517','#4b4b55',4.0,'98K','16+','Shows, films and live TV.'),
+  plex:     A('Plex','Entertainment','https://watch.plex.tv','#211a05','#b88510',4.3,'230K','12+','Free films, TV and live channels.'),
+  vimeo:    A('Vimeo','Entertainment','https://vimeo.com','#062430','#1b93ba',4.2,'64K','12+','Independent film and video.'),
+  ted:      A('TED','Entertainment','https://www.ted.com','#2a0707','#c5332b',4.8,'120K','4+','Talks and ideas worth hearing.'),
+  soundcloud:A('SoundCloud','Music','https://soundcloud.com','#2e1405','#d8601c',4.4,'300K','12+','Tracks from independent artists.'),
+  deezer:   A('Deezer','Music','https://www.deezer.com','#1d0a2e','#9637ec',4.3,'180K','4+','Music, radio and podcasts.'),
+  tidal:    A('TIDAL','Music','https://tidal.com','#0b0b0e','#30364a',4.4,'72K','4+','High-fidelity music.'),
+  sounds:   A('BBC Sounds','Music','https://www.bbc.co.uk/sounds','#2a1205','#d4561d',4.3,'88K','4+','Live radio, music mixes and podcasts.'),
+  ytkids:   A('YouTube Kids','Kids','https://www.youtubekids.com','#2d0f12','#e9604f',4.3,'640K','4+','Videos made for kids.'),
+  cbeebies: A('CBeebies','Kids','https://www.bbc.co.uk/cbeebies','#12300c','#6fb33c',4.6,'140K','4+','Shows and games for little ones.'),
+  pbskids:  A('PBS KIDS','Kids','https://pbskids.org','#082a3a','#259fcf',4.6,'96K','4+','Learning shows and games.'),
+  natgeokids:A('Nat Geo Kids','Kids','https://kids.nationalgeographic.com','#2a2405','#d9ad25',4.5,'51K','4+','Animals, science and the planet.'),
+  dazn:     A('DAZN','Sports','https://www.dazn.com','#0e0e10','#3b3b46',4.0,'210K','12+','Live boxing, football and more.'),
+  f1tv:     A('F1 TV','Sports','https://f1tv.formula1.com','#2a0808','#c41a12',4.1,'84K','4+','Live races and replays.'),
+  nba:      A('NBA','Sports','https://www.nba.com/watch','#0b1a40','#2a4fb0',4.2,'120K','4+','Games, highlights and stats.'),
+  bbcsport: A('BBC Sport','Sports','https://www.bbc.co.uk/sport','#2a2605','#c9aa14',4.4,'130K','4+','Live coverage and results.'),
+  xcloud:   A('Xbox Cloud Gaming','Games','https://www.xbox.com/play','#07220a','#2a8f2f',4.2,'260K','12+','Stream console games in the browser.'),
+  gfn:      A('GeForce NOW','Games','https://play.geforcenow.com','#132605','#5f9a06',4.3,'190K','12+','Cloud PC gaming in the browser.'),
+  poki:     A('Poki','Games','https://poki.com','#0a1d3a','#3c7bf0',4.5,'420K','4+','Thousands of free browser games.'),
+  lichess:  A('Lichess','Games','https://lichess.org','#1e1a14','#7a6a52',4.8,'95K','4+','Free, open-source chess.'),
+  crazygames:A('CrazyGames','Games','https://www.crazygames.com','#1b0d33','#7444d6',4.3,'150K','12+','Free online games.'),
+  wikipedia:A('Wikipedia','Utilities','https://www.wikipedia.org','#1a1a1d','#55565e',4.7,'310K','4+','The free encyclopedia.'),
+  weather:  A('BBC Weather','Utilities','https://www.bbc.co.uk/weather','#06233a','#2a7fc8',4.4,'200K','4+','Forecasts where you are.'),
+  fast:     A('FAST Speed Test','Utilities','https://fast.com','#1a1a1a','#45454d',4.5,'60K','4+','Check your internet speed.'),
+  snake:    {name:'Glow Snake', cat:'Games', builtin:'snake', icon:'snake', c:['#062a2a','#16b0a0'], rating:4.7, reviews:'Simulated', age:'4+', blurb:'A Lumora Original arcade game, built in.', dev:'Lumora Originals'},
+  ambient:  {name:'Ambient', cat:'Utilities', builtin:'ambient', icon:'moon', c:['#111433','#4b5ad0'], rating:4.6, reviews:'Simulated', age:'4+', blurb:'A calm clock and wallpaper screen.', dev:'Lumora Originals'},
+  store:    {name:'Store', cat:'Utilities', builtin:'store', icon:'store', system:true, c:['#1d2a6b','#5a78ff'], dev:'Lumora'},
+  settings: {name:'Settings', cat:'Utilities', builtin:'settings', icon:'gear', system:true, c:['#2a2d36','#686d7e'], dev:'Lumora'},
+};
+for (const [id, a] of Object.entries(APPS)) { a.id = id; if (a.url) { a.host = new URL(a.url).hostname.replace(/^www\./, ''); a.dev = a.dev || 'Official website shortcut'; } }
+const STORE_IDS = Object.keys(APPS).filter(id => !APPS[id].system);
+const HERO = ['snake', 'lichess', 'ted'];
+const SHOWS = [
+  {t:'The Quiet Orbit', g:'Sci‑fi drama', c:['#0b1440','#6e5bff'], d:'A lighthouse keeper on a lonely space station starts receiving letters from the future.'},
+  {t:'Saltwater Saints', g:'Coastal mystery', c:['#05303a','#2bb3a8'], d:'In a fishing town that never forgets, a returning detective digs up an old tide chart.'},
+  {t:'Neon Orchard', g:'Animated adventure', c:['#3a0b3a','#ff5fa2'], d:'Two siblings tend a garden where every fruit glows a different memory.'},
+  {t:'Paper Lanterns', g:'Documentary', c:['#3a2205','#ffb347'], d:'Artisans across three continents keep a fragile craft alive, one fold at a time.'},
+  {t:'Northbound', g:'Road movie', c:['#0d2a1a','#7cd67c'], d:'A retired bus driver takes one last route to the edge of the map.'},
+  {t:'Glass Coast', g:'Nature series', c:['#082038','#7fc8ff'], d:'Frozen shorelines, singing ice and the animals that call them home.'},
+];
+const WALLS = [
+  {id:'aurora', name:'Aurora Drift', anim:true},
+  {id:'nebula', name:'Nebula', anim:true},
+  {id:'tide', name:'Tide', anim:true},
+  {id:'dunes', name:'Dusk Dunes'},
+  {id:'glacier', name:'Glacier'},
+  {id:'dawn', name:'Pastel Dawn'},
+];
+
+/* =====================================================================
+   SETTINGS STORE — stays in this browser only (localStorage).
+   ===================================================================== */
+const KEY = 'lumora.settings.v1';
+const DEFAULTS = () => ({
+  theme:'dark', wallpaper:'aurora', clock: hour24Default() ? '24' : '12', ambientAfter:5,
+  reduceMotion: mm('(prefers-reduced-motion: reduce)'), contrast: mm('(prefers-contrast: more)'), transparency:false, textSize:'default',
+  effects:'auto', showFps:false,
+  apps:['netflix','youtube','disney','prime','iplayer','spotify','twitch','store','settings'],
+  games:['snake','xcloud','gfn','poki','lichess'],
+  video:{res:'auto', hdr10:true, hdr10p:true, dv:true, hlg:true, mdr:true, atmos:true, mfr:false, upscale:'balanced'},
+  parental:{on:false, pin:null, cats:{}, hidden:{}},
+  best:0,
+});
+function hour24Default() { try { const hc = new Intl.DateTimeFormat(undefined, {hour:'numeric'}).resolvedOptions().hourCycle; return hc === 'h23' || hc === 'h24'; } catch (e) { return true; } }
+let S = load();
+function load() {
+  const d = DEFAULTS();
+  try {
+    const raw = localStorage.getItem(KEY); if (!raw) return d;
+    const o = JSON.parse(raw);
+    const s = Object.assign(d, o);
+    s.video = Object.assign(DEFAULTS().video, o.video || {});
+    s.parental = Object.assign(DEFAULTS().parental, o.parental || {});
+    s.apps = (s.apps || []).filter(id => APPS[id]); s.games = (s.games || []).filter(id => APPS[id]);
+    for (const sys of ['store','settings']) if (!s.apps.includes(sys) && !s.games.includes(sys)) s.apps.push(sys);
+    return s;
+  } catch (e) { return d; }
+}
+let saveT = 0;
+function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }, 150); }
+const getPath = p => p.split('.').reduce((o, k) => o == null ? o : o[k], S);
+function setPath(p, v) { const ks = p.split('.'); let o = S; while (ks.length > 1) o = o[ks.shift()]; o[ks[0]] = v; }
+const hashPin = p => { let h = 5381; for (const c of 'lumora:' + p) h = ((h << 5) + h + c.charCodeAt(0)) >>> 0; return h.toString(36); };
+const installed = id => S.apps.includes(id) || S.games.includes(id);
+const restricted = a => S.parental.on && S.parental.pin && S.parental.cats[a.cat];
+const hiddenApp = id => S.parental.on && S.parental.hidden[id];
+
+/* =====================================================================
+   APPEARANCE
+   ===================================================================== */
+const darkMQ = matchMedia('(prefers-color-scheme: dark)');
+let lite = false, liteReason = '';
+function applySettings() {
+  const dark = S.theme === 'dark' || (S.theme === 'auto' && darkMQ.matches);
+  root.classList.toggle('theme-dark', dark);
+  root.classList.toggle('theme-light', !dark);
+  root.classList.toggle('reduce-motion', !!S.reduceMotion);
+  root.classList.toggle('hc', !!S.contrast);
+  root.classList.toggle('no-transp', !!S.transparency);
+  root.classList.toggle('show-fps', !!S.showFps);
+  root.style.setProperty('--ts', {default:1, large:1.15, xl:1.3}[S.textSize] || 1);
+  const wantLite = S.effects === 'lite' || (S.effects === 'auto' && autoLite);
+  lite = wantLite; root.classList.toggle('lite', lite);
+}
+darkMQ.addEventListener && darkMQ.addEventListener('change', () => { if (S.theme === 'auto') applySettings(); });
+
+/* ---------- SVG art (procedural, original) ---------- */
+function rng(seed) { let s = 0; for (const c of String(seed)) s = (s * 31 + c.charCodeAt(0)) >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+const uri = svg => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+function sceneSVG(seed, c1, c2, w = 640, h = 360) {
+  const r = rng(seed); const sx = 120 + r() * 400, sy = 60 + r() * 110, sr = 26 + r() * 40;
+  let hills = '';
+  for (let i = 0; i < 4; i++) {
+    const base = h * (0.52 + i * 0.12); let d = `M0 ${h} L0 ${base}`;
+    for (let x = 0; x <= w; x += w / 6) d += ` Q${x + w / 12} ${base - 20 - r() * 70} ${x + w / 6} ${base - r() * 20}`;
+    hills += `<path d="${d} L${w} ${h}Z" fill="#000" fill-opacity="${0.18 + i * 0.16}"/>`;
+  }
+  return uri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c2}"/><stop offset="1" stop-color="${c1}"/></linearGradient><radialGradient id="s"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset=".5" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><rect width="${w}" height="${h}" fill="url(#g)"/><circle cx="${sx}" cy="${sy}" r="${sr * 3}" fill="url(#s)"/><circle cx="${sx}" cy="${sy}" r="${sr * .55}" fill="#fff" fill-opacity=".9"/>${hills}</svg>`);
+}
+function shotSVG(a, i) {
+  const r = rng(a.id + i); const [c1, c2] = a.c; let blocks = '';
+  const cols = 4 + (i % 2), cw = 560 / cols;
+  for (let row = 0; row < 2; row++) for (let c = 0; c < cols; c++)
+    blocks += `<rect x="${40 + c * cw}" y="${150 + row * 95}" width="${cw - 16}" height="78" rx="10" fill="#fff" fill-opacity="${0.1 + r() * 0.18}"/>`;
+  return uri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="640" height="360" fill="url(#g)"/><rect x="40" y="36" width="${180 + r() * 120}" height="22" rx="11" fill="#fff" fill-opacity=".55"/><rect x="40" y="72" width="${260 + r() * 140}" height="52" rx="12" fill="#fff" fill-opacity=".22"/>${blocks}<text x="580" y="322" text-anchor="end" font-family="system-ui,sans-serif" font-size="15" fill="#fff" fill-opacity=".6">Screenshot placeholder</text></svg>`);
+}
+const WAVE = c => uri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" preserveAspectRatio="none"><path d="M0 80 C 130 20, 270 20, 400 80 S 670 140, 800 80 L800 200 L0 200Z" fill="${c}"/></svg>`);
+const STILL = {
+  dunes: () => `background-image:url("${uri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1640"/><stop offset=".55" stop-color="#b4537a"/><stop offset="1" stop-color="#f5a35c"/></linearGradient><radialGradient id="s"><stop offset="0" stop-color="#ffe2b0"/><stop offset="1" stop-color="#ffe2b0" stop-opacity="0"/></radialGradient></defs><rect width="1600" height="900" fill="url(#k)"/><circle cx="1050" cy="520" r="260" fill="url(#s)" opacity=".8"/><circle cx="1050" cy="520" r="70" fill="#fff1d6"/><path d="M0 640 C 300 520 520 560 800 620 S 1300 700 1600 560 V900 H0Z" fill="#6b2a4a"/><path d="M0 720 C 380 620 640 700 960 720 S 1400 760 1600 690 V900 H0Z" fill="#45193a"/><path d="M0 800 C 420 740 800 820 1100 800 S 1450 790 1600 770 V900 H0Z" fill="#26102a"/></svg>`)}")`,
+  glacier: () => `background-image:url("${uri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a1830"/><stop offset=".6" stop-color="#2d6f9e"/><stop offset="1" stop-color="#bfe4f2"/></linearGradient></defs><rect width="1600" height="900" fill="url(#k)"/><path d="M0 600 L220 380 L360 500 L560 260 L760 520 L900 410 L1100 560 L1300 330 L1600 620 V900 H0Z" fill="#cfe9f5" fill-opacity=".9"/><path d="M0 600 L220 380 L300 450 L250 600 Z M560 260 L640 360 L590 560 L480 380Z M1300 330 L1380 430 L1330 640 L1200 470Z" fill="#8fc0dc"/><path d="M0 720 C 400 660 800 740 1200 700 S 1500 690 1600 700 V900 H0Z" fill="#0d3354"/><path d="M0 800 C 500 760 900 830 1600 780 V900 H0Z" fill="#071f36"/></svg>`)}")`,
+  dawn: () => `background-image:radial-gradient(60% 50% at 25% 30%,#ffd6e8 0%,transparent 70%),radial-gradient(55% 55% at 80% 25%,#c9d8ff 0%,transparent 70%),radial-gradient(70% 60% at 60% 90%,#c8f3e6 0%,transparent 70%),linear-gradient(160deg,#fbe9f1,#e2e9ff 50%,#e3f7f1)`,
+};
+const THUMB = {
+  aurora:'radial-gradient(60% 70% at 20% 10%,#5a6cff,transparent 70%),radial-gradient(50% 60% at 85% 30%,#22d0b0,transparent 70%),radial-gradient(60% 60% at 50% 110%,#c24fb8,transparent 70%),#070914',
+  nebula:'radial-gradient(40% 35% at 30% 65%,rgba(255,90,170,.6),transparent 70%),radial-gradient(35% 30% at 72% 35%,rgba(90,140,255,.7),transparent 70%),#120a2a',
+  tide:'radial-gradient(30% 40% at 50% 20%,rgba(255,214,150,.7),transparent 70%),linear-gradient(180deg,#0d2c4a,#145a74 50%,#061a26)',
+};
+function stars(n, seed) { const r = rng(seed); const a = []; for (let i = 0; i < n; i++) a.push(`${(r() * 140).toFixed(1)}vw ${(r() * 140).toFixed(1)}vh 0 ${r() < .15 ? '1px' : '0'} rgba(255,255,255,${(0.4 + r() * 0.6).toFixed(2)})`); return a.join(','); }
+function wallHTML(id) {
+  if (id === 'aurora') return '<i class="b1"></i><i class="b2"></i><i class="b3"></i>';
+  if (id === 'nebula') return `<i class="cloud"></i><i class="rot"><i class="s1" style="box-shadow:${stars(140, 'a')}"></i><i class="s2" style="box-shadow:${stars(110, 'b')}"></i></i>`;
+  if (id === 'tide') return `<i class="sun"></i><i class="w w1" style="background-image:url('${WAVE('#2b7f9a')}')"></i><i class="w w2" style="background-image:url('${WAVE('#145a74')}')"></i><i class="w w3" style="background-image:url('${WAVE('#082d3e')}')"></i>`;
+  return '';
+}
+function setWallpaper(id) {
+  const host = $('#wall-inner');
+  const el = document.createElement('div');
+  const still = STILL[id];
+  el.className = 'wp ' + (still ? 'wp-still' : 'wp-' + id);
+  if (still) el.setAttribute('style', still()); else el.innerHTML = wallHTML(id);
+  host.appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('on')));
+  const old = $$('.wp', host).filter(x => x !== el);
+  setTimeout(() => old.forEach(o => o.remove()), 1300);
+}
+const thumbStyle = id => STILL[id] ? STILL[id]() : 'background:' + THUMB[id];
+
+/* =====================================================================
+   COMPONENTS
+   ===================================================================== */
+function tileHTML(id, o = {}) {
+  const a = APPS[id];
+  const nm = a.builtin ? `${ico(a.icon)}<small>${esc(a.name)}</small>` : esc(a.name);
+  const long = !a.builtin && a.name.length > 11 ? ' long' : '';
+  const badge = o.badge && installed(id) && !INST[id] ? `<span class="t-badge" aria-hidden="true">${ico('check')}</span>` : '';
+  const lock = restricted(a) ? `<span class="t-lock" aria-hidden="true">${ico('lock')}</span>` : '';
+  const prog = INST[id] ? `<span class="t-prog"><b style="transform:scaleX(${INST[id].p})"></b></span>` : '';
+  const sub = o.sub ? `<span class="t-sub">${esc(a.cat)}</span>` : '';
+  return `<div class="tile${o.cls ? ' ' + o.cls : ''}" ${o.nof ? '' : 'data-f '}data-app="${id}" data-k="${o.k || id}" data-act="${o.act || 'open:' + id}"${o.hold ? ` data-hold="${o.hold}"` : ''} role="button" aria-label="${esc(a.name)}" tabindex="-1">
+    <div class="t-lift"><div class="t-shadow"></div><div class="t-card" style="--c1:${a.c[0]};--c2:${a.c[1]}"><div class="t-art"></div><div class="t-spec"></div><div class="t-name${long}">${nm}</div>${badge}${lock}${prog}<div class="t-ring"></div><div class="t-glint"></div></div></div>
+    <div class="t-title">${esc(a.name)}${sub}</div></div>`;
+}
+function posterHTML(i) {
+  const s = SHOWS[i];
+  return `<div class="tile poster" data-f data-k="show${i}" data-act="show:${i}" role="button" aria-label="${esc(s.t)}" tabindex="-1">
+    <div class="t-lift"><div class="t-shadow"></div><div class="t-card" style="--c1:${s.c[0]};--c2:${s.c[1]}"><div class="t-art"><img loading="lazy" decoding="async" alt="" src="${sceneSVG(s.t, s.c[0], s.c[1])}"></div><div class="t-spec"></div><div class="t-name">${esc(s.t)}<small>${esc(s.g)}</small></div><div class="t-ring"></div><div class="t-glint"></div></div></div>
+    <div class="t-title">${esc(s.t)}</div></div>`;
+}
+const sw = on => `<span class="switch${on ? ' on' : ''}" aria-hidden="true"><i></i></span>`;
+function toggleRow(k, label, sub, on, extra = '') {
+  return `<div class="set-row fx" data-f data-k="${k}" data-act="tog:${k}" role="switch" aria-checked="${!!on}" tabindex="-1"><div class="txt"><div class="lbl">${label}${extra}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>${sw(on)}</div>`;
+}
+function choiceRow(k, label, sub, opts, cur, extra = '') {
+  return `<div class="set-row choice"><div class="txt"><div class="lbl">${label}${extra}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div><div class="seg" role="radiogroup" aria-label="${esc(label.replace(/<[^>]+>/g, ''))}">${opts.map(([v, t]) =>
+    `<button class="opt fx${String(v) === String(cur) ? ' sel' : ''}" data-f data-k="${k}=${v}" data-act="set:${k}:${v}" role="radio" aria-checked="${String(v) === String(cur)}" tabindex="-1">${ico('check')}${t}</button>`).join('')}</div></div>`;
+}
+const infoRow = (k, label, val, extra = '', sub = '') => `<div class="set-row fx" data-f data-k="${k}" tabindex="-1"><div class="txt"><div class="lbl">${label}${extra}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div><div class="val" ${k ? `id="v-${k}"` : ''}>${val}</div></div>`;
+const actRow = (k, label, sub, act, val = '') => `<div class="set-row fx" data-f data-k="${k}" data-act="${act}" role="button" tabindex="-1"><div class="txt"><div class="lbl">${label}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div><div class="val">${val}</div></div>`;
+const SIM = '<span class="badge sim">Concept</span>';
+const REAL = '<span class="badge real">Detected</span>';
+function starsHTML(r) { let s = ''; for (let i = 1; i <= 5; i++) s += ico('star', r >= i - .25 ? '' : 'off'); return `<span class="stars" aria-label="${r} out of 5">${s}</span>`; }
+
+/* toast */
+let toastT = 0;
+function toast(msg, icon = 'check') { const t = $('#toast'); t.innerHTML = ico(icon) + `<span>${esc(msg)}</span>`; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
+
+/* =====================================================================
+   FOCUS ENGINE — spatial navigation with row memory.
+   ===================================================================== */
+const F = { cur: null, mem: {} };
+const layers = [];
+function scopeEl() { return layers.length ? layers[layers.length - 1].panel : SCREENS[curScreen].el; }
+function dropFocus() { if (F.cur) { F.cur.classList.remove('focused', 'tracking'); F.cur.style.removeProperty('--px'); F.cur.style.removeProperty('--py'); } F.cur = null; }
+function visible(el) {
+  if (!el || !el.isConnected || el.closest('[inert]') || el.getAttribute('aria-disabled') === 'true') return false;
+  if (el.checkVisibility && !el.checkVisibility({visibilityProperty: true})) return false;
+  const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0;
+}
+const inScope = el => el && scopeEl().contains(el) && visible(el);
+const cands = () => $$('[data-f]', scopeEl()).filter(visible);
+function setFocus(el, o = {}) {
+  if (!el) return;
+  if (F.cur === el) { if (!o.noScroll) ensureVisible(el); return; }
+  const prev = F.cur;
+  if (prev) { prev.classList.remove('focused', 'tracking'); prev.style.removeProperty('--px'); prev.style.removeProperty('--py'); }
+  F.cur = el; el.classList.add('focused');
+  try { el.focus({preventScroll: true}); } catch (e) {}
+  const row = el.closest('[data-row]'); if (row) F.mem[row.dataset.row] = el;
+  const pane = el.closest('.pane'); if (pane) F.mem['pane:' + pane.id] = el;
+  if (!o.noScroll) ensureVisible(el, o.src === 'pointer');
+  if (o.dir && el.classList.contains('tile') && !S.reduceMotion) kick(el, o.dir);
+  const h = el.closest('[data-onfocus]'); if (h && HOOKS[h.dataset.onfocus]) HOOKS[h.dataset.onfocus](el);
+}
+function kick(el, dir) {
+  const v = {left:[-.5, 0], right:[.5, 0], up:[0, -.5], down:[0, .5]}[dir];
+  el.style.setProperty('--px', v[0]); el.style.setProperty('--py', v[1]);
+  setTimeout(() => { if (!el.classList.contains('tracking')) { el.style.setProperty('--px', 0); el.style.setProperty('--py', 0); } }, 110);
+}
+function bump(el, dir) { if (!el) return; el.classList.remove('bump-left', 'bump-right', 'bump-up', 'bump-down'); void el.offsetWidth; el.classList.add('bump-' + dir); setTimeout(() => el.classList.remove('bump-' + dir), 340); }
+function move(dir) {
+  const cur = F.cur;
+  if (!inScope(cur)) { ensureFocus(); return; }
+  if (cur._nav && cur._nav(dir)) return;
+  if (dir === 'down' && cur.closest('#s-store .tabs')) {
+    const pane = $('#s-store .pane.on'); const m = pane && F.mem['pane:' + pane.id];
+    const t = m && pane.contains(m) && visible(m) ? m : pane && $$('[data-f]', pane).find(visible);
+    if (t) { setFocus(t, {dir}); return; }
+  }
+  const r = cur.getBoundingClientRect(); const rx = (r.left + r.right) / 2, ry = (r.top + r.bottom) / 2;
+  let best = null, bs = Infinity;
+  for (const c of cands()) {
+    if (c === cur) continue;
+    const q = c.getBoundingClientRect(); const cx = (q.left + q.right) / 2, cy = (q.top + q.bottom) / 2;
+    let p, o, t;
+    if (dir === 'left' || dir === 'right') {
+      p = dir === 'right' ? cx - rx : rx - cx; if (p <= 1) continue;
+      const ov = Math.min(r.bottom, q.bottom) - Math.max(r.top, q.top); o = ov > 0 ? 0 : -ov; t = Math.abs(cy - ry);
+    } else {
+      p = dir === 'down' ? cy - ry : ry - cy; if (p <= 1) continue;
+      const ov = Math.min(r.right, q.right) - Math.max(r.left, q.left); o = ov > 0 ? 0 : -ov; t = Math.abs(cx - rx);
+    }
+    const sc = (o > 0 ? 1e5 : 0) + p + o * 4 + t * 0.35;
+    if (sc < bs) { bs = sc; best = c; }
+  }
+  if (!best) { bump(cur, dir); return; }
+  const br = best.closest('[data-row]'), cr = cur.closest('[data-row]');
+  if (br && br !== cr) { const m = F.mem[br.dataset.row]; if (m && m !== cur && inScope(m) && br.contains(m)) best = m; }
+  setFocus(best, {dir});
+}
+function ensureFocus() {
+  if (F.cur && inScope(F.cur)) return;
+  const top = layers[layers.length - 1];
+  let d = top ? (top.def && top.panel.querySelector(top.def)) : SCREENS[curScreen].def();
+  if (!d || !visible(d)) d = cands()[0];
+  if (d) setFocus(d, {noScroll: false});
+}
+function ensureVisible(el, fromPointer) {
+  const tr = el.parentElement && el.parentElement.closest('.track');
+  if (tr && !fromPointer) {
+    const pad = 60 * remPx() / 10, x = el.offsetLeft, w = el.offsetWidth; let L = tr.scrollLeft;
+    if (x - pad < L) L = x - pad; else if (x + w + pad > L + tr.clientWidth) L = x + w + pad - tr.clientWidth;
+    if (Math.abs(L - tr.scrollLeft) > 1) tr.scrollTo({left: Math.max(0, L), behavior: S.reduceMotion ? 'auto' : 'smooth'});
+  }
+  const vs = el.parentElement && el.parentElement.closest('.vscroll');
+  if (vs && !fromPointer) {
+    const t = el.closest('.vs-item') || el; const vr = vs.getBoundingClientRect(), q = t.getBoundingClientRect();
+    const m = Math.min(vr.height * .14, 9 * remPx()); const top = q.top - vr.top + vs.scrollTop; let y = vs.scrollTop;
+    if (q.top < vr.top + m) y = top - m; else if (q.bottom > vr.bottom - m) y = Math.min(top - m, top + q.height - vr.height + m);
+    const first = $$('[data-f]', vs).find(visible); if (first && (first === el || first.contains(el) || t.contains(first))) y = 0;
+    if (Math.abs(y - vs.scrollTop) > 1) vs.scrollTo({top: Math.max(0, y), behavior: S.reduceMotion ? 'auto' : 'smooth'});
+  }
+  const hr = el.closest('[data-hrow]'); if (hr) homeShift(hr);
+  else if (curScreen === 'home' && el.closest('.top-actions')) homeShift(null);
+}
+let _rem = 0; const remPx = () => _rem || (_rem = parseFloat(getComputedStyle(root).fontSize));
+addEventListener('resize', () => { _rem = 0; if (F.cur) ensureVisible(F.cur); });
+
+/* =====================================================================
+   LAYERS (dialogs, menus, PIN pad)
+   ===================================================================== */
+function openLayer({cls = '', html, def, onKey, onClose, label = 'Dialog'}) {
+  const el = document.createElement('div');
+  el.className = 'layer ' + cls; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', label);
+  el.innerHTML = `<div class="backdrop" data-close></div><div class="panel">${html}</div>`;
+  document.body.appendChild(el);
+  const L = {el, panel: $('.panel', el), def, onKey, onClose, prev: F.cur};
+  layers.push(L);
+  void el.offsetWidth; el.classList.add('open');
+  ensureFocus();
+  return L;
+}
+function closeLayer(L = layers[layers.length - 1], silent) {
+  if (!L) return; const i = layers.indexOf(L); if (i < 0) return;
+  layers.splice(i, 1); L.el.classList.remove('open');
+  setTimeout(() => L.el.remove(), 450);
+  if (L.prev && inScope(L.prev)) setFocus(L.prev, {noScroll: true}); else { dropFocus(); ensureFocus(); }
+  if (!silent && L.onClose) L.onClose();
+}
+function closeAllLayers() { while (layers.length) closeLayer(layers[layers.length - 1], true); }
+function confirmDlg(title, text, okLabel, onOk, danger) {
+  const L = openLayer({label: title, html: `<div class="dlg glass-strong"><h2>${esc(title)}</h2><p>${esc(text)}</p><div class="actions">
+    <button class="btn fx" data-f data-act="dlgcancel" tabindex="-1">Cancel</button><button class="btn primary fx" data-f data-act="dlgok" id="dlg-ok" tabindex="-1">${esc(okLabel)}</button></div></div>`, def: '#dlg-ok'});
+  L.ok = onOk; return L;
+}
+
+/* PIN pad — digits on the remote work too. */
+function pinPrompt({title, sub = '', mode = 'check', onOk}) {
+  const pad = [1,2,3,4,5,6,7,8,9].map(n => `<button class="key fx" data-f data-act="pin:${n}" tabindex="-1">${n}</button>`).join('')
+    + `<button class="key fx small" data-f data-act="pin:c" tabindex="-1">Clear</button><button class="key fx" data-f data-act="pin:0" tabindex="-1">0</button><button class="key fx small" data-f data-act="pin:d" aria-label="Delete" tabindex="-1">${ico('del')}</button>`;
+  const L = openLayer({label: title, def: '[data-act="pin:5"]', html: `<div class="dlg pin glass-strong"><h2 class="pin-t">${esc(title)}</h2><p class="pin-s">${esc(sub)}</p>
+    <div class="pdots" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div class="pin-msg" role="alert"></div><div class="pad">${pad}</div></div>`,
+    onKey(k, e) {
+      if (k === 'digit') { pinInputSync(L, e.key); return true; }
+      if (k === 'backspace') { pinInput(L, 'd'); return true; }
+      return false;
+    }});
+  Object.assign(L, {pin: '', mode, step: 0, first: '', onOk});
+  return L;
+}
+function pinInput(L, d) {
+  if (d === 'c') L.pin = ''; else if (d === 'd') L.pin = L.pin.slice(0, -1); else if (L.pin.length < 4) L.pin += d;
+  $$('.pdots i', L.panel).forEach((n, i) => n.classList.toggle('on', i < L.pin.length));
+  $('.pin-msg', L.panel).textContent = '';
+  if (L.pin.length < 4) return;
+  const p = L.pin;
+  setTimeout(() => {
+    if (!layers.includes(L)) return;
+    if (L.mode === 'check') {
+      if (hashPin(p) === S.parental.pin) { const cb = L.onOk; closeLayer(L, true); cb && cb(); }
+      else pinFail(L, 'Incorrect PIN. Try again.');
+    } else if (L.step === 0) {
+      L.first = p; L.step = 1; L.pin = ''; $('.pin-t', L.panel).textContent = 'Confirm PIN'; $('.pin-s', L.panel).textContent = 'Enter the same four digits again.';
+      $$('.pdots i', L.panel).forEach(n => n.classList.remove('on'));
+    } else if (p === L.first) { S.parental.pin = hashPin(p); save(); const cb = L.onOk; closeLayer(L, true); cb && cb(); }
+    else { L.step = 0; L.first = ''; $('.pin-t', L.panel).textContent = 'Create a PIN'; pinFail(L, "PINs didn't match. Start again."); }
+  }, 140);
+}
+// window.open must run inside the key/click handler, so the "check" path calls onOk synchronously on the 4th digit.
+function pinInputSync(L, d) {
+  if (L.mode === 'check' && /^\d$/.test(d) && L.pin.length === 3) {
+    const p = L.pin + d;
+    if (hashPin(p) === S.parental.pin) { L.pin = p; $$('.pdots i', L.panel).forEach(n => n.classList.add('on')); const cb = L.onOk; closeLayer(L, true); cb && cb(); return; }
+  }
+  pinInput(L, d);
+}
+function pinFail(L, msg) { L.pin = ''; const d = $('.pdots', L.panel); $$('i', d).forEach(n => n.classList.remove('on')); d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake'); $('.pin-msg', L.panel).textContent = msg; }
+function withPin(a, title, fn) { if (restricted(a)) pinPrompt({title, sub: `${a.cat} apps are protected by Parental Controls.`, onOk: fn}); else fn(); }
+
+/* =====================================================================
+   SCREENS
+   ===================================================================== */
+let curScreen = 'home';
+const SCREENS = {
+  home:     {el: $('#s-home'), def: () => homeDefault(), back: homeBack},
+  store:    {el: $('#s-store'), def: () => storeDefault(), back: storeBack, enter: storeEnter},
+  settings: {el: $('#s-settings'), def: () => setDefault(), back: setBack, enter: setEnter},
+  launch:   {el: $('#s-launch'), def: () => $('#s-launch [data-def]') || $('#s-launch [data-f]'), back: () => show('home'), enter: launchEnter},
+  game:     {el: $('#s-game'), def: () => $('#s-game .g-over:not(.off) [data-f]'), back: gameBack, enter: gameEnter, leave: gameLeave},
+};
+function show(name, params) {
+  const prev = curScreen, P = SCREENS[prev], N = SCREENS[name];
+  if (P.leave) P.leave();
+  if (prev !== name) {
+    P.el.classList.remove('active'); P.el.setAttribute('inert', '');
+    P.el.classList.toggle('behind', name !== 'home' && prev === 'home');
+  }
+  curScreen = name;
+  N.el.removeAttribute('inert'); N.el.classList.remove('behind');
+  if (N.enter) N.enter(params);
+  N.el.classList.add('active');
+  root.classList.toggle('on-app', name !== 'home');
+  if (name !== 'home') $('#wall-inner').style.transform = '';
+  dropFocus();
+  const d = N.def(); if (d && visible(d)) setFocus(d); else ensureFocus();
+  if (name === 'home' && F.cur) ensureVisible(F.cur);
+}
+function goHome() { closeAllLayers(); if (moving) endMove(); if (curScreen !== 'home') show('home'); else homeBack(true); }
+function goBack() {
+  if (layers.length) { closeLayer(); return; }
+  if (moving) { endMove(); return; }
+  SCREENS[curScreen].back();
+}
+
+/* ---------------- HOME ---------------- */
+function renderHome() {
+  const keep = F.cur && F.cur.closest('#home-stack') ? F.cur.dataset.k : null;
+  $('#row-apps').innerHTML = S.apps.filter(id => !hiddenApp(id)).map(id => tileHTML(id, {hold: 'opts:apps:' + id})).join('');
+  $('#row-games').innerHTML = S.games.filter(id => !hiddenApp(id)).map(id => tileHTML(id, {hold: 'opts:games:' + id})).join('')
+    || `<div class="empty" style="padding-left:0">No games yet — find some in the Store.</div>`;
+  $('#row-spot').innerHTML = SHOWS.map((s, i) => posterHTML(i)).join('');
+  if (keep) { const n = $(`#home-stack [data-k="${keep}"]`); if (n) { dropFocus(); setFocus(n); } }
+  if (curScreen === 'home' && !layers.length) ensureFocus();
+}
+function homeDefault() { const m = F.mem['home-apps']; return (m && m.isConnected) ? m : $('#row-apps [data-f]'); }
+let homeOffset = 0;
+function homeShift(hr) {
+  const rows = $$('#home-stack .hrow'); const first = rows[0];
+  const off = hr ? hr.offsetTop - first.offsetTop : 0;
+  if (off === homeOffset) return; homeOffset = off;
+  const stack = $('#home-stack'), limit = 12 * remPx();
+  rows.forEach(r => r.classList.toggle('above', stack.offsetTop + r.offsetTop - off < limit));
+  stack.style.transform = off ? `translate3d(0,${-off}px,0)` : '';
+  $('#s-home').classList.toggle('home-shifted', off > 0);
+  $('#wall-inner').style.transform = (off && !S.reduceMotion) ? `translate3d(0,${-off * 0.05}px,0)` : '';
+}
+function homeBack(forceFirst) {
+  const first = $('#row-apps [data-f]');
+  if (F.cur !== first || forceFirst) { $('#row-apps').scrollTo({left: 0, behavior: S.reduceMotion ? 'auto' : 'smooth'}); if (first) setFocus(first); }
+}
+
+/* clock */
+function tick() {
+  const d = new Date();
+  let h = d.getHours(); const m = String(d.getMinutes()).padStart(2, '0');
+  let ap = '';
+  if (S.clock === '12') { ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; }
+  $('#clock').innerHTML = `${S.clock === '24' ? String(h).padStart(2, '0') : h}:${m}${ap ? `<span class="ampm">${ap}</span>` : ''}`;
+  $('#date').textContent = d.toLocaleDateString(undefined, {weekday: 'long', day: 'numeric', month: 'long'});
+  const hr = d.getHours();
+  $('#greet').textContent = hr < 5 ? 'Late night' : hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
+  setTimeout(tick, 60000 - (Date.now() % 60000) + 20);
+}
+
+/* app options: move / remove */
+let moving = null;
+function openOptions(el) {
+  if (!el || !el.dataset.hold) return;
+  const [, row, id] = el.dataset.hold.split(':'); const a = APPS[id];
+  const L = openLayer({cls: 'sheet', label: a.name + ' options', def: '[data-act="omove"]', html: `<div class="opts glass-strong"><span class="who">${esc(a.name)}</span>
+    <button class="btn fx" data-f data-act="oopen" tabindex="-1">${ico(a.builtin ? 'play' : 'ext')}Open</button>
+    <button class="btn fx" data-f data-act="omove" tabindex="-1">${ico('move')}Move</button>
+    ${a.system ? '' : `<button class="btn fx" data-f data-act="oremove" tabindex="-1">${ico('trash')}Remove from Home</button>`}
+    ${a.system ? '' : `<button class="btn fx" data-f data-act="ostore" tabindex="-1">${ico('store')}View in Store</button>`}
+    <button class="btn fx" data-f data-act="dlgcancel" tabindex="-1">Cancel</button></div>`});
+  Object.assign(L, {row, id, tile: el});
+}
+function startMove(row, id) {
+  moving = {row, id};
+  const t = $(`#home-stack [data-app="${id}"]`); if (t) { setFocus(t); t.classList.add('moving'); }
+  toast('Use ◀ ▶ to move, then press OK', 'move');
+}
+function moveTile(dir) {
+  if (dir === 'up' || dir === 'down') { bump(F.cur, dir); return; }
+  const list = S[moving.row]; const vis = list.filter(id => !hiddenApp(id));
+  const vi = vis.indexOf(moving.id); const ni = vi + (dir === 'right' ? 1 : -1);
+  if (vi < 0 || ni < 0 || ni >= vis.length) { bump(F.cur, dir); return; }
+  const i = list.indexOf(moving.id), j = list.indexOf(vis[ni]);
+  [list[i], list[j]] = [list[j], list[i]]; save();
+  renderHome();
+  const t = $(`#home-stack [data-app="${moving.id}"]`); if (t) { t.classList.add('moving'); setFocus(t); }
+}
+function endMove() { const t = $(`#home-stack [data-app="${moving && moving.id}"]`); moving = null; if (t) t.classList.remove('moving'); }
+function removeApp(id) {
+  const a = APPS[id];
+  confirmDlg(`Remove ${a.name}?`, a.url ? `The shortcut leaves your Home screen. Your account on ${a.host} isn't affected. You can add it back from the Store.` : 'You can add it back from the Store at any time.', 'Remove', () => {
+    S.apps = S.apps.filter(x => x !== id); S.games = S.games.filter(x => x !== id); save();
+    renderHome(); if (curScreen === 'store') storeRefresh(); toast(`${a.name} removed from Home`, 'trash');
+  });
+}
+
+/* launching */
+function openApp(id, el) {
+  const a = APPS[id];
+  withPin(a, `Enter PIN to open ${a.name}`, () => launch(id, el));
+}
+function launch(id, el) {
+  const a = APPS[id];
+  if (a.builtin) {
+    if (a.builtin === 'ambient') { enterAmbient(); return; }
+    if (layers.length) closeAllLayers();
+    zoom(el, a, () => show(a.builtin === 'snake' ? 'game' : a.builtin));
+    return;
+  }
+  let w = null;
+  try { w = window.open(a.url, '_blank'); if (w) w.opener = null; } catch (e) { w = null; }
+  zoom(el, a, () => show('launch', {id, opened: !!w}));
+}
+function zoom(el, a, cb) {
+  const z = $('#zoom'); const card = el && el.querySelector('.t-card');
+  if (!card || S.reduceMotion) { cb(); return; }
+  const r = card.getBoundingClientRect(), vw = innerWidth, vh = innerHeight;
+  z.style.background = `linear-gradient(145deg,${a.c[0]},${a.c[1]})`; z.innerHTML = '';
+  z.style.transition = 'none';
+  z.style.transform = `translate3d(${r.left}px,${r.top}px,0) scale(${r.width / vw},${r.height / vh})`; z.style.opacity = '1';
+  void z.offsetWidth;
+  z.style.transition = 'transform .5s var(--spring-soft), opacity .35s ease .3s';
+  z.style.transform = 'translate3d(0,0,0) scale(1)';
+  setTimeout(() => { cb(); z.style.opacity = '0'; }, 280);
+}
+function launchEnter({id, opened}) {
+  const a = APPS[id]; const el = SCREENS.launch.el;
+  el.innerHTML = `<div class="launch-bg" style="--c1:${a.c[0]};--c2:${a.c[1]}"></div>
+  <div class="launch-card glass-strong">
+    <h1>${esc(a.name)}</h1><p class="host">${ico('ext')} ${esc(a.host)}</p>
+    <p class="msg">${opened ? `${esc(a.name)} has opened on its official website in a new tab. Switch back here any time.` : `Your browser blocked the new tab. Choose how to open the official ${esc(a.name)} website.`}</p>
+    <div class="actions">
+      <button class="btn primary fx" data-f data-act="relaunch:${id}" ${opened ? '' : 'data-def'} tabindex="-1">${ico('ext')}Open ${esc(a.host)}</button>
+      <button class="btn fx" data-f data-act="here:${id}" tabindex="-1">Open in this tab</button>
+      <button class="btn fx" data-f data-act="home" ${opened ? 'data-def' : ''} tabindex="-1">${ico('home')}Back to Home</button>
+    </div>
+    <p class="safe-note">${ico('lock')} Sign-in, subscriptions and payments happen only on the official site. Lumora never asks for passwords or card details.</p>
+  </div>`;
+}
+
+/* ambient / idle */
+let idleT = 0;
+function bumpIdle() {
+  clearTimeout(idleT);
+  if (S.ambientAfter > 0) idleT = setTimeout(() => { if (curScreen === 'home' && !layers.length && !moving) enterAmbient(); else bumpIdle(); }, S.ambientAfter * 60000);
+}
+function enterAmbient() { closeAllLayers(); if (curScreen !== 'home') show('home'); root.classList.add('ambient'); homeShift(null); }
+function exitAmbient() { root.classList.remove('ambient'); if (F.cur) ensureVisible(F.cur); bumpIdle(); }
+const isAmbient = () => root.classList.contains('ambient');
+
+/* ---------------- STORE ---------------- */
+const ST = {tab: 'discover', view: 'tabs', cat: null, app: null, from: null, q: '', hero: 0, built: false, heroT: 0, tabT: 0};
+const INST = {};
+function storeBuild() {
+  const el = SCREENS.store.el;
+  el.innerHTML = `<div class="scr-head">
+      <div class="scr-title">${ico('store')}<span>Store</span></div>
+      <div class="tabs glass" data-row="st-tabs" data-onfocus="tab" role="tablist">
+        <button class="tab fx sel" data-f data-tab="discover" data-act="tab:discover" role="tab" tabindex="-1">Discover</button>
+        <button class="tab fx" data-f data-tab="cats" data-act="tab:cats" role="tab" tabindex="-1">Categories</button>
+        <button class="tab fx" data-f data-tab="search" data-act="tab:search" role="tab" tabindex="-1">${ico('search')}&nbsp;Search</button>
+      </div>
+      <div class="head-spacer"><span class="badge sim">Free · Simulated</span></div>
+    </div>
+    <div class="st-body">
+      <div class="pane vscroll on" id="p-discover"></div>
+      <div class="pane vscroll" id="p-cats"></div>
+      <div class="pane" id="p-search"></div>
+      <div class="pane vscroll" id="p-list"></div>
+      <div class="pane vscroll" id="p-detail"></div>
+    </div>`;
+  renderDiscover(); renderCats(); renderSearch();
+  ST.built = true;
+}
+function renderDiscover() {
+  const rows = [['Essentials', 'Entertainment'], ['Play now', 'Games'], ['Music & audio', 'Music'], ['For kids', 'Kids'], ['Sports', 'Sports'], ['Utilities', 'Utilities']];
+  $('#p-discover').innerHTML = `<div class="vs-item" data-row="st-hero"><div class="hero" data-f data-k="hero" data-act="hero" role="button" aria-label="Featured" tabindex="-1" id="hero">
+      <div class="slides">${HERO.map((id, i) => { const a = APPS[id]; return `<div class="slide${i === ST.hero ? ' on' : ''}" style="--c1:${a.c[0]};--c2:${a.c[1]}"><img loading="lazy" decoding="async" alt="" src="${sceneSVG('hero' + id, a.c[0], a.c[1], 900, 420)}"></div>`; }).join('')}</div>
+      <div class="copy" id="hero-copy"></div><div class="dots">${HERO.map((_, i) => `<i class="${i === ST.hero ? 'on' : ''}"></i>`).join('')}</div><div class="arrows">◀ ▶ more featured</div><div class="ring"></div></div></div>
+    ${rows.map(([t, c]) => `<div class="vs-item st-row"><div class="row-h"><span>${t}</span></div><div class="track" data-row="st-${c}">${STORE_IDS.filter(id => APPS[id].cat === c).map(id => tileHTML(id, {act: 'app:' + id, k: 'd-' + id, cls: 'show-title', sub: false, badge: true})).join('')}</div></div>`).join('')}`;
+  heroCopy();
+  const h = $('#hero'); h._nav = dir => { if (dir === 'left' || dir === 'right') { heroGo(ST.hero + (dir === 'right' ? 1 : -1)); return true; } return false; };
+}
+function heroCopy() {
+  const a = APPS[HERO[ST.hero]];
+  $('#hero-copy').innerHTML = `<div class="kicker">${a.builtin ? 'Lumora Original' : 'Featured shortcut'}</div><h2>${esc(a.name)}</h2><p>${esc(a.blurb)}</p><div class="cta">${installed(a.id) ? 'View' : 'Get'} ${ico('back', '')}</div>`;
+  const c = $('#hero-copy .cta .i'); if (c) c.style.transform = 'rotate(180deg)';
+}
+function heroGo(i) {
+  ST.hero = (i + HERO.length) % HERO.length;
+  $$('#hero .slide').forEach((s, k) => s.classList.toggle('on', k === ST.hero));
+  $$('#hero .dots i').forEach((s, k) => s.classList.toggle('on', k === ST.hero));
+  heroCopy();
+}
+function renderCats() {
+  $('#p-cats').innerHTML = `<div class="cats" data-row="st-cats">${CATS.map(c => `<button class="cat fx" data-f data-k="cat-${c.id}" data-act="cat:${c.id}" style="--c1:${c.c[0]};--c2:${c.c[1]}" tabindex="-1">${ico(c.icon)}<b>${c.id}</b><span>${c.d} · ${STORE_IDS.filter(id => APPS[id].cat === c.id).length} apps</span></button>`).join('')}</div>`;
+}
+function renderSearch() {
+  const keys = 'abcdefghijklmnopqrstuvwxyz1234567890'.split('');
+  $('#p-search').innerHTML = `<div class="search"><div><div class="qbox glass">${ico('search')}<span class="q" id="q"></span><span class="caret"></span></div>
+    <div class="kb" data-row="st-kb">${keys.map(k => `<button class="key fx" data-f data-k="k-${k}" data-act="key:${k}" tabindex="-1">${k}</button>`).join('')}
+    <button class="key fx w2" data-f data-k="k-sp" data-act="key:space" tabindex="-1">Space</button><button class="key fx w2" data-f data-k="k-del" data-act="key:del" aria-label="Delete" tabindex="-1">${ico('del')}</button><button class="key fx w2" data-f data-k="k-clr" data-act="key:clear" tabindex="-1">Clear</button></div></div>
+    <div class="results vscroll" id="results"></div></div>`;
+  renderResults();
+}
+function renderResults() {
+  const q = ST.q.trim().toLowerCase();
+  $('#q').textContent = ST.q;
+  const ids = q ? STORE_IDS.filter(id => { const a = APPS[id]; return a.name.toLowerCase().includes(q) || a.cat.toLowerCase().includes(q) || (a.host || '').includes(q); })
+    : ['youtube', 'snake', 'lichess', 'ted', 'cbeebies', 'poki', 'bbcsport', 'deezer'];
+  const keep = F.cur && F.cur.closest('#results') ? F.cur.dataset.k : null;
+  $('#results').innerHTML = `<div class="res-h">${q ? `${ids.length} result${ids.length === 1 ? '' : 's'} for “${esc(ST.q.trim())}”` : 'Popular right now'}</div>`
+    + (ids.length ? `<div class="grid" data-row="st-res">${ids.map(id => tileHTML(id, {act: 'app:' + id, k: 's-' + id, sub: true, badge: true})).join('')}</div>` : `<div class="empty">No apps match. Try another word, like “music” or “kids”.</div>`);
+  if (keep) { const n = $(`#results [data-k="${keep}"]`); if (n) setFocus(n, {noScroll: true}); }
+  if (F.cur && !F.cur.isConnected) { dropFocus(); ensureFocus(); }
+}
+function typeKey(k) {
+  if (k === 'del') ST.q = ST.q.slice(0, -1); else if (k === 'clear') ST.q = ''; else if (k === 'space') ST.q += ' '; else if (ST.q.length < 24) ST.q += k;
+  renderResults();
+}
+function setPane(id, back) {
+  $$('#s-store .pane').forEach(p => { const on = p.id === 'p-' + id; p.classList.toggle('on', on); p.classList.toggle('left', !on && back); on ? p.removeAttribute('inert') : p.setAttribute('inert', ''); });
+  const tabsOn = ['discover', 'cats', 'search'].includes(id);
+  const tabs = $('#s-store .tabs'); tabs.style.opacity = tabsOn ? '' : '0'; tabsOn ? tabs.removeAttribute('inert') : tabs.setAttribute('inert', '');
+}
+function selectTab(t) {
+  ST.tab = t; ST.view = 'tabs';
+  $$('#s-store .tab').forEach(b => { b.classList.toggle('sel', b.dataset.tab === t); b.setAttribute('aria-selected', b.dataset.tab === t); });
+  setPane(t);
+}
+function storeEnter(p) {
+  if (!ST.built) storeBuild();
+  if (p && p.tab) { ST.view = 'tabs'; selectTab(p.tab); }
+  else if (ST.view === 'tabs') selectTab(ST.tab);
+  storeRefresh();
+  clearInterval(ST.heroT);
+  ST.heroT = setInterval(() => { if (curScreen === 'store' && ST.view === 'tabs' && ST.tab === 'discover' && F.cur && F.cur.id !== 'hero' && !S.reduceMotion) heroGo(ST.hero + 1); }, 8000);
+}
+function storeDefault() {
+  if (ST.view === 'detail') return $('#p-detail [data-def]') || $('#p-detail [data-f]');
+  if (ST.view === 'list') return $('#p-list [data-f]');
+  return $(`#s-store .tab[data-tab="${ST.tab}"]`);
+}
+function storeBack() {
+  if (ST.view === 'detail') {
+    const from = ST.from; ST.view = from.view; ST.app = null;
+    setPane(from.view === 'list' ? 'list' : ST.tab, true);
+    const n = from.k && $(`#s-store .pane.on [data-k="${from.k}"]`);
+    dropFocus(); if (n) setFocus(n); else ensureFocus(); return;
+  }
+  if (ST.view === 'list') { ST.view = 'tabs'; setPane('cats', true); const n = $(`#p-cats [data-k="cat-${ST.cat}"]`); dropFocus(); n ? setFocus(n) : ensureFocus(); return; }
+  if (F.cur && !F.cur.closest('.tabs')) { setFocus($(`#s-store .tab[data-tab="${ST.tab}"]`)); return; }
+  show('home');
+}
+function openCat(c) {
+  ST.cat = c; ST.view = 'list';
+  const cat = CAT[c];
+  $('#p-list').innerHTML = `<div class="list-head vs-item">${ico(cat.icon)}<span>${c}</span><small>${cat.d}</small></div>
+    <div class="grid" data-row="st-list">${STORE_IDS.filter(id => APPS[id].cat === c).map(id => tileHTML(id, {act: 'app:' + id, k: 'l-' + id, sub: true, badge: true})).join('')}</div>`;
+  $('#p-list').scrollTop = 0;
+  setPane('list'); dropFocus(); ensureFocus();
+}
+function openDetail(id) {
+  ST.from = {view: ST.view, k: F.cur && F.cur.dataset.k};
+  ST.view = 'detail'; ST.app = id;
+  renderDetail(); $('#p-detail').scrollTop = 0; setPane('detail');
+  dropFocus(); ensureFocus();
+}
+function renderDetail() {
+  const id = ST.app, a = APPS[id]; if (!a) return;
+  const inst = installed(id), busy = INST[id];
+  const dist = [0.68, 0.18, 0.07, 0.03, 0.04].map((v, i) => `<div class="bar"><span style="background:none">${5 - i}</span><span><b style="transform:scaleX(${v})"></b></span></div>`).join('');
+  const keep = F.cur && F.cur.closest('#p-detail') ? F.cur.dataset.k : null;
+  $('#p-detail').innerHTML = `<div class="detail">
+    <div class="d-top vs-item">${tileHTML(id, {cls: 'd-icon show-title', act: 'none', k: 'd-icon', nof: true})}
+      <div><h1 class="d-name">${esc(a.name)}</h1><p class="d-dev">${esc(a.dev)}${a.host ? ' · ' + esc(a.host) : ''}</p>
+        <div class="chips"><span class="chip">${starsHTML(a.rating)} ${a.rating.toFixed(1)}</span><span class="chip">${esc(a.reviews)} ratings</span><span class="chip">Age ${esc(a.age)}</span><span class="chip">${ico(CAT[a.cat].icon)}${a.cat}</span><span class="chip">Free</span>${restricted(a) ? `<span class="chip">${ico('lock')}PIN required</span>` : ''}</div>
+        <div class="d-actions" data-row="d-actions">
+          ${busy ? `<button class="btn primary fx install busy" data-f data-k="inst" data-install="${id}" data-def tabindex="-1"><span class="pbar" style="transform:scaleX(${busy.p})"></span><span class="lbl">Installing ${Math.round(busy.p * 100)}%</span></button>`
+            : inst ? `<button class="btn primary fx install" data-f data-k="inst" data-act="open:${id}" data-def tabindex="-1">${ico(a.builtin ? 'play' : 'ext')}<span class="lbl">Open</span></button>`
+            : `<button class="btn primary fx install" data-f data-k="inst" data-act="install:${id}" data-install="${id}" data-def tabindex="-1"><span class="pbar"></span><span class="lbl">Install</span></button>`}
+          ${inst && !busy ? `<button class="btn fx" data-f data-k="rm" data-act="oremove:${id}" tabindex="-1">${ico('trash')}Remove from Home</button>` : ''}
+        </div></div></div>
+    <div class="d-sec vs-item"><h3>Preview</h3><div class="track" data-row="d-shots">${[0, 1, 2, 3].map(i => `<div class="tile shot" data-f data-k="shot${i}" tabindex="-1" aria-label="Screenshot placeholder ${i + 1}"><div class="t-lift"><div class="t-shadow"></div><div class="t-card" style="--c1:${a.c[0]};--c2:${a.c[1]}"><div class="t-art"><img loading="lazy" decoding="async" alt="" src="${shotSVG(a, i)}"></div><div class="t-spec"></div><div class="t-ring"></div><div class="t-glint"></div></div></div></div>`).join('')}</div></div>
+    <div class="d-cols vs-item" data-row="d-info">
+      <div class="card fx" data-f data-k="about" tabindex="-1"><h4>About</h4><p>${esc(a.blurb)}</p>
+        ${a.url ? `<p>This is a shortcut to the official ${esc(a.name)} website (${esc(a.host)}). Opening it takes you to their site, where any sign-in or subscription happens. Lumora never sees your account details.</p>` : `<p>Built into Lumora and runs entirely on this device. No account needed.</p>`}
+        <p>The Lumora Store is a free concept: nothing is ever charged and no payment details are collected.</p></div>
+      <div class="card fx" data-f data-k="ratings" tabindex="-1"><h4>Ratings & reviews</h4><div style="display:flex;align-items:center;gap:1.4rem"><b style="font-size:calc(4rem * var(--ts));line-height:1">${a.rating.toFixed(1)}</b>${starsHTML(a.rating)}</div><div class="bars">${dist}</div><div class="sim">Simulated ratings for this concept.</div></div>
+    </div></div>`;
+  if (keep) { const n = $(`#p-detail [data-k="${keep}"]`); if (n) { dropFocus(); setFocus(n, {noScroll: true}); } }
+  if (F.cur && !F.cur.isConnected) { dropFocus(); ensureFocus(); }
+}
+function storeRefresh() {
+  if (!ST.built) return;
+  const keepK = F.cur && F.cur.closest('#s-store') ? F.cur.dataset.k : null;
+  const sc = $('#p-discover').scrollTop; const tracks = $$('#p-discover .track').map(t => t.scrollLeft);
+  renderDiscover(); $('#p-discover').scrollTop = sc; $$('#p-discover .track').forEach((t, i) => t.scrollLeft = tracks[i] || 0);
+  renderResults();
+  if (ST.view === 'list' && ST.cat) { const g = $('#p-list .grid'); if (g) g.innerHTML = STORE_IDS.filter(id => APPS[id].cat === ST.cat).map(id => tileHTML(id, {act: 'app:' + id, k: 'l-' + id, sub: true, badge: true})).join(''); }
+  if (ST.view === 'detail') renderDetail();
+  if (keepK && (!F.cur || !F.cur.isConnected)) { const n = $(`#s-store .pane.on [data-k="${keepK}"], #s-store .tabs [data-k="${keepK}"]`); dropFocus(); if (n) setFocus(n, {noScroll: true}); }
+  if (curScreen === 'store' && !layers.length) ensureFocus();
+}
+function install(id) {
+  const a = APPS[id];
+  withPin(a, `Enter PIN to install ${a.name}`, () => {
+    if (INST[id] || installed(id)) return;
+    const start = performance.now(), dur = 2000 + Math.random() * 1400;
+    INST[id] = {p: 0};
+    const step = () => {
+      const t = Math.min(1, (performance.now() - start) / dur);
+      INST[id].p = t < 1 ? 1 - Math.pow(1 - t, 2.2) : 1;
+      $$(`[data-install="${id}"]`).forEach(b => { b.classList.add('busy'); b.removeAttribute('data-act'); const pb = $('.pbar', b); if (pb) pb.style.transform = `scaleX(${INST[id].p})`; $('.lbl', b).textContent = `Installing ${Math.round(INST[id].p * 100)}%`; });
+      $$(`.tile[data-app="${id}"] .t-prog b`).forEach(b => b.style.transform = `scaleX(${INST[id].p})`);
+      if (t < 1) setTimeout(step, 60);
+      else {
+        delete INST[id];
+        const list = a.cat === 'Games' ? S.games : S.apps;
+        const at = list.indexOf('store'); if (at >= 0) list.splice(at, 0, id); else list.push(id);
+        save(); renderHome(); storeRefresh(); toast(`${a.name} added to Home`);
+      }
+    };
+    storeRefresh(); step();
+  });
+}
+
+/* ---------------- SETTINGS ---------------- */
+const SECTIONS = [['appearance', 'Appearance', 'palette'], ['video', 'Video & Audio', 'tv'], ['access', 'Accessibility', 'hand'], ['parental', 'Parental Controls', 'shield'], ['perf', 'Performance', 'gauge'], ['remote', 'Remote & Keys', 'remote'], ['privacy', 'Privacy', 'lock'], ['about', 'About', 'info']];
+const SET = {sec: 'appearance', built: false, unlocked: false, renderT: 0};
+function setBuild() {
+  SCREENS.settings.el.innerHTML = `<div class="scr-head"><div class="scr-title">${ico('gear')}<span>Settings</span></div><div></div></div>
+    <aside class="set-side glass" aria-label="Settings sections"><div class="vscroll" data-row="set-side" data-onfocus="side">${SECTIONS.map(([id, t, ic]) =>
+      `<button class="side-item fx${id === SET.sec ? ' sel' : ''}" data-f data-sec="${id}" data-k="sec-${id}" data-act="sec:${id}" tabindex="-1">${ico(ic)}<span>${t}</span></button>`).join('')}</div></aside>
+    <div class="set-main vscroll" data-row="set-main" id="set-main"></div>`;
+  SET.built = true;
+}
+function setEnter(p) {
+  if (!SET.built) setBuild();
+  SET.unlocked = false;
+  if (p && p.sec) SET.sec = p.sec;
+  $$('#s-settings .side-item').forEach(b => b.classList.toggle('sel', b.dataset.sec === SET.sec));
+  renderSection(true);
+}
+function setDefault() { return $(`#s-settings .side-item[data-sec="${SET.sec}"]`); }
+function setBack() {
+  if (F.cur && F.cur.closest('#set-main')) { setFocus(setDefault()); return; }
+  show('home');
+}
+function renderSection(animate) {
+  const main = $('#set-main'); if (!main) return;
+  const keep = F.cur && F.cur.closest('#set-main') ? F.cur.dataset.k : null;
+  main.innerHTML = `<div class="set-panel${animate ? ' enter' : ''}">${SECTION_HTML[SET.sec]()}</div>`;
+  if (animate) { main.scrollTop = 0; const p = $('.set-panel', main); void p.offsetWidth; requestAnimationFrame(() => p.classList.remove('enter')); }
+  if (SET.sec === 'video') runDetection();
+  if (keep) { const n = $(`#set-main [data-k="${CSS.escape(keep)}"]`); if (n) { dropFocus(); setFocus(n, {noScroll: true}); } }
+  if (F.cur && !F.cur.isConnected) { dropFocus(); ensureFocus(); }
+}
+const SECTION_HTML = {
+  appearance: () => `<div class="set-h">Appearance</div><p class="set-lead">Theme, wallpaper and the Home clock.</p>
+    ${choiceRow('theme', 'Theme', 'Dark is the default. Automatic follows your device.', [['dark', 'Dark'], ['light', 'Light'], ['auto', 'Automatic']], S.theme)}
+    <div class="group">Wallpaper</div>
+    <div class="wp-grid" data-row="set-wp">${WALLS.map(w => `<div class="tile" data-f data-k="wp-${w.id}" data-act="wp:${w.id}" role="radio" aria-checked="${S.wallpaper === w.id}" aria-label="${w.name}" tabindex="-1"><div class="t-lift"><div class="t-shadow"></div><div class="t-card" style="${thumbStyle(w.id)};background-size:cover"><div class="t-spec"></div>${S.wallpaper === w.id ? `<span class="t-badge">${ico('check')}</span>` : ''}<div class="t-ring"></div><div class="t-glint"></div></div></div><div class="t-title">${w.name}<span class="t-sub">${w.anim ? 'Animated' : 'Still'}</span></div></div>`).join('')}</div>
+    <div class="group">Clock</div>
+    ${choiceRow('clock', 'Clock format', '', [['12', '12-hour'], ['24', '24-hour']], S.clock)}
+    ${choiceRow('ambientAfter', 'Ambient screen', 'Fade to the clock and wallpaper when idle on Home.', [[0, 'Off'], [2, '2 min'], [5, '5 min'], [15, '15 min']], S.ambientAfter)}
+    ${actRow('fullscreen', 'Full screen', 'Fill the whole TV screen. Press Back or Esc in your browser to leave.', 'fullscreen', ico('full'))}`,
+  video: () => {
+    const v = S.video, D = detectDisplay();
+    return `<div class="set-h">Video & Audio</div><p class="set-lead">Values marked <span class="badge real">Detected</span> are read from your browser. Everything marked <span class="badge sim">Concept</span> is a simulated setting in this demo — Lumora does not decode, process or upscale video itself.</p>
+    <div class="group">Your display</div>
+    <div class="det-grid">
+      ${infoRow('scr', 'Screen resolution', `${D.pw} × ${D.ph}`, REAL, D.label)}
+      ${infoRow('hz', 'Refresh rate', DET.hz ? `≈ ${DET.hz} Hz` : 'Measuring…', REAL, 'Measured from animation frames')}
+      ${infoRow('hdrd', 'HDR display', D.hdr ? 'Yes' : 'Not reported', REAL, 'CSS dynamic-range media query')}
+      ${infoRow('gamut', 'Colour gamut', D.gamut, REAL, 'CSS color-gamut media query')}
+    </div>
+    <div class="group">Output</div>
+    ${choiceRow('video.res', 'Resolution', 'Up to 4K UHD. Auto matches the detected screen.', [['auto', `Auto (${D.short})`], ['2160', '4K UHD'], ['1080', '1080p HD'], ['720', '720p']], v.res, SIM)}
+    ${toggleRow('video.mdr', 'Match Dynamic Range', 'Switch the TV to HDR only for HDR content.', v.mdr, SIM)}
+    ${toggleRow('video.mfr', 'Match Frame Rate', `Switch the display to the content's frame rate.${DET.hz ? ` Current display ≈ ${DET.hz} Hz.` : ''}`, v.mfr, SIM)}
+    <div class="group">HDR formats</div>
+    ${[['hdr10', 'HDR10'], ['hdr10p', 'HDR10+'], ['dv', 'Dolby Vision'], ['hlg', 'HLG']].map(([k, n]) => toggleRow('video.' + k, n, `Browser decode support: <span id="det-${k}">${DET.codec[k] || 'checking…'}</span>`, v[k], SIM)).join('')}
+    <div class="group">Audio</div>
+    ${toggleRow('video.atmos', 'Dolby Atmos', `Output channels reported by browser: <span id="det-ch">${DET.ch || 'checking…'}</span> · Spatial audio decode: <span id="det-sp">${DET.spatial || 'checking…'}</span>`, v.atmos, SIM)}
+    <div class="group">AI Upscaling</div>
+    ${choiceRow('video.upscale', 'AI Upscaling', 'Concept only: describes how a TV could sharpen lower-resolution video. No video is processed here.', [['off', 'Off'], ['balanced', 'Balanced'], ['max', 'Max']], v.upscale, SIM)}
+    <div class="note">${ico('info')}<div>Format names are trademarks of their owners and are used only to describe concept settings. Support values come from the browser's own Media Capabilities report and may differ from what your TV can actually display.</div></div>`;
+  },
+  access: () => `<div class="set-h">Accessibility</div><p class="set-lead">Make Lumora easier to see and calmer to use from the sofa.</p>
+    ${toggleRow('reduceMotion', 'Reduce Motion', 'Turns off the shine, tilt and parallax effects and uses simple fades.', S.reduceMotion)}
+    ${toggleRow('contrast', 'Increase Contrast', 'Solid backgrounds, stronger text and thicker focus outlines.', S.contrast)}
+    ${toggleRow('transparency', 'Reduce Transparency', 'Replaces frosted glass with solid panels.', S.transparency)}
+    ${choiceRow('textSize', 'Text Size', 'Larger text is easier to read from a distance.', [['default', 'Default'], ['large', 'Large'], ['xl', 'Extra Large']], S.textSize)}`,
+  parental: () => {
+    const P = S.parental;
+    if (P.on && P.pin && !SET.unlocked) return `<div class="set-h">Parental Controls</div><p class="set-lead">These settings are protected.</p>${actRow('unlock', `${ico('lock')} Unlock with PIN`, 'Enter your 4-digit PIN to change Parental Controls.', 'punlock')}`;
+    const apps = [...S.apps, ...S.games].filter(id => !APPS[id].system);
+    return `<div class="set-h">Parental Controls</div><p class="set-lead">Hide apps from Home or require a PIN for whole categories. The PIN is stored only on this device.</p>
+      ${toggleRow('parental.on', 'Parental Controls', P.on ? 'On' : 'Off — turning on asks you to create a PIN.', P.on)}
+      ${P.on ? `${actRow('chpin', 'Change PIN', '', 'chpin', '••••')}
+      <div class="group">Require PIN to open or install</div>
+      ${CATS.map(c => toggleRow('pcat.' + c.id, `${c.id}`, c.d, !!P.cats[c.id])).join('')}
+      <div class="group">Hide from Home</div>
+      ${apps.length ? apps.map(id => toggleRow('phide.' + id, esc(APPS[id].name), APPS[id].cat, !!P.hidden[id])).join('') : '<p class="set-lead">No apps installed.</p>'}` : ''}`;
+  },
+  perf: () => `<div class="set-h">Performance</div><p class="set-lead">Lumora animates only transform and opacity. On slower devices, Auto turns off heavy blur and background animation if the frame rate drops.</p>
+    ${choiceRow('effects', 'Visual effects', 'Lite removes frosted-glass blur and pauses animated wallpapers.', [['auto', 'Auto'], ['full', 'Full'], ['lite', 'Lite']], S.effects)}
+    ${infoRow('perfnow', 'Current', perfStatus(), REAL)}
+    ${toggleRow('showFps', 'Show frame-rate meter', 'A small counter in the top-right corner.', S.showFps)}`,
+  remote: () => `<div class="set-h">Remote & Keys</div><p class="set-lead">Use a TV remote, a keyboard, a mouse or touch.</p>
+    <div class="kbd-table">
+      ${infoRow('k1', 'Move focus', '◀ ▲ ▶ ▼  Arrow keys / D-pad')}
+      ${infoRow('k2', 'Select', 'OK · Enter · Space')}
+      ${infoRow('k3', 'Go back', 'Back · Esc · Backspace')}
+      ${infoRow('k4', 'Return home', 'Home key · H')}
+      ${infoRow('k5', 'App options (move / remove)', 'Hold OK · Menu key · O')}
+      ${infoRow('k6', 'PIN entry', 'Number keys 0–9')}
+      ${infoRow('k7', 'Mouse', 'Hover to focus · Click to select · Right-click for options')}
+      ${infoRow('k8', 'Touch', 'Tap to select · Long-press for options · Swipe rows')}
+    </div>
+    ${actRow('fullscreen2', 'Full screen', 'Fill the whole TV screen.', 'fullscreen', ico('full'))}`,
+  privacy: () => `<div class="set-h">Privacy</div><p class="set-lead">Lumora has no accounts, no tracking and no analytics.</p>
+    ${infoRow('pv1', 'Data collection', 'None', '', 'No analytics, cookies, trackers or network requests are made by Lumora itself.')}
+    ${infoRow('pv2', 'Where settings are kept', 'This browser only', '', 'Saved in local storage on this device. Nothing is uploaded.')}
+    ${infoRow('pv3', 'Sign-in & payments', 'Official sites only', '', 'Lumora never asks for passwords, card details or account info.')}
+    ${actRow('erase', 'Erase all local data', 'Resets every setting, your Home layout and the Parental Controls PIN.', 'erase', ico('trash'))}`,
+  about: () => `<div class="about-hero glass"><svg class="logo" aria-hidden="true"><use href="#i-logo"/></svg><div><h2>Lumora OS</h2><p>Version 1.0 · Concept build</p></div></div>
+    <div class="card fx concept" data-f data-k="ab-concept" tabindex="-1"><p><b>Concept — not affiliated with Apple, Netflix, Disney or Google.</b></p><p>Lumora is an original design study for a smart-TV interface. It is not a product and is not endorsed by, or connected to, any TV platform, streaming service or the brands named in it.</p></div>
+    <div style="height:1.2rem"></div>
+    <div class="card fx" data-f data-k="ab-tm" tabindex="-1"><p>Service names such as Netflix, YouTube, Disney+, Prime Video, BBC iPlayer, Spotify and Twitch are trademarks of their respective owners. They appear here as plain text only — no official logos or artwork are used. Selecting one opens that service's official website.</p><p>The App Store-style “Store” is free and simulated: no prices, no payments, no accounts. Spotlight titles are fictional.</p></div>
+    <div class="group">This device</div>
+    <div class="det-grid">${infoRow('ab-scr', 'Screen', `${detectDisplay().pw} × ${detectDisplay().ph}`, '', detectDisplay().label)}${infoRow('ab-vp', 'Viewport', `${innerWidth} × ${innerHeight}`, '', `Pixel ratio ${devicePixelRatio || 1}`)}${infoRow('ab-fx', 'Effects', perfStatus())}${infoRow('ab-st', 'Startup', `${bootMs} ms`, '', 'Time to Home screen')}</div>`,
+};
+function setTogglePath(k) {
+  if (k.startsWith('pcat.')) { const c = k.slice(5); S.parental.cats[c] = !S.parental.cats[c]; return true; }
+  if (k.startsWith('phide.')) { const id = k.slice(6); S.parental.hidden[id] = !S.parental.hidden[id]; return true; }
+  setPath(k, !getPath(k)); return true;
+}
+function doToggle(el, k) {
+  if (k === 'parental.on') {
+    if (!S.parental.on) pinPrompt({title: 'Create a PIN', sub: 'Choose four digits you will remember.', mode: 'set', onOk: () => { S.parental.on = true; SET.unlocked = true; save(); afterChange(); renderSection(); toast('Parental Controls on', 'shield'); }});
+    else { S.parental.on = false; save(); afterChange(); renderSection(); toast('Parental Controls off', 'shield'); }
+    return;
+  }
+  setTogglePath(k);
+  const on = k.startsWith('pcat.') ? !!S.parental.cats[k.slice(5)] : k.startsWith('phide.') ? !!S.parental.hidden[k.slice(6)] : !!getPath(k);
+  $$(`[data-k="${CSS.escape(k)}"]`).forEach(n => { const s = $('.switch', n); if (s) s.classList.toggle('on', on); n.setAttribute('aria-checked', on); });
+  save(); afterChange(k);
+}
+function doSet(el, k, v) {
+  const num = typeof getPath(k) === 'number'; setPath(k, num ? Number(v) : v);
+  const seg = el.closest('.seg'); if (seg) $$('.opt', seg).forEach(o => { const s = o === el; o.classList.toggle('sel', s); o.setAttribute('aria-checked', s); });
+  save(); afterChange(k);
+}
+function afterChange(k) {
+  applySettings();
+  if (k === 'clock') { tick(); }
+  if (k === 'ambientAfter') bumpIdle();
+  if (k === 'reduceMotion' && F.cur) ensureVisible(F.cur);
+  if (k && (k.startsWith('pcat.') || k.startsWith('phide.')) || !k) { renderHome(); storeRefresh(); }
+  if (k === 'textSize' || k === 'effects') { _rem = 0; setTimeout(() => { if (curScreen === 'settings') renderSection(); if (F.cur) ensureVisible(F.cur); }, 30); }
+  const qm = layers.find(l => l.qm); if (qm) refreshQuick(qm);
+}
+
+/* detection — real values where the browser exposes them */
+const DET = {hz: 0, codec: {}, ch: '', spatial: '', ran: false};
+function detectDisplay() {
+  const dpr = devicePixelRatio || 1, pw = Math.round(screen.width * dpr), ph = Math.round(screen.height * dpr);
+  const long = Math.max(pw, ph), short = Math.min(pw, ph);
+  const [label, sh] = long >= 3800 || short >= 2100 ? ['4K UHD (2160p)', '4K'] : long >= 2500 ? ['QHD (1440p)', '1440p'] : long >= 1900 ? ['Full HD (1080p)', '1080p'] : long >= 1270 ? ['HD (720p)', '720p'] : ['Standard definition', 'SD'];
+  return {pw, ph, label: label + ' · browser-reported', short: sh,
+    hdr: mm('(dynamic-range: high)') || mm('(video-dynamic-range: high)'),
+    gamut: mm('(color-gamut: rec2020)') ? 'Rec. 2020' : mm('(color-gamut: p3)') ? 'Display P3' : mm('(color-gamut: srgb)') ? 'sRGB' : 'Not reported'};
+}
+async function probe(cfgs) {
+  if (!navigator.mediaCapabilities || !navigator.mediaCapabilities.decodingInfo) return 'Not reported';
+  let any = false;
+  for (const c of cfgs) { try { const r = await navigator.mediaCapabilities.decodingInfo(c); any = true; if (r.supported) return 'Supported (reported)'; } catch (e) {} }
+  return any ? 'Not supported (reported)' : 'Not reported';
+}
+function runDetection() {
+  if (DET.ran) return; DET.ran = true;
+  const V = (codec, extra) => ({type: 'media-source', video: Object.assign({contentType: `video/mp4; codecs="${codec}"`, width: 3840, height: 2160, bitrate: 20000000, framerate: 24}, extra)});
+  const VP9 = extra => ({type: 'media-source', video: Object.assign({contentType: 'video/webm; codecs="vp09.02.51.10.01.09.16.09.00"', width: 3840, height: 2160, bitrate: 20000000, framerate: 24}, extra)});
+  const pq = {colorGamut: 'rec2020', transferFunction: 'pq'};
+  const jobs = {
+    hdr10: [V('hvc1.2.4.L153.B0', Object.assign({hdrMetadataType: 'smpteSt2086'}, pq)), VP9(Object.assign({hdrMetadataType: 'smpteSt2086'}, pq))],
+    hdr10p: [V('hvc1.2.4.L153.B0', Object.assign({hdrMetadataType: 'smpteSt2094-40'}, pq))],
+    dv: [V('dvh1.05.06', Object.assign({hdrMetadataType: 'smpteSt2094-10'}, pq))],
+    hlg: [V('hvc1.2.4.L153.B0', {colorGamut: 'rec2020', transferFunction: 'hlg'}), VP9({colorGamut: 'rec2020', transferFunction: 'hlg'})],
+  };
+  for (const [k, cfg] of Object.entries(jobs)) probe(cfg).then(r => { DET.codec[k] = r; const n = $('#det-' + k); if (n) n.textContent = r; });
+  probe([{type: 'media-source', audio: {contentType: 'audio/mp4; codecs="ec-3"', channels: '16', bitrate: 768000, samplerate: 48000, spatialRendering: true}}]).then(r => { DET.spatial = r; const n = $('#det-sp'); if (n) n.textContent = r; });
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) { const ac = new AC(); DET.ch = String(ac.destination.maxChannelCount || 'Not reported'); ac.close && ac.close().catch(() => {}); } else DET.ch = 'Not reported';
+  } catch (e) { DET.ch = 'Not reported'; }
+  const n = $('#det-ch'); if (n) n.textContent = DET.ch;
+}
+
+/* quick menu (slides in from the right) */
+function quickHTML() {
+  return `<div class="qm-h">${ico('sliders')} Quick Menu</div><div class="qm-list vscroll" data-row="qm">
+    ${choiceRow('theme', 'Theme', '', [['dark', 'Dark'], ['light', 'Light']], S.theme === 'auto' ? (darkMQ.matches ? 'dark' : 'light') : S.theme)}
+    ${toggleRow('reduceMotion', 'Reduce Motion', '', S.reduceMotion)}
+    ${actRow('nextwp', 'Next wallpaper', WALLS.find(w => w.id === S.wallpaper).name, 'nextwp', ico('image'))}
+    ${actRow('amb', 'Ambient screen', 'Show only the clock', 'ambient', ico('moon'))}
+    ${actRow('fs', 'Full screen', '', 'fullscreen', ico('full'))}
+    ${actRow('qstore', 'Store', '', 'screen:store', ico('store'))}
+    ${actRow('qset', 'Settings', '', 'screen:settings', ico('gear'))}</div>`;
+}
+function openQuick() { const L = openLayer({cls: 'side', label: 'Quick menu', html: `<div class="glass-strong" style="position:absolute;inset:0;border-radius:inherit;z-index:-1"></div>` + quickHTML(), def: '.opt.sel'}); L.qm = true; L.panel.classList.add('qm'); }
+function refreshQuick(L) {
+  const k = F.cur && L.panel.contains(F.cur) ? F.cur.dataset.k : null;
+  L.panel.innerHTML = `<div class="glass-strong" style="position:absolute;inset:0;border-radius:inherit;z-index:-1"></div>` + quickHTML();
+  const n = k && $(`[data-k="${CSS.escape(k)}"]`, L.panel); dropFocus(); n ? setFocus(n, {noScroll: true}) : ensureFocus();
+}
+
+/* fullscreen */
+function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (root.requestFullscreen) root.requestFullscreen().catch(() => toast('Full screen is not available here', 'info'));
+    else toast('Full screen is not available here', 'info');
+  } catch (e) { toast('Full screen is not available here', 'info'); }
+}
+
+/* ---------------- GAME: Glow Snake (built-in, original) ---------------- */
+const G = {cols: 32, rows: 18, run: false, raf: 0};
+function gameEnter() {
+  const el = SCREENS.game.el;
+  el.innerHTML = `<div class="scr-head"><div class="scr-title">${ico('snake')}<span>Glow Snake</span></div><div class="badge real">Lumora Original</div></div>
+    <div class="g-wrap"><div class="g-hud"><div>Score <b id="g-score">0</b></div><div><span>Best</span> <b id="g-best">${S.best}</b></div></div><canvas id="g-cv" aria-label="Game board"></canvas></div>
+    <div class="g-over glass-strong" id="g-over"></div>`;
+  gameReset(); gameMenu('start');
+}
+function gameReset() {
+  const cv = $('#g-cv'); const r = cv.getBoundingClientRect(); const dpr = Math.min(2, devicePixelRatio || 1);
+  cv.width = Math.max(320, Math.round(r.width * dpr)); cv.height = Math.max(180, Math.round(r.height * dpr));
+  G.snake = [[8, 9], [7, 9], [6, 9]]; G.dir = [1, 0]; G.next = [1, 0]; G.score = 0; G.acc = 0; G.last = 0; G.step = 125;
+  placeFood(); $('#g-score').textContent = '0'; draw();
+}
+function placeFood() { do { G.food = [Math.floor(Math.random() * G.cols), Math.floor(Math.random() * G.rows)]; } while (G.snake.some(s => s[0] === G.food[0] && s[1] === G.food[1])); }
+function gameMenu(kind) {
+  const o = $('#g-over'); G.run = false; cancelAnimationFrame(G.raf);
+  const t = {start: ['Glow Snake', 'Use the arrow keys to steer. Eat the light, avoid your tail.', 'Play'], pause: ['Paused', 'Take a breather.', 'Resume'], over: ['Game over', `You scored ${G.score}.`, 'Play again']}[kind];
+  o.innerHTML = `<h2>${t[0]}</h2><p>${t[1]}</p><div class="actions"><button class="btn primary fx" data-f data-act="g:${kind === 'pause' ? 'resume' : 'play'}" tabindex="-1">${ico('play')}${t[2]}</button><button class="btn fx" data-f data-act="home" tabindex="-1">Exit</button></div>`;
+  o.classList.remove('off'); dropFocus(); ensureFocus();
+}
+function gamePlay(resume) {
+  if (!resume) gameReset();
+  $('#g-over').classList.add('off'); dropFocus();
+  G.run = true; G.last = performance.now(); G.raf = requestAnimationFrame(loop);
+}
+function loop(t) {
+  if (!G.run) return;
+  G.acc += t - G.last; G.last = t;
+  while (G.acc >= G.step && G.run) { G.acc -= G.step; stepGame(); }
+  draw(); if (G.run) G.raf = requestAnimationFrame(loop);
+}
+function stepGame() {
+  if (G.next[0] !== -G.dir[0] || G.next[1] !== -G.dir[1]) G.dir = G.next;
+  const h = [G.snake[0][0] + G.dir[0], G.snake[0][1] + G.dir[1]];
+  if (h[0] < 0 || h[1] < 0 || h[0] >= G.cols || h[1] >= G.rows || G.snake.some(s => s[0] === h[0] && s[1] === h[1])) {
+    if (G.score > S.best) { S.best = G.score; save(); $('#g-best').textContent = S.best; }
+    gameMenu('over'); return;
+  }
+  G.snake.unshift(h);
+  if (h[0] === G.food[0] && h[1] === G.food[1]) { G.score++; $('#g-score').textContent = G.score; G.step = Math.max(65, G.step - 3); placeFood(); } else G.snake.pop();
+}
+function draw() {
+  const cv = $('#g-cv'); if (!cv) return; const x = cv.getContext('2d'); const W = cv.width, H = cv.height, cw = W / G.cols, ch = H / G.rows;
+  x.fillStyle = '#05080c'; x.fillRect(0, 0, W, H);
+  x.fillStyle = 'rgba(255,255,255,.035)';
+  for (let i = 0; i < G.cols; i++) for (let j = 0; j < G.rows; j++) if ((i + j) % 2) x.fillRect(i * cw, j * ch, cw, ch);
+  const glow = !lite;
+  x.shadowColor = '#ffd166'; x.shadowBlur = glow ? cw * .8 : 0; x.fillStyle = '#ffd166';
+  x.beginPath(); x.arc((G.food[0] + .5) * cw, (G.food[1] + .5) * ch, cw * .32, 0, Math.PI * 2); x.fill();
+  x.shadowColor = '#4fe3c1'; x.shadowBlur = glow ? cw * .6 : 0;
+  G.snake.forEach((s, i) => { x.fillStyle = i ? `rgba(79,227,193,${Math.max(.35, 1 - i / (G.snake.length + 4))})` : '#b8fff0'; const p = cw * .1; x.beginPath(); x.roundRect ? x.roundRect(s[0] * cw + p, s[1] * ch + p, cw - 2 * p, ch - 2 * p, cw * .25) : x.rect(s[0] * cw + p, s[1] * ch + p, cw - 2 * p, ch - 2 * p); x.fill(); });
+  x.shadowBlur = 0;
+}
+function gameKey(k) {
+  const d = {up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0]}[k];
+  if (d) { G.next = d; return true; }
+  if (k === 'ok' || k === 'space' || k === 'back' || k === 'backspace') { gameMenu('pause'); return true; }
+  return false;
+}
+function gameBack() { if ($('#g-over') && !$('#g-over').classList.contains('off')) show('home'); else gameMenu('pause'); }
+function gameLeave() { G.run = false; cancelAnimationFrame(G.raf); }
+
+/* =====================================================================
+   ACTIONS
+   ===================================================================== */
+const HOOKS = {
+  tab(el) { if (!el.dataset.tab) return; clearTimeout(ST.tabT); ST.tabT = setTimeout(() => { if (F.cur === el && ST.tab !== el.dataset.tab) selectTab(el.dataset.tab); }, 110); },
+  side(el) { const s = el.dataset.sec; if (!s || s === SET.sec) return; clearTimeout(SET.renderT); SET.renderT = setTimeout(() => { if (F.cur !== el) return; SET.sec = s; SET.unlocked = false; $$('#s-settings .side-item').forEach(b => b.classList.toggle('sel', b.dataset.sec === s)); renderSection(true); }, 90); },
+};
+function activate(el) {
+  if (!el || el.getAttribute('aria-disabled') === 'true') return;
+  const act = el.dataset.act; if (!act) return;
+  const i = act.indexOf(':'); const k = i < 0 ? act : act.slice(0, i), v = i < 0 ? '' : act.slice(i + 1);
+  const L = layers[layers.length - 1];
+  switch (k) {
+    case 'open': openApp(v, el); break;
+    case 'search': show('store', {tab: 'search'}); break;
+    case 'quick': openQuick(); break;
+    case 'screen': closeAllLayers(); show(v); break;
+    case 'home': goHome(); break;
+    case 'relaunch': { const a = APPS[v]; const w = window.open(a.url, '_blank'); if (w) w.opener = null; else toast('The new tab was blocked — try “Open in this tab”', 'info'); break; }
+    case 'here': location.href = APPS[v].url; break;
+    case 'show': { const s = SHOWS[+v]; openLayer({label: s.t, def: '#show-close', html: `<div class="dlg show-dlg glass-strong"><img alt="" src="${sceneSVG(s.t, s.c[0], s.c[1], 1200, 525)}"><div class="body"><h2>${esc(s.t)}</h2><p>${esc(s.g)} · ${esc(s.d)}</p><p style="font-size:calc(1.2rem * var(--ts))">${ico('info')} Fictional title with original concept artwork. Not available to watch.</p><div class="actions"><button class="btn primary fx" data-f data-act="dlgcancel" id="show-close" tabindex="-1">Close</button><button class="btn fx" data-f data-act="screen:store" tabindex="-1">${ico('store')}Browse the Store</button></div></div></div>`}); break; }
+    case 'tab': selectTab(v); { const p = $(`#p-${v}`); const f = p && $$('[data-f]', p).find(visible); if (f) setFocus(f, {dir: 'down'}); } break;
+    case 'cat': openCat(v); break;
+    case 'app': openDetail(v); break;
+    case 'hero': openDetail(HERO[ST.hero]); break;
+    case 'install': install(v); break;
+    case 'key': typeKey(v); break;
+    case 'sec': { const f = $$('#set-main [data-f]').find(visible); if (f) setFocus(f, {dir: 'right'}); break; }
+    case 'tog': doToggle(el, v); break;
+    case 'set': { const j = v.lastIndexOf(':'); doSet(el, v.slice(0, j), v.slice(j + 1)); break; }
+    case 'wp': S.wallpaper = v; save(); setWallpaper(v); renderSection(); break;
+    case 'nextwp': { const ix = WALLS.findIndex(w => w.id === S.wallpaper); S.wallpaper = WALLS[(ix + 1) % WALLS.length].id; save(); setWallpaper(S.wallpaper); if (L && L.qm) refreshQuick(L); break; }
+    case 'ambient': enterAmbient(); break;
+    case 'fullscreen': toggleFullscreen(); break;
+    case 'punlock': pinPrompt({title: 'Enter PIN', sub: 'Unlock Parental Controls settings.', onOk: () => { SET.unlocked = true; renderSection(); const f = $('#set-main [data-k="parental.on"]'); if (f) setFocus(f); }}); break;
+    case 'chpin': pinPrompt({title: 'Create a PIN', sub: 'Choose four new digits.', mode: 'set', onOk: () => toast('PIN changed', 'shield')}); break;
+    case 'erase': confirmDlg('Erase all local data?', 'Every setting, your Home layout and the Parental Controls PIN will be reset on this device.', 'Erase', () => { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); }); break;
+    case 'pin': if (L) pinInputSync(L, v); break;
+    case 'dlgcancel': closeLayer(); break;
+    case 'dlgok': { const cb = L && L.ok; closeLayer(L, true); cb && cb(); break; }
+    case 'oopen': { const {id, tile} = L; closeLayer(L, true); openApp(id, tile); break; }
+    case 'omove': { const {row, id} = L; closeLayer(L, true); startMove(row, id); break; }
+    case 'oremove': { if (v) { removeApp(v); break; } const {id} = L; closeLayer(L, true); removeApp(id); break; }
+    case 'ostore': { const {id} = L; closeAllLayers(); show('store'); openDetail(id); break; }
+    case 'g': gamePlay(v === 'resume'); break;
+  }
+}
+
+/* =====================================================================
+   INPUT — remote / keyboard / mouse / touch
+   ===================================================================== */
+function keyOf(e) {
+  const k = e.key, c = e.keyCode;
+  if (k === 'ArrowUp' || k === 'Up' || c === 38) return 'up';
+  if (k === 'ArrowDown' || k === 'Down' || c === 40) return 'down';
+  if (k === 'ArrowLeft' || k === 'Left' || c === 37) return 'left';
+  if (k === 'ArrowRight' || k === 'Right' || c === 39) return 'right';
+  if (k === 'Enter' || k === 'Select' || k === 'Accept' || c === 13) return 'ok';
+  if (k === 'Escape' || k === 'Esc' || k === 'BrowserBack' || k === 'GoBack' || k === 'Back' || c === 27 || c === 461 || c === 10009) return 'back';
+  if (k === 'Backspace' || c === 8) return 'backspace';
+  if (k === 'Home' || k === 'BrowserHome' || k === 'GoHome' || c === 36) return 'home';
+  if (k === 'ContextMenu' || k === 'Info' || k === 'ContextMenu' || c === 93 || c === 457) return 'menu';
+  if (k === 'Tab') return e.shiftKey ? 'left' : 'right';
+  if (k === ' ' || k === 'Spacebar') return 'space';
+  if (/^[0-9]$/.test(k)) return 'digit';
+  if (k && k.length === 1) return 'char';
+  return null;
+}
+let hold = null;
+function setKbd(on) { root.classList.toggle('kbd', on); }
+const searching = () => curScreen === 'store' && ST.view === 'tabs' && ST.tab === 'search' && !layers.length;
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  let k = keyOf(e); if (!k) return;
+  e.preventDefault(); setKbd(true); bumpIdle();
+  if (isAmbient()) { if (!e.repeat) exitAmbient(); return; }
+  if (curScreen === 'game' && G.run && !layers.length) { gameKey(k); return; }
+  const top = layers[layers.length - 1];
+  if (top && top.onKey && top.onKey(k, e)) return;
+  if (searching() && (k === 'char' || k === 'digit')) { typeKey(e.key.toLowerCase()); return; }
+  if (searching() && k === 'backspace' && ST.q) { typeKey('del'); return; }
+  if (k === 'char') { const c = e.key.toLowerCase(); if (c === 'h') k = 'home'; else if (c === 'o' || c === 'm') k = 'menu'; else return; }
+  switch (k) {
+    case 'up': case 'down': case 'left': case 'right': if (moving) moveTile(k); else move(k); break;
+    case 'ok': case 'space':
+      if (e.repeat) return;
+      if (moving) { endMove(); toast('Done', 'check'); break; }
+      if (!inScope(F.cur)) { ensureFocus(); break; }
+      if (F.cur.dataset.hold) { const el = F.cur; hold = {el, k, fired: false, t: setTimeout(() => { hold.fired = true; openOptions(el); }, 560)}; }
+      else activate(F.cur);
+      break;
+    case 'back': case 'backspace': if (!e.repeat) goBack(); break;
+    case 'home': if (!e.repeat) goHome(); break;
+    case 'menu': if (!e.repeat && !moving && F.cur && F.cur.dataset.hold) openOptions(F.cur); break;
+  }
+  setTimeout(ensureFocus, 0);
+});
+document.addEventListener('keyup', e => {
+  const k = keyOf(e);
+  if ((k === 'ok' || k === 'space') && hold && hold.k === k) {
+    clearTimeout(hold.t); const h = hold; hold = null;
+    if (!h.fired && h.el === F.cur && inScope(h.el)) activate(h.el);
+  }
+});
+/* pointer */
+let lp = null, lpFired = false;
+document.addEventListener('pointermove', e => {
+  if (e.pointerType === 'mouse') { if (root.classList.contains('kbd')) setKbd(false); }
+  bumpIdle();
+  const t = F.cur; if (!t || !t.classList.contains('tile') || S.reduceMotion || e.pointerType !== 'mouse') return;
+  if (!t.contains(e.target)) { if (t.classList.contains('tracking')) { t.classList.remove('tracking'); t.style.setProperty('--px', 0); t.style.setProperty('--py', 0); } return; }
+  const r = t.getBoundingClientRect(); const px = (e.clientX - r.left) / r.width - .5, py = (e.clientY - r.top) / r.height - .5;
+  t.classList.add('tracking'); t.style.setProperty('--px', Math.max(-.5, Math.min(.5, px)).toFixed(3)); t.style.setProperty('--py', Math.max(-.5, Math.min(.5, py)).toFixed(3));
+  if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 12) { clearTimeout(lp.t); lp = null; }
+}, {passive: true});
+document.addEventListener('pointerover', e => {
+  if (e.pointerType !== 'mouse' || isAmbient() || moving) return;
+  const el = e.target.closest && e.target.closest('[data-f]');
+  if (el && inScope(el) && !(curScreen === 'game' && G.run)) setFocus(el, {src: 'pointer'});
+});
+document.addEventListener('pointerdown', e => {
+  bumpIdle();
+  if (e.pointerType === 'mouse') return;
+  const el = e.target.closest && e.target.closest('[data-f][data-hold]');
+  lpFired = false;
+  if (el) lp = {x: e.clientX, y: e.clientY, t: setTimeout(() => { lpFired = true; setFocus(el, {src: 'pointer'}); openOptions(el); lp = null; }, 600)};
+}, {passive: true});
+['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, () => { if (lp) { clearTimeout(lp.t); lp = null; } }, {passive: true}));
+document.addEventListener('click', e => {
+  if (isAmbient()) { exitAmbient(); return; }
+  if (lpFired) { lpFired = false; return; }
+  if (e.target.closest('[data-close]')) { closeLayer(); return; }
+  if (curScreen === 'game' && G.run && !layers.length) { gameMenu('pause'); return; }
+  const el = e.target.closest('[data-f]'); if (!el || !inScope(el)) return;
+  if (moving) { endMove(); return; }
+  setFocus(el, {src: 'pointer'}); activate(el);
+  setTimeout(ensureFocus, 0);
+});
+document.addEventListener('contextmenu', e => {
+  const el = e.target.closest('[data-f][data-hold]'); e.preventDefault();
+  if (el && inScope(el) && !lpFired) { setFocus(el, {src: 'pointer'}); openOptions(el); }
+});
+document.addEventListener('focusin', e => { const el = e.target.closest && e.target.closest('[data-f]'); if (el && el !== F.cur && inScope(el)) setFocus(el, {noScroll: true}); });
+let wheelLock = 0;
+$('#s-home').addEventListener('wheel', e => {
+  if (Math.abs(e.deltaY) < Math.abs(e.deltaX) || Math.abs(e.deltaY) < 8) return;
+  const now = Date.now(); if (now - wheelLock < 350) return; wheelLock = now;
+  move(e.deltaY > 0 ? 'down' : 'up');
+}, {passive: true});
+
+/* =====================================================================
+   PERFORMANCE — measure fps, auto-reduce effects if it drops.
+   ===================================================================== */
+let autoLite = false, fps = 60, frames = 0, last = performance.now(), low = 0, hzSamples = [], lastF = 0;
+const lowPower = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) || (navigator.deviceMemory && navigator.deviceMemory <= 2);
+if (lowPower) { autoLite = true; liteReason = 'low-power device'; }
+function perfStatus() { return `${lite ? 'Lite' : 'Full'} effects · ${Math.round(fps)} fps${lite && S.effects === 'auto' && liteReason ? ` (auto: ${liteReason})` : ''}`; }
+function frame(t) {
+  frames++;
+  if (lastF && hzSamples.length < 90) { const dt = t - lastF; if (dt > 4 && dt < 60) hzSamples.push(dt); if (hzSamples.length === 90) { hzSamples.sort((a, b) => a - b); const med = hzSamples[45]; const hz = 1000 / med; DET.hz = [24, 30, 48, 50, 60, 75, 90, 100, 120, 144, 165, 240].reduce((a, b) => Math.abs(b - hz) < Math.abs(a - hz) ? b : a); const n = $('#v-hz'); if (n) n.textContent = `≈ ${DET.hz} Hz`; } }
+  lastF = t;
+  if (t - last >= 1000) {
+    fps = frames * 1000 / (t - last); frames = 0; last = t;
+    $('#fps').textContent = Math.round(fps) + ' fps';
+    const target = DET.hz ? Math.min(60, DET.hz) : 60;
+    if (S.effects === 'auto' && !autoLite && performance.now() > 4000 && !document.hidden) {
+      if (fps < target * 0.75) low++; else low = Math.max(0, low - 1);
+      if (low >= 3) { autoLite = true; liteReason = 'frame rate dropped'; applySettings(); toast('Effects reduced to keep things smooth', 'gauge'); }
+    }
+    const p = $('#v-perfnow'); if (p) p.textContent = perfStatus();
+  }
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { last = performance.now(); frames = 0; lastF = 0; });
+
+/* =====================================================================
+   BOOT
+   ===================================================================== */
+const bootStart = performance.timeOrigin ? 0 : performance.now();
+let bootMs = 0;
+applySettings();
+setWallpaper(S.wallpaper);
+tick();
+renderHome();
+SCREENS.home.el.classList.add('active'); SCREENS.home.el.removeAttribute('inert');
+ensureFocus();
+bootMs = Math.round(performance.now() - bootStart);
+requestAnimationFrame(frame);
+bumpIdle();
+setInterval(() => { if (!(curScreen === 'game' && G.run) && !isAmbient()) ensureFocus(); }, 800);
+window.__lumora = {S, F, get screen() { return curScreen; }, layers, ST, SET, get bootMs() { return bootMs; }};
+})();
+</script>
+</body>
+</html>
