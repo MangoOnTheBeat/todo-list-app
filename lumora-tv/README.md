@@ -4,13 +4,42 @@ Lumora is a web app: one file, `index.html`, that runs full screen in a browser 
 
 ## Using it on your TV
 
-Lumora can't replace or "dual boot" the system built into your TV. Smart TVs (Samsung Tizen, LG webOS, Google TV and others) have locked firmware, and trying to flash it can brick the TV and void the warranty. These three options work, from easiest to most complete:
+Lumora can't replace the system built into your TV. Smart TVs (Samsung Tizen, LG webOS, Google TV and others) have locked firmware, and trying to flash it can brick the TV and void the warranty. These options work:
 
 | | What you need | How you "swap OS" | Effort |
 |---|---|---|---|
+| **0. Google TV device + Lumora app** (best: a real home screen) | A Google TV Streamer or Chromecast with Google TV, plugged into an HDMI port | Lumora *is* the home screen; the TV's own system stays on its HDMI input | About 20 minutes |
 | **1. TV web browser** | Nothing extra | Open or close the browser | 5 minutes |
 | **2. Lumora TV box** (recommended) | Raspberry Pi 4/5, power supply, microSD, HDMI cable | Remote's **Input / Source** button | About 30 minutes |
 | **3. App on an LG or Samsung TV** | A PC and the TV maker's free developer tools | Open Lumora from the TV's app list | About 1 hour (advanced) |
+
+### 0. Lumora as the home screen on a Google TV device (recommended)
+
+Your Hisense U7 runs VIDAA, which can't install Android apps. A Google TV device plugged into one of the TV's HDMI ports can, and there Lumora replaces the home screen. Netflix, YouTube, Disney+ and the rest run as the real apps, at full quality, with their own sign-in and subscriptions.
+
+1. **Get the app.** Open the repository on GitHub, go to *Actions → Lumora Android TV app*, open the latest green run and download **lumora-tv-apk** (a zip with `app-debug.apk` inside).
+2. **Install it.** On the Google TV, open *Settings → System → About* and press *Android TV OS build* 7 times to turn on developer options. Then use either:
+   - **Downloader** (free from Google Play): allow it under *Settings → Apps → Security & restrictions → Unknown sources*, put the APK online, and open its link in Downloader.
+   - **adb** from a computer on the same Wi-Fi: turn on *Developer options → USB debugging* (or *Wireless debugging*), then run `adb connect <tv-ip>` and `adb install app-debug.apk`.
+3. **Make it the home screen.** Google TV has no setting to change the home screen, so this needs adb (it's fully reversible):
+   ```
+   adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
+   adb shell pm disable-user --user 0 com.google.android.tungsten.setupwraith
+   ```
+   Press Home and choose **Lumora**, then **Always**. **To go back to Google TV's own home screen:**
+   ```
+   adb shell pm enable com.google.android.apps.tv.launcherx
+   adb shell pm enable com.google.android.tungsten.setupwraith
+   ```
+   If you'd rather not use adb, open Lumora from the app list instead. Everything works, but the Home button goes to Google TV's home screen.
+4. **Optional: show what's playing in Control Centre.** Android only lets an app read the current song or video once you grant it notification access. On most Google TV devices there's no menu for this, so run:
+   `adb shell cmd notification allow_listener app.lumora.tv/app.lumora.tv.MediaListener`
+   Play, pause and skip already work without it.
+5. **Optional: real new releases in For You.** Make a free account at themoviedb.org, go to *Settings → API* to get a key, and type it into *Lumora Settings → For You*.
+
+**Switching between Lumora and VIDAA:** press **Input** on the Hisense remote and choose the Google TV's HDMI port for Lumora, or *TV / Home* for VIDAA. With HDMI-CEC on (*Settings → System → HDMI & CEC* on the Hisense), the Hisense remote's arrows, OK and Back control Lumora, and switching the TV off also puts the Google TV to sleep.
+
+**Power and resume.** If the TV is switched off and back on within the resume window (*Settings → Power & Startup*, 1 minute by default), Lumora returns to the same screen and item. An app that was open stays open, because Android keeps it running while asleep. Lumora's own *Turn off* plays the switch-off animation and goes to standby; your remote's power button switches the TV itself off. A full power cut restarts the Google TV, which usually takes longer than a minute, so a longer resume window helps there.
 
 ### 1. In your TV's web browser (quickest)
 
