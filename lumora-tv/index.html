@@ -1720,7 +1720,8 @@ const SECTION_HTML = {
       ${infoRow('k4', 'Return home', 'Home key · H')}
       ${infoRow('k5', 'App options (move / remove)', 'Hold OK · Menu key · O')}
       ${infoRow('k6', 'Remote cursor', 'C · arrows move · OK clicks · Back off')}
-      ${infoRow('k6b', 'Lumora Assistant', 'V · mic key on supported remotes')}
+      ${infoRow('k6b', 'Lumora Assistant', 'V · Red button · mic key on supported remotes')}
+      ${infoRow('k6c', 'Colour buttons', 'Red Assistant · Green Control Centre · Yellow Search · Blue Settings')}
       ${infoRow('k7', 'PIN entry', 'Number keys 0–9')}
       ${infoRow('k8', 'Mouse & touch', 'Hover / tap · right-click or long-press')}
     </div>
@@ -2139,6 +2140,12 @@ function keyOf(e) {
   if (k === 'Home' || k === 'BrowserHome' || k === 'GoHome' || c === 36) return 'home';
   if (k === 'ContextMenu' || k === 'Info' || c === 93 || c === 457) return 'menu';
   if (k === 'MicrophoneToggle' || k === 'SpeechInputToggle' || k === 'LaunchAssistant' || k === 'VoiceDial') return 'assist';
+  /* TV remote colour buttons and EXIT (HDMI-CEC / TV browsers) */
+  if (k === 'ColorF0Red' || c === 403) return 'red';
+  if (k === 'ColorF1Green' || c === 404) return 'green';
+  if (k === 'ColorF2Yellow' || c === 405) return 'yellow';
+  if (k === 'ColorF3Blue' || c === 406) return 'blue';
+  if (k === 'Exit' || c === 10182) return 'home';
   if (k === 'Tab') return e.shiftKey ? 'left' : 'right';
   if (k === ' ' || k === 'Spacebar') return 'space';
   if (/^[0-9]$/.test(k)) return 'digit';
@@ -2188,7 +2195,10 @@ document.addEventListener('keydown', e => {
     case 'back': case 'backspace': if (!e.repeat) goBack(); break;
     case 'home': if (!e.repeat) goHome(); break;
     case 'menu': if (!e.repeat && !moving && F.cur && F.cur.dataset.hold) openOptions(F.cur); break;
-    case 'assist': if (!e.repeat) openAssistant(); break;
+    case 'assist': case 'red': if (!e.repeat) openAssistant(); break;
+    case 'green': if (!e.repeat) { if (layers.find(l => l.qm)) closeAllLayers(); else openQuick(); } break;
+    case 'yellow': if (!e.repeat) { closeAllLayers(); show('store', {tab: 'search'}); } break;
+    case 'blue': if (!e.repeat) { closeAllLayers(); show('settings'); } break;
   }
   setTimeout(ensureFocus, 0);
 });
