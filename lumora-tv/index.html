@@ -17,7 +17,7 @@
   --spring-soft:cubic-bezier(.25,1.1,.4,1);
   --out:cubic-bezier(.16,1,.3,1);
   --ts:1; --rs:1; --blur:2.4rem; --sat:180%;
-  --home-tw:17.5rem;
+  --home-tw:15.2rem;
   --font:system-ui,"Segoe UI",Roboto,"Noto Sans","Helvetica Neue",Arial,sans-serif;
   --accent:#e9ebf0; --glow-o:.55; --dim:0; --clock-w:200;
 }
@@ -48,7 +48,7 @@
 .glass-clear{--blur:1.2rem;--sat:150%}
 .glass-clear.theme-dark{--glass:rgba(255,255,255,.035)}
 .corners-soft{--rs:.55}.corners-xround{--rs:1.45}
-.icons-compact{--home-tw:15rem}.icons-large{--home-tw:20rem}
+.icons-compact{--home-tw:13rem}.icons-large{--home-tw:18rem}
 
 *{box-sizing:border-box}
 html{font-size:max(7px,min(calc(100vw / 120),calc(100vh / 67.5)));height:100%;background:var(--bg)}
@@ -211,7 +211,7 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 .vscroll{overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 
 /* ---------- HOME ---------- */
-#s-home .topbar{position:absolute;top:3.2rem;left:6rem;right:6rem;display:flex;align-items:center;justify-content:space-between;z-index:3;transition:opacity .5s,transform .6s var(--spring-soft)}
+#s-home .topbar{position:absolute;top:3.2rem;left:6rem;right:6rem;display:flex;align-items:center;justify-content:flex-end;z-index:3;transition:opacity .5s,transform .6s var(--spring-soft)}
 .brand{display:flex;align-items:center;gap:1rem;font-weight:650;font-size:calc(1.6rem * var(--ts));letter-spacing:.01em;opacity:.9}
 .brand .logo{width:3rem;height:3rem}
 .status{display:flex;align-items:center;gap:.6rem;padding:.5rem;border-radius:3rem}
@@ -225,9 +225,19 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 .clock-small .date{font-size:calc(1.6rem * var(--ts));margin-top:.5rem}
 .clock-hidden .clock-wrap{display:none}
 .status .stime{display:none}
+.status .chipi{display:flex;align-items:center;gap:.6rem;padding:0 1rem;font-weight:600;font-size:calc(1.3rem * var(--ts));font-variant-numeric:tabular-nums;white-space:nowrap}
+.status .chipi .i{font-size:1.9rem}
+.status .chipi.off{opacity:.45}
+.avatar{width:4.6rem;height:4.6rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:calc(1.7rem * var(--ts))}
+.avatar::before{background:rgba(255,255,255,.2)!important}
+.clock-corner .clock-wrap{top:2.6rem}
+.clock-corner .clock{font-size:calc(5.2rem * min(var(--ts),1.1));text-shadow:0 .2rem 1.8rem rgba(0,0,0,.35)}
+.clock-corner .date{font-size:calc(1.25rem * var(--ts));margin-top:.4rem;opacity:.85;text-shadow:0 .1rem .8rem rgba(0,0,0,.4)}
+.ambient.clock-corner .clock-wrap{transform:translate3d(0,17rem,0) scale(2)!important}
 .clock-hidden .status .stime{display:block}
 .home-shifted .clock-wrap{opacity:0;transform:translate3d(0,-5rem,0) scale(.94)}
-.shelf-info{position:absolute;left:6rem;right:6rem;top:32.4rem;height:6rem;display:flex;align-items:flex-end;justify-content:space-between;transition:opacity .4s ease,transform .6s var(--spring-soft)}
+.shelf-info{position:absolute;left:6rem;right:6rem;top:26.6rem;height:6rem;display:none;align-items:flex-end;justify-content:space-between;transition:opacity .4s ease,transform .6s var(--spring-soft)}
+.show-info .shelf-info{display:flex}
 .home-shifted .shelf-info{opacity:0;transform:translate3d(0,-3rem,0)}
 .si-main{display:flex;align-items:center;gap:1.4rem;min-width:0}
 .si-dot{width:1rem;height:1rem;border-radius:50%;background:var(--si-c,#fff);box-shadow:0 0 1.4rem var(--si-c,#fff);flex:0 0 auto}
@@ -236,7 +246,7 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 .si-name{font-size:calc(2.4rem * var(--ts));font-weight:700;letter-spacing:-.02em;line-height:1.1;white-space:nowrap}
 .si-sub{font-size:calc(1.25rem * var(--ts));color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .si-hint{font-size:calc(1.1rem * var(--ts));color:var(--fg3);white-space:nowrap;padding-bottom:.3rem}
-#home-stack{position:absolute;left:0;right:0;top:39.4rem;transition:transform .65s var(--spring-soft)}
+#home-stack{position:absolute;left:0;right:0;top:33.6rem;transition:transform .65s var(--spring-soft)}
 #home-stack .tile{--tw:var(--home-tw)}
 .hrow{padding-bottom:.6rem;transition:opacity .35s ease}
 .hrow.above{opacity:0;pointer-events:none}
@@ -247,6 +257,27 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 .shelf-min .dock::before{display:none}
 .no-games [data-hrow="games"]{display:none}
 .hrow-games{margin-top:1.6rem}
+.hrow-sc{margin-top:.2rem}
+#home-stack .t-rim{box-shadow:inset 0 0 0 .16rem rgba(255,255,255,.26),inset 0 1px 0 rgba(255,255,255,.5)}
+#home-stack .t-card{box-shadow:0 1rem 2.4rem rgba(0,0,0,.35)}
+.sc .t-card{background:rgba(255,255,255,.13)!important;-webkit-backdrop-filter:blur(1.8rem) saturate(170%);backdrop-filter:blur(1.8rem) saturate(170%)}
+.lite .sc .t-card,.no-transp .sc .t-card,.hc .sc .t-card{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(28,30,36,.88)!important}
+.sc .t-logo svg.i{width:3rem;height:3rem;stroke-width:1.6;color:#fff;fill:none}
+#home-stack .track{gap:1.7rem}
+.hrow-sc{margin-top:-1.4rem!important}
+.glow-off .tile{--glow:#000!important}
+#home-stack .hrow-games{margin-top:5rem}
+#s-home .status{background:rgba(10,12,18,.28)}
+.theme-light #s-home .status{background:rgba(255,255,255,.45)}
+.clock-corner .clock .ampm{display:none}
+.sc .t-title,.dev .t-title{opacity:1;transform:none;font-weight:600;text-shadow:0 .1rem .8rem rgba(0,0,0,.5)}
+.dev .t-card{background:#16171c}
+.dev .t-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.dev .t-card img.ic{inset:18%;width:64%;height:64%;object-fit:contain}
+.wp-aerial,.wp-photo{background-size:cover;background-position:center}
+.wp-aerial i.kb,.wp-photo i.kb{inset:-4%;background-size:cover;background-position:center;animation:kb 70s ease-in-out infinite alternate;opacity:0;transition:opacity 1.2s ease}
+.wp-aerial i.kb.ready,.wp-photo i.kb.ready{opacity:1}
+@keyframes kb{to{transform:scale(1.12) translate3d(-2%,1.5%,0)}}
 .ambient #s-home .topbar,.ambient #home-stack,.ambient .shelf-info{opacity:0;transform:translate3d(0,4rem,0);pointer-events:none}
 .ambient #home-stack{transition:opacity .6s,transform .8s var(--spring-soft)}
 .ambient .clock-wrap{display:block!important;opacity:1!important;transform:translate3d(0,14rem,0) scale(1.2)!important}
@@ -431,6 +462,13 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 .wall-dock .ctl .lbl{font-size:calc(1.2rem * var(--ts));font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fg3);margin-right:.4rem}
 .wall-dock .ctl .grp{display:flex;align-items:center;gap:.8rem}
 .wall-dock .track{padding:1.6rem 2.4rem 3.6rem;margin:0}
+.wall-cats{display:flex;gap:.8rem;padding:1.4rem 2.4rem 0;position:relative;z-index:1;flex-wrap:nowrap;overflow:visible}
+.wall-cats .opt{flex:0 0 auto;padding:.7rem 1.5rem;font-size:calc(1.3rem * var(--ts))}
+#s-wall::before{content:'';position:absolute;inset:0 0 40% 0;background:linear-gradient(105deg,rgba(0,0,0,.55),rgba(0,0,0,.18) 45%,transparent 70%);pointer-events:none}
+.wall-copy,#s-wall .scr-head{text-shadow:0 .1rem 1.2rem rgba(0,0,0,.45)}
+.theme-light #s-wall::before{background:linear-gradient(105deg,rgba(255,255,255,.6),transparent 60%)}
+.theme-light .wall-copy,.theme-light #s-wall .scr-head{text-shadow:none}
+.wall-count{font-size:calc(1.3rem * var(--ts));color:var(--fg2);font-weight:600}
 .wall-dock .tile{--tw:22rem;--ar:16/9}
 .wall-dock .t-title{opacity:1;transform:none}
 
@@ -606,6 +644,10 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
   <symbol id="i-wand" viewBox="0 0 24 24"><path d="M4 20L15 9M14 4v3M19 9h-3M18 5.5l-2 2M10 5.5L11 7M17.5 13l-1-1"/></symbol>
   <symbol id="i-shift" viewBox="0 0 24 24"><path d="M12 4l7.5 8H15v7H9v-7H4.5z"/></symbol>
   <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.3a9.5 9.5 0 0 1 13 0M8.6 15.6a5 5 0 0 1 6.8 0"/><circle cx="12" cy="19" r="1.2"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8.5"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></symbol>
+  <symbol id="i-input" viewBox="0 0 24 24"><path d="M4 8h16v5l-2 3H6l-2-3z"/><path d="M8 11h8"/></symbol>
   <symbol id="i-keyb" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.1M9.5 10h.1M13 10h.1M16.5 10h.1M7 14h10"/></symbol>
 </svg>
 <svg id="vcursor" viewBox="0 0 34 34" aria-hidden="true"><circle class="ring" cx="6" cy="3" r="16"/><path d="M6 3l22 12.4-9.6 2.3L14 28z" fill="#fff" stroke="#000" stroke-width="1.6" stroke-linejoin="round"/></svg>
@@ -618,13 +660,15 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 <main id="screens">
   <section class="screen" id="s-home" aria-label="Home">
     <div class="topbar">
-      <div class="brand"><svg class="logo" aria-hidden="true"><use href="#i-logo"/></svg><span>lumora</span></div>
       <div class="status lg" data-row="home-top">
+        <span class="chipi" aria-hidden="true"><svg class="i"><use href="#i-cal"/></svg><span id="st-day"></span></span>
+        <span class="chipi" id="st-net" aria-hidden="true"><svg class="i"><use href="#i-wifi"/></svg></span>
         <span class="stime" id="stime"></span>
         <button class="icon-btn fx plain" data-f data-act="assist" aria-label="Lumora Assistant"><svg class="i"><use href="#i-mic"/></svg></button>
         <button class="icon-btn fx plain" data-f data-act="search" aria-label="Search the Store"><svg class="i"><use href="#i-search"/></svg></button>
         <button class="icon-btn fx plain" data-f data-act="open:browser" aria-label="Browser"><svg class="i"><use href="#i-globe"/></svg></button>
         <button class="icon-btn fx plain" data-f data-act="quick" aria-label="Control Centre"><svg class="i"><use href="#i-sliders"/></svg></button>
+        <button class="avatar fx" data-f data-act="screen:settings" aria-label="Profile and Settings" tabindex="-1"><span id="avatar">L</span></button>
       </div>
     </div>
     <div class="clock-wrap">
@@ -637,6 +681,8 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
     </div>
     <div id="home-stack">
       <div class="hrow" data-hrow="apps"><div class="dock lg"><div class="track" data-row="home-apps" id="row-apps"></div></div></div>
+      <div class="hrow hrow-sc" data-hrow="shortcuts"><div class="track" data-row="home-sc" id="row-sc"></div></div>
+      <div class="hrow hrow-games" data-hrow="device" hidden><div class="row-h"><span>All apps on this TV</span></div><div class="track" data-row="home-dev" id="row-dev"></div></div>
       <div class="hrow hrow-games" data-hrow="games">
         <div class="row-h"><span>Games</span></div>
         <div class="track" data-row="home-games" id="row-games"></div>
@@ -753,30 +799,136 @@ const HERO = ['browser', 'spotify', 'lichess'];
 /* Sites known to refuse being shown inside another page (X-Frame-Options / CSP frame-ancestors). */
 const NOFRAME = /(^|\.)(netflix\.com|youtube\.com|youtubekids\.com|disneyplus\.com|primevideo\.com|amazon\.[a-z.]+|bbc\.co\.uk|bbc\.com|spotify\.com|twitch\.tv|google\.[a-z.]+|bing\.com|duckduckgo\.com|soundcloud\.com|deezer\.com|tidal\.com|itv\.com|channel4\.com|dazn\.com|formula1\.com|nba\.com|xbox\.com|geforcenow\.com|facebook\.com|instagram\.com|x\.com|twitter\.com|github\.com|reddit\.com|tiktok\.com|plex\.tv|vimeo\.com|ted\.com|fast\.com|hbomax\.com|max\.com|paramountplus\.com|hulu\.com|peacocktv\.com|crunchyroll\.com|tubitv\.com|pluto\.tv|roku\.com|mubi\.com|rakuten\.tv|sky\.com|nowtv\.com|channel5\.com|dailymotion\.com|kick\.com|nebula\.tv|fubo\.tv)$/i;
 
+/* Aerial wallpapers are original: each one is painted on this device from a seed and a colour palette (see genAerial),
+   so hundreds of them cost nothing to download. s = terrain scale, w = how strongly the land is warped. */
+const AERIALS = {
+  'aerial-glacier': {seed: 11, s: 1, w: 1.9, pal: [[0, '#0d2b45'], [.16, '#1c5f86'], [.3, '#5fb3cf'], [.4, '#d4ecf1'], [.48, '#f7f9f6'], [.55, '#cfe2d0'], [.62, '#86b34c'], [.71, '#3f7a2c'], [.8, '#cda63c'], [.88, '#a05d21'], [1, '#2c1d11']]},
+  'aerial-delta':   {seed: 23, s: 1, w: 1.9, pal: [[0, '#082a36'], [.22, '#0f5c6c'], [.33, '#2c9aa1'], [.4, '#d6c792'], [.48, '#9db454'], [.58, '#5e8f2f'], [.7, '#365f23'], [.8, '#b68b3b'], [.9, '#7b5427'], [1, '#e9e1c8']]},
+  'aerial-desert':  {seed: 37, s: 1, w: 1.9, pal: [[0, '#163a52'], [.12, '#2f7895'], [.2, '#e9cf9a'], [.35, '#e3ad62'], [.5, '#cd7f39'], [.62, '#a95325'], [.74, '#7a3518'], [.86, '#3d1a0d'], [1, '#f4e3c0']]},
+  'aerial-reef':    {seed: 51, s: 1, w: 1.9, pal: [[0, '#051a31'], [.2, '#0a4677'], [.36, '#0c8db1'], [.48, '#37c6c8'], [.58, '#a3f0de'], [.64, '#f3f0d9'], [.72, '#e0c88e'], [.84, '#6c9e4b'], [1, '#2f5a2a']]},
+};
 const WALLS = [
-  {id:'liquid',  name:'Liquid',     kind:'Dynamic', d:'Slow-moving light through dark glass.'},
-  {id:'horizon', name:'Horizon',    kind:'Dynamic', d:'Dawn breaking over the curve of a planet.'},
-  {id:'nocturne',name:'Nocturne',   kind:'Dynamic', d:'Soft beams drifting across a midnight sky.'},
-  {id:'aurora',  name:'Polar',      kind:'Dynamic', d:'A single-colour aurora, gently breathing.'},
-  {id:'graphite',name:'Graphite',   kind:'Still',   d:'Quiet charcoal with a touch of light.'},
-  {id:'dunes',   name:'Night Dunes',kind:'Still',   d:'Monochrome dunes under a dark sky.'},
-  {id:'deepsea', name:'Deep Sea',   kind:'Still',   d:'Teal light falling into black water.'},
-  {id:'silver',  name:'Silver',     kind:'Still',   d:'Brushed light silver — made for Light mode.'},
+  {id:'aerial-glacier', name:'Glacier Delta', kind:'Aerial', cat:'featured', d:'Ice, meltwater and green valleys seen from orbit.'},
+  {id:'aerial-delta',   name:'River Delta',   kind:'Aerial', cat:'featured', d:'Rivers braiding through farmland.'},
+  {id:'aerial-desert',  name:'Red Desert',    kind:'Aerial', cat:'featured', d:'Wind-carved dunes and dry riverbeds.'},
+  {id:'aerial-reef',    name:'Coral Reef',    kind:'Aerial', cat:'featured', d:'Turquoise shallows over a living reef.'},
 ];
+/* [id, name, scale, warp, description] */
+const WALL_CATS = [
+  ['ice', 'Ice', 1, 1.9, 'Glaciers, sea ice and frozen tundra'], ['water', 'Water', 1.1, 2.2, 'Coasts, lagoons and braided rivers'],
+  ['desert', 'Desert', .8, 2.6, 'Dunes, canyons and salt flats'], ['green', 'Green', 1.3, 1.6, 'Forests, farmland and highlands'],
+  ['fire', 'Volcanic', 1, 2.4, 'Lava fields, ash and sulphur'], ['autumn', 'Autumn', 1.2, 1.8, 'Turning leaves and harvest fields'],
+  ['mineral', 'Mineral', .9, 3, 'Marble, copper, jade and opal'], ['night', 'Night', 1, 1.8, 'Coastlines and ice after dark'],
+  ['mono', 'Mono', 1, 2.2, 'Graphite, slate and sepia'], ['dream', 'Dream', .7, 2.8, 'Soft pastel and sunset colour'],
+];
+/* [key, name, category, palette as "position:hex,…"] */
+const WALL_STYLES = [
+  ['glacier', 'Glacier', 'ice', '0:0d2b45,.16:1c5f86,.3:5fb3cf,.4:d4ecf1,.48:f7f9f6,.55:cfe2d0,.62:86b34c,.71:3f7a2c,.8:cda63c,1:2c1d11'],
+  ['arctic', 'Arctic', 'ice', '0:06192e,.25:12476b,.4:3f8fb3,.5:bfe3ee,.6:f4f8fa,.8:dfe7ee,1:9aa9b8'],
+  ['shelf', 'Ice Shelf', 'ice', '0:0a1f33,.3:1f5f8a,.42:7cc2dc,.5:eaf6fa,.7:ffffff,.85:c7d6e2,1:6d8296'],
+  ['tundra', 'Tundra', 'ice', '0:1b2a33,.2:35505c,.35:6f8a7e,.5:a9b38c,.62:d8d3b0,.75:8c7b5a,.9:4f4232,1:e9eef0'],
+  ['frost', 'Frost', 'ice', '0:0b0f2a,.25:23306b,.45:5a6fbf,.6:a9b8ec,.75:e6ecff,1:ffffff'],
+  ['delta', 'Delta', 'water', '0:082a36,.22:0f5c6c,.33:2c9aa1,.4:d6c792,.48:9db454,.58:5e8f2f,.7:365f23,.8:b68b3b,1:e9e1c8'],
+  ['reef', 'Reef', 'water', '0:051a31,.2:0a4677,.36:0c8db1,.48:37c6c8,.58:a3f0de,.64:f3f0d9,.72:e0c88e,.84:6c9e4b,1:2f5a2a'],
+  ['lagoon', 'Lagoon', 'water', '0:03243b,.2:066b8f,.35:12b3c4,.46:7ae6d8,.54:f2ecd0,.62:d9c58c,.75:4f8a3c,1:1f4a22'],
+  ['fjord', 'Fjord', 'water', '0:051726,.3:0e3d5c,.42:2a6d7e,.5:4d7d55,.62:2f5a35,.75:6c6f5c,.88:c9ccc4,1:ffffff'],
+  ['isles', 'Archipelago', 'water', '0:041d3a,.3:0a4f86,.45:1b8fc2,.52:c8e7d6,.56:e6d8a8,.66:7aa45a,.8:3b6e35,1:9e8c5c'],
+  ['bloom', 'Sea Bloom', 'water', '0:032b2b,.25:0c5a52,.4:1e8c6e,.55:5fbf7f,.68:b7e3a1,.8:e9f2c4,1:2b4f3a'],
+  ['braid', 'Braided River', 'water', '0:2a2f2a,.2:5b5f4f,.35:8f8a6a,.45:3c7b8c,.5:7ab9c6,.56:a49a74,.7:6b6a4c,1:d9d2b8'],
+  ['desert', 'Red Desert', 'desert', '0:163a52,.12:2f7895,.2:e9cf9a,.35:e3ad62,.5:cd7f39,.62:a95325,.74:7a3518,.86:3d1a0d,1:f4e3c0'],
+  ['sahara', 'Sand Sea', 'desert', '0:7a3e17,.2:b5652a,.4:dd9a4f,.6:f0c483,.8:f8e2b3,1:fff4dc'],
+  ['salt', 'Salt Flat', 'desert', '0:3b5160,.15:7e97a4,.3:c9d6d8,.5:f2f1ea,.7:e4d7c0,.85:c2a98a,1:7b6650'],
+  ['canyon', 'Canyon', 'desert', '0:2b120a,.2:5e2412,.35:96401f,.5:c66d34,.65:e2a066,.8:f1cf9c,1:7a8a8e'],
+  ['mesa', 'Mesa', 'desert', '0:4a2b1e,.2:7f4a2e,.4:b57a4b,.55:d9ad79,.7:a58c6c,.85:6c7a5c,1:2f3f30'],
+  ['oasis', 'Oasis', 'desert', '0:c48a46,.3:e2b778,.5:f1d6a3,.56:3f8a7a,.6:2a6d4a,.66:5e8f3c,.75:d8b878,1:a8743a'],
+  ['forest', 'Forest', 'green', '0:0d1f12,.25:1c3b1f,.45:2f5e2c,.6:4f8a3a,.75:8db35a,.88:c9d48a,1:f0eccb'],
+  ['rain', 'Rainforest', 'green', '0:061a12,.2:0f3a24,.4:1f6b3a,.55:3f9a4a,.65:2b6c5a,.7:3a8fa0,.8:cfd3a0,1:6a4a2a'],
+  ['farm', 'Farmland', 'green', '0:2f4a1f,.15:5e7a2f,.3:a7b05a,.42:d9c77a,.55:8fa045,.7:c7a35a,.85:6e8a3a,1:e2d8a8'],
+  ['high', 'Highlands', 'green', '0:203018,.25:3d5a2a,.45:6e7f45,.6:9c8f62,.72:7a6a55,.85:b9b1a2,1:ffffff'],
+  ['moss', 'Moss', 'green', '0:111a0e,.3:2e4a1a,.5:5a7a2a,.65:9cae4a,.8:d7d88a,1:f6f2d0'],
+  ['volcano', 'Volcano', 'fire', '0:050505,.3:1a1716,.45:3b3330,.55:6b2a12,.62:d24a12,.68:ff9a3c,.72:3a2a24,1:7c7470'],
+  ['lava', 'Lava Field', 'fire', '0:0a0302,.3:2a0904,.45:6e1606,.55:c23a0a,.65:ff7a1a,.75:ffd27a,1:2a1a12'],
+  ['ash', 'Ash Plain', 'fire', '0:1b1b1d,.3:3a3a3e,.5:6a6866,.65:9c958c,.8:cfc8bc,1:f2efe8'],
+  ['sulphur', 'Sulphur', 'fire', '0:1d1a10,.25:4a4220,.45:9a8a2a,.58:e2d24a,.65:f6f0a0,.75:6a8a7a,1:2a3a3a'],
+  ['autumn', 'Autumn', 'autumn', '0:2a120a,.2:6b2512,.35:b2471a,.5:e08a2a,.62:f2c04a,.75:8a8a3a,.88:4a5a2a,1:e8dcc0'],
+  ['vine', 'Vineyard', 'autumn', '0:2a0f1a,.2:5a1f33,.35:8a3a3f,.5:c27a4a,.62:d9b06a,.75:7a8a3a,1:3a4a22'],
+  ['heather', 'Heather', 'autumn', '0:1f1426,.25:4a2a56,.45:7a4a7a,.6:a87a8a,.72:c7a88a,.85:6a7a4a,1:e2dccf'],
+  ['harvest', 'Harvest', 'autumn', '0:4a2a10,.25:8a5a1f,.45:c99a3a,.6:e8c46a,.72:f4e2a8,.85:9aa05a,1:5a6a2a'],
+  ['copper', 'Copper', 'mineral', '0:0f2a2a,.2:1f5a52,.35:3a9a7a,.5:8ad0b0,.6:c87a3a,.72:8a4a22,.85:3a2012,1:e2c6a8'],
+  ['marble', 'Marble', 'mineral', '0:2a2a2e,.2:6a6a72,.4:b8b8c0,.55:eeeef0,.7:c9c4bc,.85:8a8278,1:ffffff'],
+  ['jade', 'Jade', 'mineral', '0:02140f,.25:0a3a2a,.45:1f6e52,.6:4fa88a,.75:a8dcc8,1:f0fff8'],
+  ['amethyst', 'Amethyst', 'mineral', '0:0e0618,.25:2a1248,.45:5a2a8a,.6:9a5ac8,.75:d4a8f0,.88:f6e8ff,1:2a1a3a'],
+  ['opal', 'Opal', 'mineral', '0:1a2a3a,.2:4a7aa0,.35:9ac8e0,.48:f0e8f4,.6:f2c8d8,.72:c8e8c8,.85:8ab0d8,1:2a3a5a'],
+  ['coast', 'Night Coast', 'night', '0:010208,.4:03060f,.48:0b1426,.5:ffb04a,.51:1a1a22,.6:0a0a0e,.7:2a1a0a,.72:ffcf7a,.74:0c0c10,1:15151a'],
+  ['moon', 'Moonlit', 'night', '0:01030a,.3:06122a,.5:12305a,.65:3a5a8a,.8:a8bcd8,1:f0f4ff'],
+  ['polar', 'Polar Night', 'night', '0:000005,.35:050b1e,.55:12224a,.7:2a4a7a,.85:7a9ac8,1:e0e8ff'],
+  ['glow', 'Aurora Land', 'night', '0:000503,.35:02140e,.5:0a3a2a,.6:1fa070,.66:6ff0b8,.72:0a2a20,1:02100a'],
+  ['graphite', 'Graphite', 'mono', '0:050505,.3:1e1e20,.5:4a4a4e,.7:8a8a90,.85:c8c8cc,1:f4f4f6'],
+  ['sepia', 'Sepia', 'mono', '0:1a1008,.3:4a3220,.5:8a6a4a,.7:c4a884,.85:e8d8bc,1:fbf4e6'],
+  ['slate', 'Slate', 'mono', '0:0a0e14,.3:1e2a38,.5:3e5266,.7:7a8ea2,.85:b8c6d4,1:eef2f6'],
+  ['pastel', 'Pastel', 'dream', '0:2a2a5a,.2:5a6ac8,.4:a8b8f0,.55:f0d0e8,.7:f8e0c0,.85:c0e8d8,1:ffffff'],
+  ['sunset', 'Sunset', 'dream', '0:1a0a2a,.2:4a1a5a,.35:9a2a6a,.5:e04a5a,.62:ff8a4a,.75:ffc86a,.88:fff0c0,1:2a1a3a'],
+  ['dusk', 'Ocean Dusk', 'dream', '0:050a2a,.3:1a2a6a,.5:4a4aa0,.62:a05a9a,.72:f08a8a,.85:ffd0a0,1:fff8e8'],
+  ['mint', 'Mint', 'dream', '0:0a2a2a,.3:2a6a6a,.5:6ac8b0,.65:b8f0d8,.8:f0fff4,1:ffffff'],
+];
+const WALL_PLACES = ['Ridge', 'Basin', 'Reach', 'Shore', 'Fold', 'Drift', 'Vale', 'Crest'];
+const VAR_S = [1, .8, 1.25, .9, 1.4, 1.1, .7, 1.2], VAR_W = [1, 1.2, .85, 1.35, 1, .75, 1.15, 1.5];
+WALL_STYLES.forEach(([key, name, cat, pal], si) => {
+  const c = WALL_CATS.find(x => x[0] === cat), p = pal.split(',').map(s => { const [t, h] = s.split(':'); return [+t, '#' + h]; });
+  WALL_PLACES.forEach((place, j) => {
+    const id = `ae-${key}-${j + 1}`;
+    AERIALS[id] = {seed: 101 + si * 37 + j * 7919, s: c[2] * VAR_S[j], w: c[3] * VAR_W[j], pal: p};
+    WALLS.push({id, name: `${name} ${place}`, kind: 'Aerial · ' + c[1], cat, d: c[4] + ' — painted on this TV, no two alike.'});
+  });
+});
+WALLS.push(
+  {id:'liquid',  name:'Liquid',     kind:'Dynamic', cat:'live', d:'Slow-moving light through dark glass.'},
+  {id:'horizon', name:'Horizon',    kind:'Dynamic', cat:'live', d:'Dawn breaking over the curve of a planet.'},
+  {id:'nocturne',name:'Nocturne',   kind:'Dynamic', cat:'live', d:'Soft beams drifting across a midnight sky.'},
+  {id:'aurora',  name:'Polar',      kind:'Dynamic', cat:'live', d:'A single-colour aurora, gently breathing.'},
+  {id:'graphite',name:'Graphite',   kind:'Still',   cat:'live', d:'Quiet charcoal with a touch of light.'},
+  {id:'dunes',   name:'Night Dunes',kind:'Still',   cat:'live', d:'Monochrome dunes under a dark sky.'},
+  {id:'deepsea', name:'Deep Sea',   kind:'Still',   cat:'live', d:'Teal light falling into black water.'},
+  {id:'silver',  name:'Silver',     kind:'Still',   cat:'live', d:'Brushed light silver — made for Light mode.'},
+);
 const ACCENTS = [['app', 'App colours', 'conic-gradient(#E50914 0 25%,#1ED760 0 50%,#00A8E1 0 75%,#9146FF 0)'], ['mono', 'Mono', '#e9ebf0'], ['ice', 'Ice', '#9cc8ff'], ['mint', 'Mint', '#6ee7c0'], ['amber', 'Amber', '#ffc06a'], ['rose', 'Rose', '#ff8fb0']];
 const ACCENT_HEX = Object.fromEntries(ACCENTS.map(a => [a[0], a[2]]));
 
 /* =====================================================================
    SETTINGS — kept in this browser only (localStorage).
    ===================================================================== */
-const KEY = 'lumora.settings.v2';
+const KEY = 'lumora.settings.v3', OLD_KEY = 'lumora.settings.v2';
 /* ?tv=1 (used by the TV setup) opens services in the same tab so the remote's Back key returns to Lumora. */
 const TV_MODE = /[?&]tv=1\b/.test(location.search) || /Web0S|webOS|Tizen|SMART-TV|SmartTV/i.test(navigator.userAgent);
 /* Inside a preview pane or another page's frame, apps can't open in place. */
 const EMBEDDED = (() => { try { return window.top !== window; } catch (e) { return true; } })();
-const UI_DEFAULTS = () => ({accent:'app', glow:'medium', glass:'frosted', corners:'round', icons:'standard', names:'focus', clock:'large', clockWeight:'thin', shelf:'glass', games:true, dim:0, wpMotion:true});
+/* Inside the Lumora app for Google TV / Android TV (tv/android), the native layer exposes window.LumoraNative:
+   apps on the device, launching them, Google Play, speech, text-to-speech and photo picking. */
+const NATIVE = typeof window.LumoraNative === 'object' && !!window.LumoraNative;
+/* Android TV package names for each service; a label match is used when these differ. */
+const PKG = {netflix:'com.netflix.ninja', youtube:'com.google.android.youtube.tv', disney:'com.disney.disneyplus', prime:'com.amazon.amazonvideo.livingroom',
+  hbomax:'com.wbd.stream', iplayer:'uk.co.bbc.iplayer', spotify:'com.spotify.tv.android', twitch:'tv.twitch.android.app', paramount:'com.cbs.ott', plex:'com.plexapp.android',
+  hulu:'com.hulu.livingroomplus', peacock:'com.peacocktv.peacockandroid', crunchyroll:'com.crunchyroll.crunchyroid', tubi:'com.tubitv', pluto:'tv.pluto.android',
+  mubi:'com.mubi', rakuten:'tv.wuaki', dailymotion:'com.dailymotion.dailymotion', itvx:'air.ITVMobilePlayer', ch4:'com.channel4.ondemand', vimeo:'com.vimeo.android.videoapp',
+  ted:'com.ted.android.tv', soundcloud:'com.soundcloud.android', deezer:'deezer.android.tv', tidal:'com.aspiro.tidal', sounds:'com.bbc.sounds',
+  ytkids:'com.google.android.youtube.tvkids', dazn:'com.dazn', f1tv:'com.formulaone.production', nba:'com.nbaimd.gametime.nba2011', gfn:'com.nvidia.geforcenow', fubo:'com.fubo.android'};
+let DEVICE_APPS = null;
+function deviceApps() { if (!NATIVE) return []; if (!DEVICE_APPS) { try { DEVICE_APPS = JSON.parse(LumoraNative.apps()) || []; } catch (e) { DEVICE_APPS = []; } } return DEVICE_APPS; }
+const lnorm = t => String(t).toLowerCase().replace(/\+/g, ' plus').replace(/[^a-z0-9]+/g, ' ').trim();
+function nativePkg(id) {
+  const a = APPS[id], list = deviceApps(); if (!a || !list.length) return null;
+  if (PKG[id] && list.some(x => x.pkg === PKG[id])) return PKG[id];
+  const n = lnorm(a.name); const m = list.find(x => lnorm(x.label) === n) || list.find(x => lnorm(x.label).startsWith(n + ' ') || lnorm(x.label).endsWith(' ' + n));
+  return m ? m.pkg : null;
+}
+function getOnPlay(id) { const a = APPS[id]; try { LumoraNative.store(PKG[id] ? 'pkg:' + PKG[id] : a.name); } catch (e) {} }
+/* Keys the native layer forwards (Back, Home, colour buttons, Menu) arrive as normal key events. */
+window.__lumoraKey = k => { const m = {back: ['Escape', 27], home: ['Home', 36], red: ['ColorF0Red', 403], green: ['ColorF1Green', 404], yellow: ['ColorF2Yellow', 405], blue: ['ColorF3Blue', 406], menu: ['ContextMenu', 93], assist: ['LaunchAssistant', 0]}[k]; if (!m) return;
+  for (const type of ['keydown', 'keyup']) document.dispatchEvent(new KeyboardEvent(type, {key: m[0], keyCode: m[1], bubbles: true})); };
+window.__lumoraAppsChanged = () => { DEVICE_APPS = null; if (typeof renderHome === 'function') renderHome(); };
+const UI_DEFAULTS = () => ({accent:'app', glow:'off', glass:'frosted', corners:'round', icons:'standard', names:'focus', clock:'corner', clockWeight:'regular', shelf:'minimal', games:true, info:false, initial:'L', dim:0, wpMotion:true});
 const DEFAULTS = () => ({
-  theme:'dark', wallpaper:'liquid', clock: hour24Default() ? '24' : '12', ambientAfter:5,
+  theme:'dark', wallpaper:'aerial-glacier', clock: hour24Default() ? '24' : '12', ambientAfter:5,
   reduceMotion: mm('(prefers-reduced-motion: reduce)'), contrast: mm('(prefers-contrast: more)'), transparency:false, textSize:'default',
   effects:'auto', showFps:false, ui: UI_DEFAULTS(),
   assistant:{speak:true, voice:'', rate:1, voiceIn:'auto', lang:''},
@@ -793,12 +945,17 @@ if (TV_MODE || !S.browser.openInChosen) S.browser.openIn = 'same';
 function load() {
   const d = DEFAULTS();
   try {
-    const raw = localStorage.getItem(KEY); if (!raw) return d;
-    const o = JSON.parse(raw); const s = Object.assign(d, o);
+    let raw = localStorage.getItem(KEY), migrated = false;
+    if (!raw) { raw = localStorage.getItem(OLD_KEY); migrated = !!raw; }
+    if (!raw) return d;
+    const o = JSON.parse(raw);
+    if (migrated) { delete o.ui; delete o.wallpaper; }   // the new Home look starts from its own defaults
+    const s = Object.assign(d, o);
     for (const k of ['video', 'parental', 'browser', 'ui', 'assistant']) s[k] = Object.assign(DEFAULTS()[k], o[k] || {});
     s.apps = (s.apps || []).filter(id => APPS[id]); s.games = (s.games || []).filter(id => APPS[id]);
     for (const sys of ['store', 'settings']) if (!s.apps.includes(sys) && !s.games.includes(sys)) s.apps.push(sys);
-    if (!WALLS.find(w => w.id === s.wallpaper)) s.wallpaper = 'liquid';
+    if (s.ui.clock === 'small') s.ui.clock = 'corner';
+    if (!WALLS.find(w => w.id === s.wallpaper) && s.wallpaper !== 'custom') s.wallpaper = 'aerial-glacier';
     return s;
   } catch (e) { return d; }
 }
@@ -822,7 +979,7 @@ function applySettings() {
     'theme-dark': dark, 'theme-light': !dark, 'reduce-motion': !!S.reduceMotion, hc: !!S.contrast, 'no-transp': !!S.transparency, 'show-fps': !!S.showFps,
     'glass-clear': U.glass === 'clear', 'glass-solid': U.glass === 'solid', 'corners-soft': U.corners === 'soft', 'corners-xround': U.corners === 'xround',
     'icons-compact': U.icons === 'compact', 'icons-large': U.icons === 'large', 'names-always': U.names === 'always',
-    'clock-small': U.clock === 'small', 'clock-hidden': U.clock === 'hidden', 'shelf-min': U.shelf === 'minimal', 'no-games': !U.games,
+    'clock-corner': U.clock === 'corner', 'show-info': !!U.info, 'clock-hidden': U.clock === 'hidden', 'shelf-min': U.shelf === 'minimal', 'no-games': !U.games,
     'glow-off': U.glow === 'off', 'wp-paused': !U.wpMotion, 'accent-fixed': U.accent !== 'app',
   };
   for (const [c, on] of Object.entries(cls)) root.classList.toggle(c, on);
@@ -832,6 +989,7 @@ function applySettings() {
   root.style.setProperty('--accent', U.accent === 'app' ? '#e9ebf0' : U.accent === 'mono' ? '#bfc4cf' : ACCENT_HEX[U.accent]);
   root.style.setProperty('--clock-w', {thin:200, regular:400, bold:700}[U.clockWeight] || 200);
   lite = S.effects === 'lite' || (S.effects === 'auto' && autoLite); root.classList.toggle('lite', lite);
+  const av = document.getElementById('avatar'); if (av) av.textContent = (U.initial || 'L').slice(0, 1).toUpperCase();
 }
 if (window.speechSynthesis) speechSynthesis.addEventListener && speechSynthesis.addEventListener('voiceschanged', () => { if (curScreen === 'settings' && SET.sec === 'assistant') renderSection(); });
 darkMQ.addEventListener && darkMQ.addEventListener('change', () => { if (S.theme === 'auto') applySettings(); });
@@ -879,14 +1037,106 @@ let wallShown = '';
 function setWallpaper(id) {
   if (id === wallShown) return; wallShown = id;
   const host = $('#wall-inner'); const el = document.createElement('div'); const still = STILL[id];
-  el.className = 'wp ' + (still ? 'wp-still' : 'wp-' + id);
-  if (still) el.setAttribute('style', still()); else el.innerHTML = wallHTML(id);
+  if (AERIALS[id] || id === 'custom') {
+    el.className = 'wp ' + (id === 'custom' ? 'wp-photo' : 'wp-aerial');
+    if (AERIALS[id]) el.style.background = aerialGrad(id);
+    el.innerHTML = '<i class="kb"></i>';
+    const kb = el.firstChild;
+    const put = url => { if (!url || wallShown !== id) return; kb.style.backgroundImage = `url("${url}")`; requestAnimationFrame(() => kb.classList.add('ready')); };
+    if (id === 'custom') put(customWall());
+    else { if (AER.thumb[id] && !AER.full[id]) put(AER.thumb[id]); setTimeout(() => wallShown === id && aerialImage(id).then(put), !AER.full[id] && curScreen === 'wall' ? 160 : 0); }
+  } else {
+    el.className = 'wp ' + (still ? 'wp-still' : 'wp-' + id);
+    if (still) el.setAttribute('style', still()); else el.innerHTML = wallHTML(id);
+  }
   host.appendChild(el);
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('on')));
   const old = $$('.wp', host).filter(x => x !== el);
   setTimeout(() => old.forEach(o => o.remove()), 1100);
 }
-const thumbStyle = id => STILL[id] ? STILL[id]() : 'background:' + THUMB[id];
+const palAt = (p, f) => p[Math.min(p.length - 1, Math.round(f * (p.length - 1)))][1];
+const aerialGrad = id => { const p = AERIALS[id].pal; return `radial-gradient(60% 50% at 30% 40%,${palAt(p, .45)},transparent 70%),radial-gradient(50% 50% at 75% 60%,${palAt(p, .7)},transparent 70%),linear-gradient(135deg,${palAt(p, .2)},${palAt(p, .8)})`; };
+const thumbStyle = id => id === 'custom' ? `background:url("${customWall() || ''}") center/cover` : AERIALS[id] ? `background:${AER.thumb[id] || AER.full[id] ? `url("${AER.thumb[id] || AER.full[id]}") center/cover` : aerialGrad(id)}` : STILL[id] ? STILL[id]() : 'background:' + THUMB[id];
+
+/* ---------- aerial wallpapers: original, generated on this device ---------- */
+function genAerial(w, h, seed, pal, s = 1, wp = 1.9) {
+  const P = new Uint8Array(512); let st = seed * 9301 + 49297;
+  for (let i = 0; i < 256; i++) P[i] = i;
+  for (let i = 255; i > 0; i--) { st = (st * 1103515245 + 12345) & 0x7fffffff; const j = st % (i + 1); const t = P[i]; P[i] = P[j]; P[j] = t; }
+  for (let i = 0; i < 256; i++) P[i + 256] = P[i];
+  const vn = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, X = xi & 255, Y = yi & 255;
+    const a = P[P[X] + Y], b = P[P[X + 1] + Y], c = P[P[X] + Y + 1], d = P[P[X + 1] + Y + 1];
+    const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf); const top = a + (b - a) * u; return (top + (c + (d - c) * u - top) * v) / 255; };
+  const fbm = (x, y, o) => { let f = 0, amp = .5, fr = 1; for (let i = 0; i < o; i++) { f += amp * vn(x * fr, y * fr); fr *= 2.03; amp *= .5; } return f; };
+  /* Small images (thumbnails) skip the octaves too fine to see, which makes them several times faster. */
+  const oct = w < 600 ? 6 : 8, H = new Float32Array(w * h); const sc = 6.5 * s / w; let lo = 9, hi = -9;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const nx = x * sc, ny = y * sc;
+    const qx = fbm(nx + 1.7, ny + 9.2, w < 600 ? 4 : 5), qy = fbm(nx + 8.3, ny + 2.8, w < 600 ? 4 : 5);
+    const v = fbm(nx + wp * qx, ny + wp * qy, oct) + (w < 600 ? 0 : (vn(nx * 22, ny * 22) - .5) * .035); H[y * w + x] = v; if (v < lo) lo = v; if (v > hi) hi = v;
+  }
+  const stops = pal.map(([t, c]) => [t, parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]);
+  const out = new Uint8ClampedArray(w * h * 4); const span = hi - lo || 1, rel = 9 * w / 1280;
+  for (let i = 0; i < w * h; i++) {
+    const t = Math.min(1, Math.max(0, (H[i] - lo) / span)); let k = 1; while (k < stops.length - 1 && stops[k][0] < t) k++;
+    const A = stops[k - 1], B = stops[k], f = (t - A[0]) / ((B[0] - A[0]) || 1);
+    const up = i >= w + 1 ? H[i - w - 1] : H[i]; const shade = Math.min(1.25, Math.max(.72, 1 + (H[i] - up) / span * rel));
+    const o = i * 4; out[o] = (A[1] + (B[1] - A[1]) * f) * shade; out[o + 1] = (A[2] + (B[2] - A[2]) * f) * shade; out[o + 2] = (A[3] + (B[3] - A[3]) * f) * shade; out[o + 3] = 255;
+  }
+  return out;
+}
+/* One background worker paints wallpapers in priority order: the wallpaper being shown first, then thumbnails in view.
+   Finished images are kept in IndexedDB so each one is only ever painted once; the current wallpaper is also kept in
+   localStorage so it appears instantly at start-up. */
+const AER = {full: {}, thumb: {}, wait: {}, q: [], busy: null, worker: null};
+const AER_CUR = 'lumora.aerial.current';
+const IDB = (() => { let dbp = null; const open = () => dbp || (dbp = new Promise(res => { try { const r = indexedDB.open('lumora', 1); r.onupgradeneeded = () => r.result.createObjectStore('img'); r.onsuccess = () => res(r.result); r.onerror = () => res(null); } catch (e) { res(null); } }));
+  const tx = (mode, fn) => open().then(db => db ? new Promise(res => { try { const t = db.transaction('img', mode); const q = fn(t.objectStore('img')); t.oncomplete = () => res(q && q.result); t.onerror = t.onabort = () => res(null); } catch (e) { res(null); } }) : null);
+  return {get: k => tx('readonly', s => s.get(k)), put: (k, v) => tx('readwrite', s => { s.put(v, k); })}; })();
+try { const c = JSON.parse(localStorage.getItem(AER_CUR) || 'null'); if (c && c.id && c.url) AER.full[c.id] = c.url;
+  for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (/^lumora\.aerial\..*\.v2$/.test(k)) localStorage.removeItem(k); } } catch (e) {}
+function aerRun() {
+  if (AER.busy || !AER.q.length) return;
+  const job = AER.busy = AER.q.shift(), cfg = AERIALS[job.id], W = job.thumb ? 320 : 1280, Hh = job.thumb ? 180 : 720;
+  const done = px => { const cv = document.createElement('canvas'); cv.width = W; cv.height = Hh; cv.getContext('2d').putImageData(new ImageData(px, W, Hh), 0, 0);
+    const url = cv.toDataURL('image/jpeg', job.thumb ? .8 : .86); (job.thumb ? AER.thumb : AER.full)[job.id] = url; IDB.put(job.key, url);
+    AER.busy = null; delete AER.wait[job.key]; job.res(url); aerRun(); };
+  try {
+    if (!AER.worker) { AER.worker = new Worker(URL.createObjectURL(new Blob([genAerial.toString() + ';self.onmessage=e=>{const d=e.data;const px=genAerial(d.w,d.h,d.seed,d.pal,d.s,d.wp);self.postMessage(px,[px.buffer]);};'], {type: 'text/javascript'})));
+      AER.worker.onmessage = e => AER.busy && AER.busy.done(e.data); }
+    job.done = done; AER.worker.postMessage({w: W, h: Hh, seed: cfg.seed, pal: cfg.pal, s: cfg.s, wp: cfg.w});
+  } catch (e) { setTimeout(() => done(genAerial(W, Hh, cfg.seed, cfg.pal, cfg.s, cfg.w)), 0); }
+}
+function aerialImage(id, thumb = false) {
+  const have = (thumb ? AER.thumb[id] || AER.full[id] : AER.full[id]);
+  if (have) { if (!thumb) aerKeep(id, have); return Promise.resolve(have); }
+  const key = id + (thumb ? '@t' : '@f');
+  if (!AER.wait[key]) AER.wait[key] = IDB.get(key).then(hit => hit ? ((thumb ? AER.thumb : AER.full)[id] = hit) : new Promise(res => {
+    const job = {id, key, thumb, res};
+    if (thumb) AER.q.push(job); else { AER.q = AER.q.filter(j => j.thumb || j.id === S.wallpaper || (j.res(null), delete AER.wait[j.key], false)); AER.q.unshift(job); }
+    aerRun();
+  }));
+  return AER.wait[key].then(url => { if (url && !thumb) aerKeep(id, url); return url; });
+}
+const aerKeep = (id, url) => { if (!url || id !== S.wallpaper) return; try { localStorage.setItem(AER_CUR, JSON.stringify({id, url})); } catch (e) {} };
+const CUSTOM_KEY = 'lumora.wall.custom';
+function customWall() { try { return localStorage.getItem(CUSTOM_KEY); } catch (e) { return null; } }
+function useCustomPhoto(dataUrl) {
+  try { localStorage.setItem(CUSTOM_KEY, dataUrl); } catch (e) { toast('That photo is too large to save on this TV', 'info'); return; }
+  wallShown = ''; S.wallpaper = 'custom'; save(); setWallpaper('custom');
+  if (curScreen === 'wall') { wallEnter(); const t = $('#s-wall [data-k="w-custom"]'); if (t) setFocus(t); }
+  toast('Your photo is now the wallpaper', 'image');
+}
+function pickPhoto() {
+  if (NATIVE && LumoraNative.pickImage) { LumoraNative.pickImage(); return; }
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = () => { const f = inp.files && inp.files[0]; if (!f) return; const rd = new FileReader();
+    rd.onload = () => { const img = new Image(); img.onload = () => { const k = Math.min(1, 1920 / img.width); const cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); useCustomPhoto(cv.toDataURL('image/jpeg', .85)); }; img.src = rd.result; };
+    rd.readAsDataURL(f); };
+  inp.click();
+}
+window.__lumoraImage = url => useCustomPhoto(url);
 
 /* =====================================================================
    COMPONENTS
@@ -1165,12 +1415,32 @@ function goBack() {
 function renderHome() {
   const keep = F.cur && F.cur.closest('#home-stack') ? F.cur.dataset.k : null;
   $('#row-apps').innerHTML = S.apps.filter(id => !hiddenApp(id)).map(id => tileHTML(id, {hold: 'opts:apps:' + id})).join('');
+  $('#row-sc').innerHTML = SHORTCUTS.map(c => `<div class="tile sc" data-f data-k="${c.k}" data-act="${c.act}" role="button" aria-label="${c.name}" tabindex="-1" style="--glow:#ffffff">
+    <div class="t-lift"><div class="t-shadow"></div><div class="t-card"><div class="t-art"><div class="t-logo">${ico(c.icon)}</div></div><div class="t-spec"></div><div class="t-rim"></div><div class="t-ring"></div><div class="t-glint"></div></div></div>
+    <div class="t-title">${c.name}</div></div>`).join('');
+  const devRow = $('[data-hrow="device"]');
+  if (NATIVE) {
+    const mine = new Set([...S.apps, ...S.games].map(nativePkg).filter(Boolean));
+    const extra = deviceApps().filter(x => !mine.has(x.pkg));
+    devRow.hidden = !extra.length;
+    $('#row-dev').innerHTML = extra.map(x => `<div class="tile dev" data-f data-k="dev-${esc(x.pkg)}" data-act="nlaunch:${esc(x.pkg)}" role="button" aria-label="${esc(x.label)}" tabindex="-1">
+      <div class="t-lift"><div class="t-shadow"></div><div class="t-card">${x.banner ? `<img alt="" src="${x.banner}">` : x.icon ? `<img class="ic" alt="" src="${x.icon}">` : `<div class="t-art"><div class="t-logo"><span class="t-wm sm">${esc(x.label)}</span></div></div>`}<div class="t-spec"></div><div class="t-rim"></div><div class="t-ring"></div><div class="t-glint"></div></div></div>
+      <div class="t-title">${esc(x.label)}</div></div>`).join('');
+  } else devRow.hidden = true;
   $('#row-games').innerHTML = S.games.filter(id => !hiddenApp(id)).map(id => tileHTML(id, {hold: 'opts:games:' + id})).join('')
     || `<div class="empty">No games yet — find some in the Store.</div>`;
   if (keep) { const n = $(`#home-stack [data-k="${keep}"]`); if (n) { dropFocus(); setFocus(n); } }
   if (curScreen === 'home' && !layers.length) ensureFocus();
 }
 function homeDefault() { const m = F.mem['home-apps']; return (m && m.isConnected) ? m : $('#row-apps [data-f]'); }
+const SHORTCUTS = [
+  {k: 'sc-wall', name: 'Wallpapers', icon: 'image', act: 'screen:wall'},
+  {k: 'sc-assist', name: 'Assistant', icon: 'mic', act: 'assist'},
+  {k: 'sc-games', name: 'Gaming', icon: 'pad', act: 'scgames'},
+  {k: 'sc-input', name: 'Input', icon: 'input', act: 'input'},
+  {k: 'sc-web', name: 'Browser', icon: 'globe', act: 'open:browser'},
+  {k: 'sc-off', name: 'Sleep', icon: 'power', act: 'ambient'},
+];
 let siT = 0, siCur = '';
 function shelfInfo(id, force) {
   const a = APPS[id]; if (!a || (id === siCur && !force)) return; siCur = id;
@@ -1185,7 +1455,8 @@ function shelfInfo(id, force) {
 let homeOffset = 0;
 function homeShift(hr) {
   const rows = $$('#home-stack .hrow'); const first = rows[0];
-  const off = hr ? hr.offsetTop - first.offsetTop : 0;
+  const base = rows[1] || first;   // the apps and shortcut rows sit together; only rows below them scroll up
+  const off = hr ? Math.max(0, hr.offsetTop - base.offsetTop) : 0;
   if (off === homeOffset) return; homeOffset = off;
   const stack = $('#home-stack'), limit = 12 * remPx();
   rows.forEach(r => r.classList.toggle('above', stack.offsetTop + r.offsetTop - off < limit));
@@ -1204,6 +1475,8 @@ function tick() {
   const hh = S.clock === '24' ? String(h).padStart(2, '0') : h;
   $('#clock').innerHTML = `${hh}:${m}${ap ? `<span class="ampm">${ap}</span>` : ''}`;
   $('#stime').textContent = `${hh}:${m}${ap ? ' ' + ap : ''}`;
+  $('#st-day').textContent = d.getDate();
+  $('#st-net').classList.toggle('off', navigator.onLine === false);
   $('#date').textContent = d.toLocaleDateString(undefined, {weekday: 'long', day: 'numeric', month: 'long'});
   clearTimeout(tick.t); tick.t = setTimeout(tick, 60000 - (Date.now() % 60000) + 20);
 }
@@ -1248,6 +1521,11 @@ function launch(id, el, opt = {}) {
     if (target === curScreen) return;
     zoom(el, a, () => show(target));
     return;
+  }
+  if (NATIVE) {
+    const pkg = nativePkg(id);
+    if (pkg) { zoom(el, a, () => { LumoraNative.launch(pkg); setTimeout(() => { $('#zoom').style.opacity = '0'; }, 400); }); return; }
+    toast(`${a.name} isn't installed on this TV yet — opening Google Play`, 'store'); getOnPlay(id); return;
   }
   if (S.browser.openIn === 'same' && !EMBEDDED) { try { sessionStorage.setItem('lumora.return', id); } catch (e) {} zoom(el, a, () => { location.href = a.url; }); return; }
   if (opt.voice || EMBEDDED) { zoom(el, a, () => show('launch', {id, opened: false, voice: true})); return; }   // no key press behind a voice command, so the TV asks for one OK
@@ -1457,6 +1735,7 @@ function install(id) {
         const list = a.cat === 'Games' ? S.games : S.apps;
         const at = list.indexOf('store'); if (at >= 0) list.splice(at, 0, id); else list.push(id);
         save(); renderHome(); storeRefresh(); toast(`${a.name} added to Home`);
+        if (NATIVE && a.url && !nativePkg(id)) getOnPlay(id);
       }
     };
     storeRefresh(); step();
@@ -1464,22 +1743,50 @@ function install(id) {
 }
 
 /* ---------------- WALLPAPERS app ---------------- */
-let wallFocus = '';
+let wallFocus = '', wallCat = 'all';
+const WALL_TABS = () => [['all', 'All'], ['featured', 'Featured'], ...WALL_CATS.map(c => [c[0], c[1]]), ['live', 'Live & Still']];
+const wallList = () => (customWall() && (wallCat === 'all' || wallCat === 'featured') ? [{id: 'custom', name: 'Your photo', kind: 'Photo', d: 'A picture of your own.'}] : [])
+  .concat(wallCat === 'all' ? WALLS : WALLS.filter(w => w.cat === wallCat));
+function wallTile(w) {
+  return `<div class="tile" data-f data-k="w-${w.id}" data-wall="${w.id}" data-act="wpapply:${w.id}" role="button" aria-label="${esc(w.name)}" tabindex="-1"><div class="t-lift"><div class="t-shadow"></div><div class="t-card" style="${thumbStyle(w.id)}"><div class="t-spec"></div><div class="t-rim"></div>${S.wallpaper === w.id ? `<span class="t-badge">${ico('check')}</span>` : ''}<div class="t-ring"></div><div class="t-glint"></div></div></div><div class="t-title">${esc(w.name)}<span class="t-sub">${esc(w.kind)}</span></div></div>`;
+}
 function wallEnter() {
   wallFocus = '';
-  SCREENS.wall.el.innerHTML = `<div class="scr-head"><div class="scr-title">${ico('image')}<span>Wallpapers</span></div><div></div></div>
+  if (wallCat !== 'all' && wallCat !== 'featured' && wallCat !== 'live' && !WALL_CATS.some(c => c[0] === wallCat)) wallCat = 'all';
+  if (wallCat !== 'all' && !wallList().some(w => w.id === S.wallpaper)) wallCat = 'all';
+  SCREENS.wall.el.innerHTML = `<div class="scr-head"><div class="scr-title">${ico('image')}<span>Wallpapers</span></div><div class="wall-count" id="wall-count"></div></div>
     <div class="wall-copy"><div class="kicker" id="wc-kind"></div><h1 id="wc-name"></h1><p id="wc-desc"></p><div class="applied" id="wc-applied"></div></div>
     <div class="wall-dock lg">
       <div class="ctl">
         <div class="grp" data-row="wall-dim"><span class="lbl">Dim</span>${[[0, 'None'], [1, 'Soft'], [2, 'Strong']].map(([v, t]) => `<button class="opt fx${S.ui.dim === v ? ' sel' : ''}" data-f data-k="ui.dim=${v}" data-act="set:ui.dim:${v}" tabindex="-1">${ico('check')}${t}</button>`).join('')}</div>
         <div class="grp" data-row="wall-motion"><span class="lbl">Motion</span>${[[true, 'Animated'], [false, 'Still']].map(([v, t]) => `<button class="opt fx${S.ui.wpMotion === v ? ' sel' : ''}" data-f data-k="ui.wpMotion=${v}" data-act="set:ui.wpMotion:${v}" tabindex="-1">${ico('check')}${t}</button>`).join('')}</div>
       </div>
-      <div class="track" data-row="walls" data-onfocus="wall">${WALLS.map(w => `<div class="tile" data-f data-k="w-${w.id}" data-wall="${w.id}" data-act="wpapply:${w.id}" role="button" aria-label="${w.name}" tabindex="-1"><div class="t-lift"><div class="t-shadow"></div><div class="t-card" style="${thumbStyle(w.id)}"><div class="t-spec"></div><div class="t-rim"></div>${S.wallpaper === w.id ? `<span class="t-badge">${ico('check')}</span>` : ''}<div class="t-ring"></div><div class="t-glint"></div></div></div><div class="t-title">${w.name}<span class="t-sub">${w.kind}</span></div></div>`).join('')}</div>
+      <div class="wall-cats" data-row="wall-cats">${WALL_TABS().map(([id, t]) => `<button class="opt fx${wallCat === id ? ' sel' : ''}" data-f data-k="wc-${id}" data-act="wpcat:${id}" tabindex="-1">${t}</button>`).join('')}</div>
+      <div class="track" data-row="walls" data-onfocus="wall" id="wall-track"></div>
     </div>`;
-  wallCopy(S.wallpaper);
+  wallFill(); wallCopy(S.wallpaper);
+}
+function wallFill() {
+  const list = wallList(), tr = $('#wall-track');
+  tr.innerHTML = list.map(wallTile).join('') + `<div class="tile" data-f data-k="w-add" data-act="wpcustom" role="button" aria-label="Use your own photo" tabindex="-1"><div class="t-lift"><div class="t-shadow"></div><div class="t-card" style="background:rgba(255,255,255,.12)"><div class="t-art"><div class="t-logo">${ico('image')}<span class="t-word">Choose photo</span></div></div><div class="t-rim"></div><div class="t-ring"></div><div class="t-glint"></div></div></div><div class="t-title">Your photo<span class="t-sub">From this device</span></div></div>`;
+  const n = list.filter(w => w.id !== 'custom').length; $('#wall-count').textContent = `${n} wallpaper${n === 1 ? '' : 's'}`;
+  const cur = $$('[data-wall]', tr).findIndex(t => t.dataset.wall === S.wallpaper); wallPaint(Math.max(0, cur));
+}
+/* Thumbnails are painted only around the focused tile (a few behind, a screenful ahead), so hundreds cost nothing up front. */
+function wallPaint(i) {
+  const tiles = $$('#wall-track [data-wall]');
+  for (const t of tiles.slice(Math.max(0, i - 4), i + 14)) {
+    const id = t.dataset.wall, c = t.querySelector('.t-card'); if (!AERIALS[id] || c.dataset.p) continue; c.dataset.p = 1;
+    aerialImage(id, true).then(u => { if (u && c.isConnected) c.style.background = `url("${u}") center/cover`; });
+  }
+}
+function wallSetCat(id) {
+  if (id === wallCat) return; wallCat = id;
+  $$('#s-wall .wall-cats .opt').forEach(b => b.classList.toggle('sel', b.dataset.k === 'wc-' + id));
+  delete F.mem.walls; wallFill();
 }
 function wallCopy(id) {
-  const w = WALLS.find(x => x.id === id); if (!w) return;
+  const w = id === 'custom' ? {kind: 'Photo', name: 'Your photo', d: 'A picture of your own.'} : WALLS.find(x => x.id === id); if (!w) return;
   $('#wc-kind').textContent = w.kind; $('#wc-name').textContent = w.name; $('#wc-desc').textContent = w.d;
   $('#wc-applied').innerHTML = id === S.wallpaper ? `${ico('check')} Current wallpaper` : 'Previewing — press OK to apply';
 }
@@ -1487,7 +1794,7 @@ function wallApply(id) {
   S.wallpaper = id; save(); setWallpaper(id);
   $$('#s-wall .track .t-badge').forEach(b => b.remove());
   const t = $(`#s-wall [data-wall="${id}"] .t-card`); if (t) t.insertAdjacentHTML('beforeend', `<span class="t-badge">${ico('check')}</span>`);
-  wallCopy(id); toast(`${WALLS.find(w => w.id === id).name} set as your wallpaper`, 'image');
+  aerKeep(id, AER.full[id]); wallCopy(id); toast(`${id === 'custom' ? 'Your photo' : WALLS.find(w => w.id === id).name} set as your wallpaper`, 'image');
 }
 function wallLeave() { setWallpaper(S.wallpaper); }
 
@@ -1529,7 +1836,7 @@ function brNormalize(t) {
 function brGo(input) {
   const url = brNormalize(input); if (!url) return;
   let host = ''; try { host = new URL(url).hostname; } catch (e) { toast('That address doesn’t look right', 'info'); return; }
-  if (NOFRAME.test(host) && S.browser.openIn === 'same' && !EMBEDDED) { location.href = url; return; }
+  if (NATIVE || (NOFRAME.test(host) && S.browser.openIn === 'same' && !EMBEDDED)) { location.href = url; return; }
   if (NOFRAME.test(host)) {
     const w = window.open(url, '_blank'); if (w) w.opener = null;
     toast(w ? `${host.replace(/^www\./, '')} opened in its own tab — it doesn't allow other apps to show it` : 'The new tab was blocked by your browser', 'ext');
@@ -1627,7 +1934,7 @@ function renderSection(animate) {
   if (keep) { const n = $(`#set-main [data-k="${CSS.escape(keep)}"]`); if (n) { dropFocus(); setFocus(n, {noScroll: true}); } }
   if (F.cur && !F.cur.isConnected) { dropFocus(); ensureFocus(); }
 }
-const wallName = () => WALLS.find(w => w.id === S.wallpaper).name;
+const wallName = () => S.wallpaper === 'custom' ? 'Your photo' : (WALLS.find(w => w.id === S.wallpaper) || WALLS[0]).name;
 const SECTION_HTML = {
   custom: () => { const U = S.ui; return `<div class="set-h">Customise</div><p class="set-lead">Make Lumora yours. Every change applies instantly and is saved on this TV.</p>
     <div class="group">Colour & light</div>
@@ -1639,9 +1946,11 @@ const SECTION_HTML = {
     ${choiceRow('ui.corners', 'Corners', '', [['soft', 'Sharp'], ['round', 'Round'], ['xround', 'Extra round']], U.corners)}
     ${choiceRow('ui.shelf', 'Dock', 'A floating glass shelf behind your apps, or apps on their own.', [['glass', 'Glass shelf'], ['minimal', 'Minimal']], U.shelf)}
     ${choiceRow('ui.names', 'App names', '', [['focus', 'When focused'], ['always', 'Always']], U.names)}
-    ${toggleRow('ui.games', 'Show Games row', '', U.games)}
+    ${toggleRow('ui.games', 'Show Games row', 'Below the shortcuts.', U.games)}
     <div class="group">Clock</div>
-    ${choiceRow('ui.clock', 'Clock size', 'Hidden moves the time into the status bar.', [['large', 'Large'], ['small', 'Small'], ['hidden', 'Hidden']], U.clock)}
+    ${choiceRow('ui.clock', 'Clock', 'Corner is the classic layout. Hidden moves the time into the status bar.', [['corner', 'Corner'], ['large', 'Large'], ['hidden', 'Hidden']], U.clock)}
+    ${toggleRow('ui.info', 'App details above apps', 'Show the focused app’s name and a line about it.', U.info)}
+    ${actRow('initial', 'Profile letter', 'The initial shown in the top-right corner.', 'initial', esc(U.initial || 'L'))}
     ${choiceRow('ui.clockWeight', 'Clock style', '', [['thin', 'Thin'], ['regular', 'Regular'], ['bold', 'Bold']], U.clockWeight)}
     <div class="group">Wallpaper</div>
     ${actRow('openwall', 'Wallpapers', `${wallName()} — open the Wallpapers app to preview and apply`, 'open:wallpapers', ico('image'))}
@@ -1914,6 +2223,7 @@ function pickVoice() {
   return vs.slice().sort((a, b) => rank(b) - rank(a))[0];
 }
 function say(text) {
+  if (NATIVE && S.assistant.speak && text && LumoraNative.say) { try { LumoraNative.say(text.replace(/[“”]/g, '')); } catch (e) {} return; }
   if (!S.assistant.speak || !window.speechSynthesis || !text) return;
   try {
     speechSynthesis.cancel();
@@ -1959,6 +2269,14 @@ async function listen() {
   if (!AS.L) return;
   asStop();
   const mode = S.assistant.voiceIn;
+  if (NATIVE && mode !== 'off' && LumoraNative.canListen && LumoraNative.canListen()) {
+    window.__lumoraSpeech = m => {
+      if (m.partial) asText('“' + m.partial + '”', null);
+      if (m.error) { asState('idle'); asText(m.error === 'permission' ? 'Microphone permission is off.' : 'I didn’t catch that.', 'Press Speak to try again, or Type.'); }
+      else if ('final' in m) { if (m.final.trim()) asHandle(m.final); else { asState('idle'); asText('I didn’t hear anything.', 'Press Speak to try again, or Type.'); } }
+    };
+    asState('listening'); asText('Listening…', 'Say something like “open Netflix”.'); LumoraNative.listen(); return;
+  }
   if (BOX && mode !== 'off') { asText('Getting ready…', ''); if (await boxListen()) return; if (!AS.L) return; }
   if (!SR || mode === 'off') { asState('idle'); asText(SR ? 'Voice input is off.' : 'This browser can’t listen.', 'Type a request or pick a suggestion — I’ll still answer out loud.'); return; }
   const lang = S.assistant.lang || navigator.language || 'en-GB';
@@ -2076,7 +2394,7 @@ function gameLeave() { G.run = false; cancelAnimationFrame(G.raf); }
 const HOOKS = {
   tab(el) { if (!el.dataset.tab) return; clearTimeout(ST.tabT); ST.tabT = setTimeout(() => { if (F.cur === el && ST.tab !== el.dataset.tab) selectTab(el.dataset.tab); }, 110); },
   side(el) { const s = el.dataset.sec; if (!s || s === SET.sec) return; clearTimeout(SET.renderT); SET.renderT = setTimeout(() => { if (F.cur !== el) return; SET.sec = s; SET.unlocked = false; $$('#s-settings .side-item').forEach(b => b.classList.toggle('sel', b.dataset.sec === s)); renderSection(true); }, 90); },
-  wall(el) { const id = el.dataset.wall; if (!id || id === wallFocus) return; wallFocus = id; setWallpaper(id); wallCopy(id); },
+  wall(el) { const id = el.dataset.wall; if (!id || id === wallFocus) return; wallFocus = id; wallPaint($$('#wall-track [data-wall]').indexOf(el)); setWallpaper(id); wallCopy(id); },
 };
 function activate(el) {
   if (!el || el.getAttribute('aria-disabled') === 'true') return;
@@ -2108,7 +2426,13 @@ function activate(el) {
     case 'tog': doToggle(el, v); break;
     case 'set': { const j = v.lastIndexOf(':'); doSet(el, v.slice(0, j), v.slice(j + 1)); break; }
     case 'wpapply': wallApply(v); break;
+    case 'wpcat': wallSetCat(v); break;
     case 'ambient': enterAmbient(); break;
+    case 'scgames': { const g = $('#row-games [data-f]'); if (g && S.ui.games) setFocus(g, {dir: 'down'}); else { show('store'); openCat('Games'); } break; }
+    case 'input': if (NATIVE && LumoraNative.openInputs) LumoraNative.openInputs(); else toast('Use your remote’s Input button — on Google TV, Lumora opens the input list here', 'input'); break;
+    case 'nlaunch': try { LumoraNative.launch(v); } catch (e) {} break;
+    case 'wpcustom': pickPhoto(); break;
+    case 'initial': openKeyboard({title: 'Profile letter', value: S.ui.initial || '', ph: 'One letter', go: 'Save', onDone: t => { const c = (t.trim()[0] || 'L').toUpperCase(); S.ui.initial = c; save(); applySettings(); if (curScreen === 'settings') renderSection(); }}); break;
     case 'fullscreen': toggleFullscreen(); break;
     case 'resetui': S.ui = UI_DEFAULTS(); save(); afterChange('resetui'); renderSection(); toast('Customisation reset', 'reload'); break;
     case 'punlock': pinPrompt({title: 'Enter PIN', sub: 'Unlock Parental Controls settings.', onOk: () => { SET.unlocked = true; renderSection(); const f = $('#set-main [data-k="parental.on"]'); if (f) setFocus(f); }}); break;
@@ -2300,7 +2624,7 @@ bootMs = Math.round(performance.now());
 requestAnimationFrame(frame);
 bumpIdle();
 setInterval(() => { if (!(curScreen === 'game' && G.run) && !isAmbient()) ensureFocus(); }, 800);
-window.__lumora = {ask: t => asHandle(t), understand: t => understand(t), S, F, get screen() { return curScreen; }, layers, ST, SET, BR, VC, get bootMs() { return bootMs; }};
+window.__lumora = {ask: t => asHandle(t), understand: t => understand(t), S, F, get screen() { return curScreen; }, layers, ST, SET, BR, VC, get bootMs() { return bootMs; }, show, AER, get wallCat() { return wallCat; }, walls: WALLS.filter((w, i) => /-1$/.test(w.id)), aer: (id, t = true) => aerialImage(id, t)};
 })();
 </script>
 </body>
