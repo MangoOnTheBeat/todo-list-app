@@ -627,6 +627,43 @@ html{background:#000}
 .sp-copy{position:absolute;left:7rem;bottom:8rem;max-width:66rem;color:#fff}
 .sp-btns{display:flex;gap:1.4rem;margin-top:3rem}
 .sp-src{margin-top:2rem;font-size:calc(1.2rem * var(--ts));color:rgba(255,255,255,.6)}
+/* Home, matched to the reference layout: status pill with TV / date / weather / Wi-Fi, separate round buttons, framed glass tiles */
+#s-home .topbar{gap:1.2rem}
+#s-home .status{gap:.2rem;padding:.5rem 1rem}
+.status button.chipi{height:4.6rem;border:0;background:none;color:inherit;font:inherit;font-weight:600;font-size:calc(1.3rem * var(--ts));border-radius:2.3rem;cursor:pointer;transition:background-color .2s,color .2s,transform .35s var(--spring)}
+.status button.chipi.focused{background:#fff;color:#14161b;transform:scale(1.06)}
+.round-btn{width:5.6rem;height:5.6rem;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:0;color:#fff;font:inherit;padding:0;position:relative;background:rgba(10,12,18,.28);transition:transform .35s var(--spring),background-color .2s,color .2s}
+.round-btn .i{font-size:2.3rem;position:relative;z-index:1}
+.round-btn.avatar{width:5.6rem;height:5.6rem;font-size:calc(1.8rem * var(--ts))}
+.round-btn.avatar span{position:relative;z-index:1}
+.round-btn.focused{background:#fff;color:#14161b;transform:scale(1.1)}
+.theme-light .round-btn{color:var(--fg)}
+#home-stack{top:36.2rem}
+#home-stack [data-hrow="apps"] .t-lift{position:relative}
+#home-stack [data-hrow="apps"] .t-lift::before{content:"";position:absolute;inset:-.65rem;border-radius:calc(2.2rem * var(--rs));background:rgba(255,255,255,.14);box-shadow:inset 0 0 0 .1rem rgba(255,255,255,.32),0 1.2rem 3rem rgba(0,0,0,.28);-webkit-backdrop-filter:blur(1.6rem) saturate(150%);backdrop-filter:blur(1.6rem) saturate(150%);z-index:-1;pointer-events:none}
+.lite #home-stack [data-hrow="apps"] .t-lift::before,.hc #home-stack [data-hrow="apps"] .t-lift::before{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(60,64,74,.6)}
+#home-stack [data-hrow="apps"] .track{gap:2.6rem;padding-top:2.4rem}
+.hrow-sc .track{gap:2.6rem!important}
+.names-never #home-stack [data-hrow="apps"] .t-title{opacity:0!important}
+/* Guest Wi-Fi, Lights */
+.gw{display:flex;gap:3.6rem;align-items:center;max-width:86rem;text-align:left}
+.gw-qr{width:26rem;height:26rem;flex:0 0 auto;border-radius:2rem;overflow:hidden;background:#fff}
+.gw-qr svg{width:100%;height:100%;display:block}
+.gw-txt h2{margin:.4rem 0 .6rem;font-size:calc(3.4rem * var(--ts))}
+.gw-txt .kicker{font-size:calc(1.2rem * var(--ts));font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--fg2)}
+.gw-pw{margin:1.8rem 0;display:flex;flex-direction:column;gap:.3rem;font-size:calc(1.4rem * var(--ts));color:var(--fg2)}
+.gw-pw b{font-size:calc(2.2rem * var(--ts));color:var(--fg);letter-spacing:.04em;word-break:break-all}
+.gw .actions{justify-content:flex-start}
+.layer.lamp .panel{position:absolute;inset:0;width:auto;height:auto;margin:0;border-radius:0;padding:0;background:#000;opacity:0;transition:opacity .6s}
+.layer.lamp.open .panel{opacity:1}
+.lamp-glow{position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 45%,var(--c),color-mix(in srgb,var(--c) 70%,#000) 85%);transition:background .6s}
+.lamp-ui{position:absolute;left:0;right:0;bottom:5rem;display:flex;flex-direction:column;align-items:center;gap:1.4rem;color:#1b1206;transition:opacity .5s}
+.lamp-h{display:flex;gap:.8rem;align-items:center;font-weight:700;font-size:calc(1.8rem * var(--ts))}
+.lamp-opts{display:flex;gap:1rem}
+.lamp-opts .opt{background:rgba(255,255,255,.55);color:#1b1206}
+.lamp-opts .opt .sw{width:1.6rem;height:1.6rem;border-radius:50%;background:var(--c);box-shadow:inset 0 0 0 .1rem rgba(0,0,0,.25)}
+.lamp-opts .opt.focused{background:#fff}
+.lamp-ui p{margin:0;font-size:calc(1.3rem * var(--ts));opacity:.7}
 /* Control Centre */
 .layer.cc{justify-content:flex-end;align-items:flex-start;background:linear-gradient(270deg,rgba(0,0,0,.35),transparent 60%)}
 .layer.cc .panel{background:none!important;box-shadow:none!important;border:0!important;margin:3rem 3rem 0 0;width:52rem;padding:0;display:flex;flex-direction:column;gap:1.4rem;transform:translate3d(0,-2rem,0) scale(.96);transform-origin:top right;opacity:0;transition:transform .45s var(--spring),opacity .25s}
@@ -763,6 +800,11 @@ html{background:#000}
   <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18.3 6.5a8 8 0 0 1 0 11"/></symbol>
   <symbol id="i-toggles" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="8" rx="4"/><rect x="5" y="13" width="14" height="8" rx="4"/><circle cx="15" cy="7" r="1.8"/><circle cx="9" cy="17" r="1.8"/></symbol>
   <symbol id="i-access" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.2"/><circle cx="12" cy="7.3" r="1.3"/><path d="M7.5 10l4.5 1 4.5-1M12 11v3.2M12 14.2l-2.3 3.6M12 14.2l2.3 3.6"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.6 4.5 4.5 0 0 0 7 18.5z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"/></symbol>
+  <symbol id="i-rain" viewBox="0 0 24 24"><path d="M7 15h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 6.1 4.5 4.5 0 0 0 7 15z"/><path d="M8.5 18l-1 2.5M12.5 18l-1 2.5M16.5 18l-1 2.5"/></symbol>
+  <symbol id="i-snow" viewBox="0 0 24 24"><path d="M7 14.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 5.6 4.5 4.5 0 0 0 7 14.5z"/><path d="M8.5 18.5h.01M12 20h.01M15.5 18.5h.01"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 17.5h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2v1.5h5V16c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></symbol>
   <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8.5"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></symbol>
   <symbol id="i-input" viewBox="0 0 24 24"><path d="M4 8h16v5l-2 3H6l-2-3z"/><path d="M8 11h8"/></symbol>
   <symbol id="i-keyb" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.1M9.5 10h.1M13 10h.1M16.5 10h.1M7 14h10"/></symbol>
@@ -778,15 +820,14 @@ html{background:#000}
   <section class="screen" id="s-home" aria-label="Home">
     <div class="topbar">
       <div class="status lg" data-row="home-top">
+        <button class="chipi fx plain" data-f data-k="st-tv" data-act="input" aria-label="Inputs" tabindex="-1"><svg class="i"><use href="#i-tv"/></svg><span>TV</span></button>
         <span class="chipi" aria-hidden="true"><svg class="i"><use href="#i-cal"/></svg><span id="st-day"></span></span>
-        <span class="chipi" id="st-net" aria-hidden="true"><svg class="i"><use href="#i-wifi"/></svg></span>
+        <button class="chipi fx plain" id="st-wx" data-f data-k="st-wx" data-act="weather" aria-label="Weather" tabindex="-1"><svg class="i"><use href="#i-cloud" id="st-wx-i"/></svg><span id="st-wx-t">--°</span></button>
+        <button class="chipi fx plain" id="st-net" data-f data-k="st-net" data-act="quick" aria-label="Control Centre" tabindex="-1"><svg class="i"><use href="#i-wifi"/></svg></button>
         <span class="stime" id="stime"></span>
-        <button class="icon-btn fx plain" data-f data-act="assist" aria-label="Lumora Assistant"><svg class="i"><use href="#i-mic"/></svg></button>
-        <button class="icon-btn fx plain" data-f data-act="search" aria-label="Search the Store"><svg class="i"><use href="#i-search"/></svg></button>
-        <button class="icon-btn fx plain" data-f data-act="open:browser" aria-label="Browser"><svg class="i"><use href="#i-globe"/></svg></button>
-        <button class="icon-btn fx plain" data-f data-act="quick" aria-label="Control Centre"><svg class="i"><use href="#i-sliders"/></svg></button>
-        <button class="avatar fx" data-f data-act="screen:settings" aria-label="Profile and Settings" tabindex="-1"><span id="avatar">L</span></button>
       </div>
+      <button class="round-btn lg fx" data-f data-k="st-web" data-act="open:browser" aria-label="Browser" tabindex="-1"><svg class="i"><use href="#i-globe"/></svg></button>
+      <button class="round-btn avatar lg fx" data-f data-k="st-me" data-act="screen:settings" aria-label="Profile and Settings" tabindex="-1"><span id="avatar">L</span></button>
     </div>
     <div class="clock-wrap">
       <div class="clock" id="clock">--:--</div>
@@ -1045,13 +1086,14 @@ function getOnPlay(id) { const a = APPS[id]; try { LumoraNative.store(PKG[id] ? 
 window.__lumoraKey = k => { const m = {back: ['Escape', 27], home: ['Home', 36], red: ['ColorF0Red', 403], green: ['ColorF1Green', 404], yellow: ['ColorF2Yellow', 405], blue: ['ColorF3Blue', 406], menu: ['ContextMenu', 93], assist: ['LaunchAssistant', 0]}[k]; if (!m) return;
   for (const type of ['keydown', 'keyup']) document.dispatchEvent(new KeyboardEvent(type, {key: m[0], keyCode: m[1], bubbles: true})); };
 window.__lumoraAppsChanged = () => { DEVICE_APPS = null; if (typeof renderHome === 'function') renderHome(); };
-const UI_DEFAULTS = () => ({accent:'app', glow:'off', glass:'frosted', corners:'round', icons:'standard', names:'focus', clock:'corner', clockWeight:'regular', shelf:'minimal', games:true, info:false, initial:'L', dim:0, wpMotion:true});
+const UI_DEFAULTS = () => ({accent:'app', glow:'off', glass:'frosted', corners:'round', icons:'standard', names:'never', clock:'corner', clockWeight:'regular', shelf:'minimal', games:true, info:false, initial:'L', dim:0, wpMotion:true, rev:2});
 const DEFAULTS = () => ({
   theme:'dark', wallpaper:'aerial-glacier', clock: hour24Default() ? '24' : '12', ambientAfter:5,
   reduceMotion: mm('(prefers-reduced-motion: reduce)'), contrast: mm('(prefers-contrast: more)'), transparency:false, textSize:'default',
   effects:'auto', showFps:false, ui: UI_DEFAULTS(),
   power:{fast:true, onAnim:true, offAnim:true, resume:1, startup:'home', sleepTimer:0, autoSleep:240, screenOffKey:true, wakeNet:false, led:true},
   foryou:{key:'', region:'', promos:true}, recent:[],
+  weather:{place:'', lat:null, lon:null, unit:'auto'}, guest:{ssid:'', pass:'', sec:'wpa'}, lamp:'warm',
   assistant:{speak:true, voice:'', rate:1, voiceIn:'auto', lang:''},
   browser:{engine:'duckduckgo', cursorSpeed:'normal', openIn: 'same', openInChosen: false},
   apps:['netflix','youtube','disney','prime','hbomax','iplayer','spotify','twitch','paramount','browser','wallpapers','store','settings'],
@@ -1072,8 +1114,9 @@ function load() {
     const o = JSON.parse(raw);
     if (migrated) { delete o.ui; delete o.wallpaper; }   // the new Home look starts from its own defaults
     const s = Object.assign(d, o);
-    for (const k of ['video', 'parental', 'browser', 'ui', 'assistant', 'power', 'foryou']) s[k] = Object.assign(DEFAULTS()[k], o[k] || {});
+    for (const k of ['video', 'parental', 'browser', 'ui', 'assistant', 'power', 'foryou', 'weather', 'guest']) s[k] = Object.assign(DEFAULTS()[k], o[k] || {});
     s.apps = (s.apps || []).filter(id => APPS[id]); s.games = (s.games || []).filter(id => APPS[id]);
+    if (!(o.ui && o.ui.rev >= 2)) { s.ui.names = 'never'; s.ui.rev = 2; }   // the new Home look has no labels under apps
     s.recent = (s.recent || []).filter(id => APPS[id]); s.power.sleepTimer = 0;   // like a TV, the sleep timer doesn't survive switching off
     for (const sys of ['store', 'settings']) if (!s.apps.includes(sys) && !s.games.includes(sys)) s.apps.push(sys);
     if (s.ui.clock === 'small') s.ui.clock = 'corner';
@@ -1100,7 +1143,7 @@ function applySettings() {
   const cls = {
     'theme-dark': dark, 'theme-light': !dark, 'reduce-motion': !!S.reduceMotion, hc: !!S.contrast, 'no-transp': !!S.transparency, 'show-fps': !!S.showFps,
     'glass-clear': U.glass === 'clear', 'glass-solid': U.glass === 'solid', 'corners-soft': U.corners === 'soft', 'corners-xround': U.corners === 'xround',
-    'icons-compact': U.icons === 'compact', 'icons-large': U.icons === 'large', 'names-always': U.names === 'always',
+    'icons-compact': U.icons === 'compact', 'icons-large': U.icons === 'large', 'names-always': U.names === 'always', 'names-never': U.names === 'never',
     'clock-corner': U.clock === 'corner', 'show-info': !!U.info, 'clock-hidden': U.clock === 'hidden', 'shelf-min': U.shelf === 'minimal', 'no-games': !U.games,
     'glow-off': U.glow === 'off', 'wp-paused': !U.wpMotion, 'accent-fixed': U.accent !== 'app',
   };
@@ -1557,13 +1600,12 @@ function renderHome() {
 }
 function homeDefault() { const m = F.mem['home-apps']; return (m && m.isConnected) ? m : $('#row-apps [data-f]'); }
 const SHORTCUTS = [
-  {k: 'sc-fy', name: 'For You', icon: 'star', act: 'screen:foryou'},
-  {k: 'sc-wall', name: 'Wallpapers', icon: 'image', act: 'screen:wall'},
-  {k: 'sc-assist', name: 'Assistant', icon: 'mic', act: 'assist'},
+  {k: 'sc-movie', name: 'Movie', icon: 'play', act: 'screen:foryou'},
   {k: 'sc-games', name: 'Gaming', icon: 'pad', act: 'scgames'},
+  {k: 'sc-lights', name: 'Lights', icon: 'bulb', act: 'lights'},
+  {k: 'sc-guest', name: 'Guest Wi-Fi', icon: 'wifi', act: 'guestwifi'},
   {k: 'sc-input', name: 'Input', icon: 'input', act: 'input'},
-  {k: 'sc-web', name: 'Browser', icon: 'globe', act: 'open:browser'},
-  {k: 'sc-off', name: 'Sleep', icon: 'power', act: 'poweroff'},
+  {k: 'sc-off', name: 'Everything Off', icon: 'power', act: 'poweroff'},
 ];
 let siT = 0, siCur = '';
 function shelfInfo(id, force) {
@@ -2187,13 +2229,19 @@ const SECTION_HTML = {
     ${choiceRow('ui.icons', 'App size', '', [['compact', 'Compact'], ['standard', 'Standard'], ['large', 'Large']], U.icons)}
     ${choiceRow('ui.corners', 'Corners', '', [['soft', 'Sharp'], ['round', 'Round'], ['xround', 'Extra round']], U.corners)}
     ${choiceRow('ui.shelf', 'Dock', 'A floating glass shelf behind your apps, or apps on their own.', [['glass', 'Glass shelf'], ['minimal', 'Minimal']], U.shelf)}
-    ${choiceRow('ui.names', 'App names', '', [['focus', 'When focused'], ['always', 'Always']], U.names)}
+    ${choiceRow('ui.names', 'App names', '', [['never', 'Never'], ['focus', 'When focused'], ['always', 'Always']], U.names)}
     ${toggleRow('ui.games', 'Show Games row', 'Below the shortcuts.', U.games)}
     <div class="group">Clock</div>
     ${choiceRow('ui.clock', 'Clock', 'Corner is the classic layout. Hidden moves the time into the status bar.', [['corner', 'Corner'], ['large', 'Large'], ['hidden', 'Hidden']], U.clock)}
     ${toggleRow('ui.info', 'App details above apps', 'Show the focused app’s name and a line about it.', U.info)}
     ${actRow('initial', 'Profile letter', 'The initial shown in the top-right corner.', 'initial', esc(U.initial || 'L'))}
     ${choiceRow('ui.clockWeight', 'Clock style', '', [['thin', 'Thin'], ['regular', 'Regular'], ['bold', 'Bold']], U.clockWeight)}
+    <div class="group">Weather</div>
+    ${actRow('wx-place', 'Weather location', S.weather.place ? `${esc(S.weather.place)} — from Open-Meteo. Only the town is sent.` : 'Choose a town to show the weather in the status bar. Only the town is sent, to Open-Meteo.', 'wxplace', S.weather.place ? esc(S.weather.place) : 'Not set')}
+    ${choiceRow('weather.unit', 'Temperature', '', [['auto', 'Auto'], ['c', '°C'], ['f', '°F']], S.weather.unit)}
+    <div class="group">Guest Wi-Fi</div>
+    ${actRow('gw-edit', 'Guest network', S.guest.ssid ? `${esc(S.guest.ssid)} — shown as a QR code from Home. Saved only on this TV.` : 'Type your guest network name and password once; Home shows a QR code guests can scan.', 'guestedit', S.guest.ssid ? esc(S.guest.ssid) : 'Not set')}
+    ${S.guest.ssid ? actRow('gw-clear', 'Remove guest network', '', 'guestclear', ico('trash')) : ''}
     <div class="group">Wallpaper</div>
     ${actRow('openwall', 'Wallpapers', `${wallName()} — open the Wallpapers app to preview and apply`, 'open:wallpapers', ico('image'))}
     ${actRow('resetui', 'Reset customisation', 'Return every option on this page to its default.', 'resetui', ico('reload'))}`; },
@@ -2335,6 +2383,7 @@ function afterChange(k) {
   if (k === 'clock') tick();
   if (k === 'ambientAfter') bumpIdle();
   if (k === 'power.sleepTimer') { setSleepTimer(S.power.sleepTimer); }
+  if (k === 'weather.unit') wxFetch(true);
   if (k === 'foryou.region') { FY.prov = FY.provP = null; FY.rel = {}; }
   if (k === 'reduceMotion' && F.cur) ensureVisible(F.cur);
   if (!k || k.startsWith('pcat.') || k.startsWith('phide.')) { renderHome(); storeRefresh(); }
@@ -2636,6 +2685,133 @@ function ccMedia(cmd) {
   if (NATIVE && LumoraNative.media) { LumoraNative.media(cmd); const L = layers.find(l => l.qm); setTimeout(() => L && layers.includes(L) && refreshQuick(L), 350); return; }
   toast('Music controls work in the Lumora app on Google TV', 'music');
 }
+/* QR code (byte mode, error correction M, versions 1–6: up to 106 bytes), for the Guest Wi-Fi card. */
+function qrMatrix(text) {
+  const data = Array.from(new TextEncoder().encode(text));
+  const CAP = [0, 16, 28, 44, 64, 86, 108], ECW = [0, 10, 16, 26, 18, 24, 16], BLK = [0, 1, 1, 1, 2, 2, 4], ALN = [0, 0, 18, 22, 26, 30, 34];
+  let v = 1; while (v <= 6 && data.length + 2 > CAP[v]) v++; if (v > 6) return null;
+  const bits = []; const put = (n, len) => { for (let i = len - 1; i >= 0; i--) bits.push((n >> i) & 1); };
+  put(4, 4); put(data.length, 8); data.forEach(b => put(b, 8)); put(0, Math.min(4, CAP[v] * 8 - bits.length));
+  while (bits.length % 8) bits.push(0);
+  const cw = []; for (let i = 0; i < bits.length; i += 8) cw.push(parseInt(bits.slice(i, i + 8).join(''), 2));
+  for (let p = 0; cw.length < CAP[v]; p++) cw.push(p % 2 ? 0x11 : 0xEC);
+  const EXP = new Array(512), LOG = new Array(256); for (let i = 0, x = 1; i < 255; i++) { EXP[i] = x; LOG[x] = i; x <<= 1; if (x & 256) x ^= 0x11d; } for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+  const mul = (a, b) => a && b ? EXP[LOG[a] + LOG[b]] : 0;
+  const n = ECW[v]; let gen = [1]; for (let i = 0; i < n; i++) { const g = new Array(gen.length + 1).fill(0); gen.forEach((c, j) => { g[j] ^= c; g[j + 1] ^= mul(c, EXP[i]); }); gen = g; }
+  const per = CAP[v] / BLK[v], blocks = [], ecs = [];
+  for (let b = 0; b < BLK[v]; b++) { const d = cw.slice(b * per, (b + 1) * per); const r = d.concat(new Array(n).fill(0));
+    for (let i = 0; i < d.length; i++) { const c = r[i]; if (c) for (let j = 0; j < gen.length; j++) r[i + j] ^= mul(gen[j], c); }
+    blocks.push(d); ecs.push(r.slice(d.length)); }
+  const all = []; for (let i = 0; i < per; i++) blocks.forEach(d => all.push(d[i])); for (let i = 0; i < n; i++) ecs.forEach(e => all.push(e[i]));
+  const S = 17 + 4 * v, M = [...Array(S)].map(() => new Array(S).fill(0)), R = [...Array(S)].map(() => new Array(S).fill(false));
+  const set = (r, c, on) => { M[r][c] = on ? 1 : 0; R[r][c] = true; };
+  const finder = (r, c) => { for (let i = -1; i <= 7; i++) for (let j = -1; j <= 7; j++) { const y = r + i, x = c + j; if (y < 0 || x < 0 || y >= S || x >= S) continue;
+    set(y, x, i >= 0 && i <= 6 && j >= 0 && j <= 6 && (i === 0 || i === 6 || j === 0 || j === 6 || (i >= 2 && i <= 4 && j >= 2 && j <= 4))); } };
+  finder(0, 0); finder(0, S - 7); finder(S - 7, 0);
+  for (let i = 8; i < S - 8; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+  if (ALN[v]) { const a = ALN[v]; for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) set(a + i, a + j, Math.max(Math.abs(i), Math.abs(j)) !== 1); }
+  for (let i = 0; i < 9; i++) { R[8][i] = R[i][8] = true; } for (let i = 0; i < 8; i++) { R[8][S - 1 - i] = R[S - 1 - i][8] = true; }
+  set(S - 8, 8, true);
+  const dbits = []; all.forEach(b => { for (let i = 7; i >= 0; i--) dbits.push((b >> i) & 1); });
+  const cells = []; for (let c = S - 1, up = true; c > 0; c -= 2, up = !up) { if (c === 6) c--; for (let k = 0; k < S; k++) { const r = up ? S - 1 - k : k; for (const x of [c, c - 1]) if (!R[r][x]) cells.push([r, x]); } }
+  const MASKS = [(r, c) => (r + c) % 2 === 0, r => r % 2 === 0, (r, c) => c % 3 === 0, (r, c) => (r + c) % 3 === 0, (r, c) => (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0,
+    (r, c) => (r * c) % 2 + (r * c) % 3 === 0, (r, c) => ((r * c) % 2 + (r * c) % 3) % 2 === 0, (r, c) => ((r + c) % 2 + (r * c) % 3) % 2 === 0];
+  const fmt = mask => { const d = (0 << 3) | mask; let r = d << 10; for (let i = 14; i >= 10; i--) if ((r >> i) & 1) r ^= 0x537 << (i - 10); return ((d << 10) | r) ^ 0x5412; };
+  const build = mask => { const G = M.map(r => r.slice());
+    cells.forEach(([r, c], i) => { G[r][c] = (dbits[i] || 0) ^ (MASKS[mask](r, c) ? 1 : 0); });
+    const f = fmt(mask);
+    for (let i = 0; i < 15; i++) { const b = (f >> i) & 1;
+      if (i < 6) G[i][8] = b; else if (i < 8) G[i + 1][8] = b; else G[S - 15 + i][8] = b;
+      if (i < 8) G[8][S - 1 - i] = b; else if (i < 9) G[8][7] = b; else G[8][14 - i] = b; }
+    return G; };
+  const penalty = G => { let p = 0;
+    for (let t = 0; t < 2; t++) for (let i = 0; i < S; i++) { let run = 1; for (let j = 1; j < S; j++) { const a = t ? G[j][i] : G[i][j], b = t ? G[j - 1][i] : G[i][j - 1]; if (a === b) { run++; if (run === 5) p += 3; else if (run > 5) p++; } else run = 1; } }
+    for (let i = 0; i < S - 1; i++) for (let j = 0; j < S - 1; j++) { const s = G[i][j] + G[i + 1][j] + G[i][j + 1] + G[i + 1][j + 1]; if (s === 0 || s === 4) p += 3; }
+    let dark = 0; G.forEach(r => r.forEach(x => dark += x)); p += Math.floor(Math.abs(dark * 100 / (S * S) - 50) / 5) * 10; return p; };
+  let best = null, bp = 1e9; for (let m = 0; m < 8; m++) { const G = build(m), q = penalty(G); if (q < bp) { bp = q; best = G; } }
+  return best;
+}
+function qrSVG(text) {
+  const G = qrMatrix(text); if (!G) return ''; const S = G.length, q = 4; let d = '';
+  G.forEach((row, r) => row.forEach((on, c) => { if (on) d += `M${c + q} ${r + q}h1v1h-1z`; }));
+  return `<svg viewBox="0 0 ${S + 2 * q} ${S + 2 * q}" shape-rendering="crispEdges" aria-hidden="true"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+}
+
+/* ---------------- WEATHER (status bar) ----------------
+   Current conditions from Open-Meteo (free, no account). Only the town you choose is sent; until then the chip just says so. */
+const WX = {t: 0, data: null};
+const wxUnit = () => S.weather.unit !== 'auto' ? S.weather.unit : /-(US|LR|MM)\b/.test(navigator.language || '') ? 'f' : 'c';
+const wxIcon = c => c <= 1 ? 'sun' : c <= 48 ? 'cloud' : (c >= 71 && c <= 77) || c === 85 || c === 86 ? 'snow' : 'rain';
+const WX_WORDS = c => c === 0 ? 'Clear' : c <= 2 ? 'Partly cloudy' : c === 3 ? 'Cloudy' : c <= 48 ? 'Fog' : c <= 57 ? 'Drizzle' : c <= 67 ? 'Rain' : c <= 77 ? 'Snow' : c <= 82 ? 'Showers' : c <= 86 ? 'Snow showers' : 'Thunderstorms';
+function wxPaint() {
+  const t = $('#st-wx-t'), i = $('#st-wx-i'); if (!t) return;
+  const d = WX.data;
+  if (!S.weather.lat) { t.textContent = 'Weather'; i.setAttribute('href', '#i-cloud'); return; }
+  if (!d) { t.textContent = '--°'; return; }
+  t.textContent = Math.round(d.temp) + '°'; i.setAttribute('href', '#i-' + wxIcon(d.code));
+}
+function wxFetch(force) {
+  if (!S.weather.lat || (!force && Date.now() - WX.t < 20 * 60000)) { wxPaint(); return Promise.resolve(); }
+  WX.t = Date.now();
+  const u = `https://api.open-meteo.com/v1/forecast?latitude=${S.weather.lat}&longitude=${S.weather.lon}&current=temperature_2m,weather_code&temperature_unit=${wxUnit() === 'f' ? 'fahrenheit' : 'celsius'}`;
+  return fetch(u).then(r => r.ok ? r.json() : Promise.reject()).then(j => { WX.data = {temp: j.current.temperature_2m, code: j.current.weather_code}; wxPaint(); })
+    .catch(() => { WX.t = Date.now() - 18 * 60000; wxPaint(); });
+}
+function wxSetPlace() {
+  openKeyboard({title: 'Your town or city', value: S.weather.place || '', ph: 'e.g. Manchester', go: 'Find', onDone: q => {
+    q = q.trim(); if (!q) { S.weather = {...S.weather, place: '', lat: null, lon: null}; save(); WX.data = null; wxPaint(); if (curScreen === 'settings') renderSection(); return; }
+    toast('Finding ' + q + '…', 'cloud');
+    fetch(`https://geocoding-api.open-meteo.com/v1/search?count=1&name=${encodeURIComponent(q)}`).then(r => r.json()).then(j => {
+      const g = j.results && j.results[0]; if (!g) { toast(`Couldn't find “${q}”`, 'info'); return; }
+      S.weather = {...S.weather, place: g.name + (g.country_code ? ', ' + g.country_code : ''), lat: +g.latitude.toFixed(2), lon: +g.longitude.toFixed(2)}; save();
+      wxFetch(true).then(() => toast(`Weather for ${S.weather.place}`, 'cloud')); if (curScreen === 'settings') renderSection();
+    }).catch(() => toast('Couldn’t reach the weather service', 'info'));
+  }});
+}
+function wxPress() {
+  if (!S.weather.lat) { wxSetPlace(); return; }
+  const d = WX.data; toast(d ? `${S.weather.place}: ${WX_WORDS(d.code)}, ${Math.round(d.temp)}°${wxUnit().toUpperCase()}` : `Getting the weather for ${S.weather.place}…`, d ? wxIcon(d.code) : 'cloud'); wxFetch();
+}
+setInterval(() => wxFetch(), 5 * 60000);
+
+/* ---------------- GUEST WI-FI ----------------
+   A QR code guests scan with their phone camera to join your Wi-Fi. The network name and password you type stay on this TV. */
+const wifiEsc = t => String(t).replace(/([\;,:"])/g, '\\$1');
+function guestCard() {
+  const g = S.guest, txt = `WIFI:T:${g.sec === 'open' ? 'nopass' : 'WPA'};S:${wifiEsc(g.ssid)};${g.sec === 'open' ? '' : 'P:' + wifiEsc(g.pass) + ';'};`;
+  const svg = qrSVG(txt);
+  return `<div class="dlg glass-strong gw"><div class="gw-qr">${svg || '<p>That name and password are too long for a QR code.</p>'}</div><div class="gw-txt">
+    <div class="kicker">Guest Wi-Fi</div><h2>${esc(g.ssid)}</h2>
+    <p>Point your phone camera at the code to join.</p>
+    ${g.sec === 'open' ? '<div class="gw-pw">No password</div>' : `<div class="gw-pw"><span>Password</span><b>${esc(g.pass)}</b></div>`}
+    <div class="actions"><button class="btn fx" data-f data-act="guestedit" tabindex="-1">${ico('wand')}Change</button><button class="btn primary fx" data-f data-act="dlgcancel" id="gw-done" tabindex="-1">Done</button></div></div></div>`;
+}
+function guestWifi() {
+  if (!S.guest.ssid) { guestEdit(); return; }
+  openLayer({label: 'Guest Wi-Fi', html: guestCard(), def: '#gw-done'});
+}
+function guestEdit() {
+  closeAllLayers();
+  openKeyboard({title: 'Guest network name', value: S.guest.ssid, ph: 'The Wi-Fi name guests should join', go: 'Next', onDone: ssid => {
+    ssid = ssid.trim(); if (!ssid) return;
+    setTimeout(() => openKeyboard({title: `Password for ${ssid}`, value: S.guest.pass, ph: 'Leave empty if there is no password', go: 'Save', onDone: pass => {
+      S.guest = {ssid, pass, sec: pass ? 'wpa' : 'open'}; save(); setTimeout(guestWifi, 50);
+    }}), 50);
+  }});
+}
+
+/* ---------------- LIGHTS ----------------
+   Turns the screen into a soft lamp. Smart bulbs are controlled from your Google TV's own Home panel. */
+const LAMPS = [['warm', 'Warm', '#ffcf9a'], ['day', 'Daylight', '#f4f7ff'], ['candle', 'Candle', '#ff9a4d'], ['blue', 'Moon', '#8fb4ff'], ['rose', 'Rose', '#ffb3c8']];
+function lights(mode = S.lamp || 'warm') {
+  const L0 = layers.find(l => l.lamp); const c = (LAMPS.find(x => x[0] === mode) || LAMPS[0])[2];
+  S.lamp = mode; save();
+  const html = `<div class="lamp-glow" style="--c:${c}"></div><div class="lamp-ui"><div class="lamp-h">${ico('bulb')} Screen light</div><div class="lamp-opts" data-row="lamp">${LAMPS.map(([k, t, col]) => `<button class="opt fx${k === mode ? ' sel' : ''}" data-f data-k="lamp-${k}" data-act="lamp:${k}" tabindex="-1"><span class="sw" style="--c:${col}"></span>${t}</button>`).join('')}</div>
+    <p>Press Back to turn the light off. Smart bulbs: use your Google TV's own Home panel.</p></div>`;
+  if (L0) { L0.panel.innerHTML = html; const b = $(`[data-k="lamp-${mode}"]`, L0.panel); dropFocus(); setFocus(b); return; }
+  const L = openLayer({cls: 'lamp', label: 'Screen light', html, def: `[data-k="lamp-${mode}"]`}); L.lamp = true;
+}
+
 function toggleFullscreen() {
   try {
     if (document.fullscreenElement) document.exitFullscreen();
@@ -2717,6 +2893,13 @@ function activate(el) {
     case 'search': show('store', {tab: 'search'}); break;
     case 'quick': openQuick(); break;
     case 'media': ccMedia(v); break;
+    case 'weather': wxPress(); break;
+    case 'wxplace': wxSetPlace(); break;
+    case 'lights': lights(); break;
+    case 'lamp': lights(v); break;
+    case 'guestwifi': guestWifi(); break;
+    case 'guestedit': guestEdit(); break;
+    case 'guestclear': S.guest = {ssid: '', pass: '', sec: 'wpa'}; save(); renderSection(); toast('Guest Wi-Fi details removed', 'trash'); break;
     case 'ccnet': if (NATIVE && LumoraNative.openSettings) LumoraNative.openSettings('wifi'); else toast(navigator.onLine === false ? 'Not connected to the internet' : 'Connected — change networks in your TV\'s own settings', 'wifi'); break;
     case 'ccaudio': if (NATIVE && LumoraNative.openSettings) LumoraNative.openSettings('sound'); else toast('Sound output is set in your TV\'s own settings', 'speaker'); break;
     case 'assist': openAssistant(); break;
@@ -3059,6 +3242,7 @@ try { back = sessionStorage.getItem('lumora.return'); sessionStorage.removeItem(
 const snap = back ? null : resumeSnap();
 if (snap) applyResume(snap); else if (!back && S.power.startup === 'foryou') show('foryou');
 powerOn('boot');
+wxFetch();
 if (EMBEDDED) toast('Preview mode — open index.html in Chrome, Edge or on your TV so apps open inside Lumora', 'info');
 if (F.cur && F.cur.dataset.app) { glowFor(F.cur.dataset.app, true); shelfInfo(F.cur.dataset.app, true); }
 bootMs = Math.round(performance.now());
