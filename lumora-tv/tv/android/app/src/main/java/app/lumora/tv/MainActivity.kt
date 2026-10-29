@@ -3,6 +3,19 @@ package app.lumora.tv
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.ActivityManager
+import android.content.ComponentName
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.media.MediaMetadata
+import android.media.session.MediaSessionManager
+import android.media.session.PlaybackState
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.wifi.WifiManager
+import android.os.Handler
+import android.os.Looper
+import android.os.StatFs
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -53,17 +66,36 @@ class MainActivity : Activity() {
     private val PICK_IMAGE = 41
     private val MIC_PERMISSION = 42
 
+    private val prefs by lazy { getSharedPreferences("lumora", MODE_PRIVATE) }
+    private val main = Handler(Looper.getMainLooper())
+
     private val packageWatcher = object : BroadcastReceiver() {
+        override fun onReceive(c: Context, i: Intent) { refreshApps(notify = true) }
+    }
+
+    /* Screen off/on: remembered so switching back on within the resume window returns to the same place,
+       and passed to the interface so waking the TV plays Lumora's switch-on animation. */
+    private val screenWatcher = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
-            appsCache = null
-            js("window.__lumoraAppsChanged && window.__lumoraAppsChanged()")
+            when (i.action) {
+                Intent.ACTION_SCREEN_OFF -> { prefs.edit().putLong("offAt", System.currentTimeMillis()).apply(); js("window.__lumoraPower && __lumoraPower('off')") }
+                Intent.ACTION_SCREEN_ON -> js("window.__lumoraPower && __lumoraPower('wake')")
+            }
         }
+    }
+    private val heartbeat = object : Runnable {
+        override fun run() { prefs.edit().putLong("aliveAt", System.currentTimeMillis()).apply(); main.postDelayed(this, 15000) }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.addFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED)
+
+        // The installed-apps list (with banners) is saved, so Home can draw instantly at start-up; it is refreshed in the background.
+        appsCache = try { java.io.File(filesDir, "apps.json").takeIf { it.exists() }?.readText() } catch (e: Exception) { null }
+        refreshApps(notify = appsCache != null)
 
         web = WebView(this)
         web.setBackgroundColor(Color.BLACK)
@@ -76,7 +108,10 @@ class MainActivity : Activity() {
             allowFileAccess = true
             @Suppress("DEPRECATION")
             allowFileAccessFromFileURLs = true
+            offscreenPreRaster = true
         }
+        // Keep Lumora's renderer alive while an app is in front, so pressing Home brings it back instantly.
+        if (Build.VERSION.SDK_INT >= 26) web.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
         // Websites opened from Lumora's Browser load full screen inside Lumora; Back returns.
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -98,10 +133,14 @@ class MainActivity : Activity() {
             addDataScheme("package")
         }
         registerReceiver(packageWatcher, f)
+        registerReceiver(screenWatcher, IntentFilter().apply { addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_SCREEN_ON) })
+        main.post(heartbeat)
     }
 
     override fun onDestroy() {
         try { unregisterReceiver(packageWatcher) } catch (e: Exception) { }
+        try { unregisterReceiver(screenWatcher) } catch (e: Exception) { }
+        main.removeCallbacks(heartbeat)
         tts?.shutdown()
         recognizer?.destroy()
         super.onDestroy()
@@ -115,9 +154,15 @@ class MainActivity : Activity() {
         }
     }
 
+    override fun onPause() {
+        web.onPause()   // the page sees itself as hidden while another app is in front
+        super.onPause()
+    }
+
     override fun onResume() {
         super.onResume()
-        appsCache = null
+        web.onResume()
+        prefs.edit().remove("lastPkg").apply()   // back on Lumora, so there's no app to resume
     }
 
     @Deprecated("Back is forwarded to the web interface")
@@ -159,8 +204,19 @@ class MainActivity : Activity() {
         return "data:image/png;base64," + Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
     }
 
-    private fun listApps(): String {
-        appsCache?.let { return it }
+    private fun listApps(): String = appsCache ?: scanApps().also { saveApps(it) }
+
+    private fun saveApps(json: String) {
+        appsCache = json
+        try { java.io.File(filesDir, "apps.json").writeText(json) } catch (e: Exception) { }
+    }
+
+    private fun refreshApps(notify: Boolean) = Thread {
+        val json = scanApps()
+        if (json != appsCache) { saveApps(json); if (notify) js("window.__lumoraAppsChanged && window.__lumoraAppsChanged()") }
+    }.start()
+
+    private fun scanApps(): String {
         val pm = packageManager
         val seen = LinkedHashMap<String, JSONObject>()
         val lookups = listOf(
@@ -183,7 +239,54 @@ class MainActivity : Activity() {
             }
         }
         val arr = JSONArray(); seen.values.sortedBy { it.optString("label").lowercase() }.forEach { arr.put(it) }
-        return arr.toString().also { appsCache = it }
+        return arr.toString()
+    }
+
+    private fun networkStatus(o: JSONObject) {
+        val cm = getSystemService(ConnectivityManager::class.java)
+        val caps = cm?.activeNetwork?.let { cm.getNetworkCapabilities(it) }
+        val kind = when {
+            caps == null -> "none"
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
+            else -> "online"
+        }
+        o.put("net", kind)
+        if (kind == "wifi") try {
+            @Suppress("DEPRECATION") val ssid = applicationContext.getSystemService(WifiManager::class.java)?.connectionInfo?.ssid ?: ""
+            if (ssid.isNotEmpty() && !ssid.contains("unknown ssid")) o.put("ssid", ssid.trim('"'))
+        } catch (e: Exception) { }
+    }
+
+    private fun audioOutput(): String {
+        val am = getSystemService(AudioManager::class.java) ?: return ""
+        val outs = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        fun has(vararg t: Int) = outs.firstOrNull { it.type in t }
+        has(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)?.let { return "Bluetooth · ${it.productName}" }
+        has(AudioDeviceInfo.TYPE_WIRED_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_USB_HEADSET)?.let { return "Headphones" }
+        if (Build.VERSION.SDK_INT >= 31) has(AudioDeviceInfo.TYPE_HDMI_EARC)?.let { return "HDMI eARC" }
+        has(AudioDeviceInfo.TYPE_HDMI_ARC)?.let { return "HDMI ARC" }
+        has(AudioDeviceInfo.TYPE_HDMI)?.let { return "TV (HDMI)" }
+        return "TV speakers"
+    }
+
+    /** What's playing in any app — needs notification access for Lumora (Settings › Apps › Special app access). */
+    private fun nowPlayingJson(): String {
+        return try {
+            val msm = getSystemService(MediaSessionManager::class.java) ?: return "null"
+            val c = msm.getActiveSessions(ComponentName(this, MediaListener::class.java)).firstOrNull() ?: return "null"
+            val md = c.metadata; val st = c.playbackState
+            val o = JSONObject()
+            o.put("title", md?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: "")
+            o.put("artist", md?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: "")
+            o.put("app", try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(c.packageName, 0)).toString() } catch (e: Exception) { c.packageName })
+            o.put("playing", st?.state == PlaybackState.STATE_PLAYING)
+            o.put("dur", md?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L)
+            o.put("pos", st?.position ?: 0L)
+            val art = md?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) ?: md?.getBitmap(MediaMetadata.METADATA_KEY_ART)
+            if (art != null) o.put("art", drawableToDataUrl(BitmapDrawable(resources, Bitmap.createScaledBitmap(art, 160, 160, true)), 160, 160))
+            o.toString()
+        } catch (e: SecurityException) { "null" } catch (e: Exception) { "null" }
     }
 
     private fun startRecognizer() {
@@ -254,6 +357,7 @@ class MainActivity : Activity() {
             val pm = packageManager
             val i = pm.getLeanbackLaunchIntentForPackage(pkg) ?: pm.getLaunchIntentForPackage(pkg) ?: return false
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            prefs.edit().putString("lastPkg", pkg).apply()
             runOnUiThread { try { startActivity(i) } catch (e: Exception) { } }
             return true
         }
@@ -294,8 +398,44 @@ class MainActivity : Activity() {
             for (i in tries) { try { startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); break } catch (e: Exception) { } }
         }
 
-        @JavascriptInterface fun openSettings() = runOnUiThread {
-            try { startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { }
+        @JavascriptInterface fun openSettings(what: String?) = runOnUiThread {
+            val action = when (what) { "wifi" -> Settings.ACTION_WIFI_SETTINGS; "sound" -> Settings.ACTION_SOUND_SETTINGS; else -> Settings.ACTION_SETTINGS }
+            for (a in listOf(action, Settings.ACTION_SETTINGS)) { try { startActivity(Intent(a).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); break } catch (e: Exception) { } }
+        }
+
+        @JavascriptInterface fun status(): String {
+            val o = JSONObject()
+            networkStatus(o)
+            o.put("audio", audioOutput())
+            val mi = ActivityManager.MemoryInfo(); getSystemService(ActivityManager::class.java)?.getMemoryInfo(mi)
+            o.put("ram", mi.availMem)
+            o.put("storage", try { StatFs(filesDir.path).availableBytes } catch (e: Exception) { 0L })
+            return o.toString()
+        }
+
+        @JavascriptInterface fun nowPlaying(): String = nowPlayingJson()
+
+        /** Previous / play-pause / next for whatever app is playing (no special permission needed). */
+        @JavascriptInterface fun media(cmd: String) {
+            val code = when (cmd) { "prev" -> KeyEvent.KEYCODE_MEDIA_PREVIOUS; "next" -> KeyEvent.KEYCODE_MEDIA_NEXT; else -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE }
+            val am = getSystemService(AudioManager::class.java) ?: return
+            am.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, code)); am.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
+        }
+
+        /** When the screen last went off (or Lumora was last alive), and the app Lumora last opened. */
+        @JavascriptInterface fun resumeInfo(): String = JSONObject()
+            .put("offAt", maxOf(prefs.getLong("offAt", 0L), prefs.getLong("aliveAt", 0L)))
+            .put("pkg", prefs.getString("lastPkg", "") ?: "").toString()
+
+        /** Lumora's standby: lets the screen time out and turns the backlight right down. The TV's own power button still switches the TV off. */
+        @JavascriptInterface fun sleep() = runOnUiThread {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            window.attributes = window.attributes.apply { screenBrightness = 0f }
+        }
+
+        @JavascriptInterface fun wake() = runOnUiThread {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            window.attributes = window.attributes.apply { screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE }
         }
     }
 }

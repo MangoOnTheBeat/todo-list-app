@@ -557,6 +557,116 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 .vk-keys .w3{grid-column:span 3;font-size:calc(1.3rem * var(--ts))}
 .vk-keys .go::before{background:var(--chip-sel)}
 .vk-keys .shift-on::before{background:var(--chip-sel)}
+/* Power: switch-on, switch-off, standby */
+html{background:#000}
+#power{position:fixed;inset:0;z-index:10000;background:#000;display:grid;place-items:center;opacity:0;visibility:hidden;pointer-events:none;contain:strict}
+#power.show{opacity:1;visibility:visible;pointer-events:auto}
+#power .pw-line{position:absolute;left:0;right:0;top:50%;height:.3rem;margin-top:-.15rem;background:linear-gradient(90deg,transparent,rgba(200,220,255,.9) 30%,#fff 50%,rgba(200,220,255,.9) 70%,transparent);box-shadow:0 0 2.4rem rgba(170,200,255,.8);transform:scaleX(0);opacity:0}
+#power .pw-logo{display:flex;align-items:center;gap:1.6rem;font-size:4.4rem;font-weight:300;letter-spacing:-.02em;color:#fff;opacity:0;transform:translate3d(0,1.2rem,0) scale(.96)}
+#power .pw-logo .i{width:6.4rem;height:6.4rem;fill:none;stroke:none}
+#power.boot .pw-logo{opacity:0}
+#power.go.pw-full .pw-line{animation:pwLine 1.25s cubic-bezier(.2,.8,.2,1) both}
+#power.go.pw-full .pw-logo{animation:pwLogo 1.25s cubic-bezier(.2,.8,.2,1) both}
+#power.go.pw-full{animation:pwFade 1.25s ease both}
+#power.go.pw-quick .pw-line{animation:pwLine .56s cubic-bezier(.2,.8,.2,1) both}
+#power.go.pw-quick{animation:pwFadeQ .56s ease both}
+@keyframes pwLine{0%{transform:scaleX(0);opacity:1}30%{transform:scaleX(1);opacity:1}60%{transform:scaleX(1) scaleY(1);opacity:.9}100%{transform:scaleX(1) scaleY(40);opacity:0}}
+@keyframes pwLogo{0%,18%{opacity:0;transform:translate3d(0,1.2rem,0) scale(.96)}38%,62%{opacity:1;transform:none}80%,100%{opacity:0;transform:scale(1.04)}}
+@keyframes pwFade{0%,70%{opacity:1}100%{opacity:0}}
+@keyframes pwFadeQ{0%,45%{opacity:1}100%{opacity:0}}
+.pw-enter #screens,.pw-enter #wall{animation:pwIn 1.25s cubic-bezier(.2,.8,.2,1) both}
+@keyframes pwIn{0%,62%{transform:scale(1.06);opacity:0}100%{transform:none;opacity:1}}
+.pw-going body{animation:pwOff .82s cubic-bezier(.6,0,.4,1) both;transform-origin:50% 50%}
+@keyframes pwOff{0%{transform:none;opacity:1;filter:none}50%{transform:scale(1,.004);opacity:1}62%{transform:scale(1,.004)}100%{transform:scale(0,.004);opacity:0}}
+.pw-going #power{opacity:0!important}
+#power.standby .pw-line,#power.standby .pw-logo{display:none}
+#power.standby.fade{transition:opacity .25s}
+.pw-standby #screens,.pw-standby #wall,.pw-standby #glow,.pw-standby #toast{visibility:hidden}
+.reduce-motion #power.go,.reduce-motion #power.go *{animation:pwFadeQ .26s ease both!important}
+.reduce-motion.pw-enter #screens,.reduce-motion.pw-enter #wall{animation:none}
+.pw-warn{text-align:center}
+.pw-ring{width:9rem;height:9rem;border-radius:50%;border:.3rem solid rgba(255,255,255,.35);display:grid;place-items:center;margin:0 auto 1.6rem;font-size:3rem}
+/* For You */
+#s-foryou{overflow:hidden}
+.fy-bg{position:absolute;inset:0;background:#000}
+.fy-layer{position:absolute;inset:0;opacity:0;transition:opacity .6s ease}
+.fy-layer.on{opacity:1}
+.fy-layer img{width:100%;height:100%;object-fit:cover;display:block;animation:fyKb 30s ease-in-out infinite alternate}
+@keyframes fyKb{from{transform:scale(1.02)}to{transform:scale(1.08) translate3d(-1%,0,0)}}
+.reduce-motion .fy-layer img,.lite .fy-layer img{animation:none}
+.fy-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.82),rgba(0,0,0,.35) 50%,transparent 75%),linear-gradient(0deg,rgba(0,0,0,.85),transparent 50%)}
+#s-foryou .scr-head{position:relative;z-index:2}
+.fy-src{font-size:calc(1.2rem * var(--ts));color:rgba(255,255,255,.7)}
+.fy-hero{position:absolute;left:6rem;top:15rem;max-width:62rem;z-index:2;color:#fff}
+.fy-kick{font-size:calc(1.3rem * var(--ts));font-weight:800;letter-spacing:.16em;text-transform:uppercase;filter:brightness(1.35) saturate(1.1)}
+.fy-hero h1,.sp-copy h1{margin:.8rem 0;font-size:calc(5.6rem * var(--ts));font-weight:700;letter-spacing:-.03em;line-height:1.02}
+.fy-meta{display:flex;align-items:center;gap:.5rem;font-size:calc(1.5rem * var(--ts));font-weight:600;color:rgba(255,255,255,.85)}
+.fy-meta .i{color:#ffd166;stroke:none;fill:currentColor}
+.fy-hero p,.sp-copy p{font-size:calc(1.6rem * var(--ts));line-height:1.45;color:rgba(255,255,255,.85);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin:1.2rem 0 0}
+.fy-note{margin-top:2rem;display:inline-flex;gap:1rem;align-items:center;padding:1.1rem 1.6rem;border-radius:1.6rem;background:rgba(255,255,255,.12);font-size:calc(1.4rem * var(--ts))}
+.fy-row{position:absolute;left:0;right:0;bottom:3.4rem;z-index:2}
+.fy-row .row-h{margin:0 6rem}
+.fy-row .track{padding:1.6rem 6rem 2rem;--tw:24rem}
+.fy-row .tile{width:24rem}
+.fy-scene{position:absolute;inset:0;overflow:hidden;background:radial-gradient(80% 90% at 70% 40%,color-mix(in srgb,var(--c) 30%,#000),#000 75%)}
+.fy-scene i{position:absolute;border-radius:50%;filter:blur(6rem);opacity:.55;background:var(--c);will-change:transform}
+.fy-scene .s1{width:60rem;height:28rem;right:-8rem;top:6rem;animation:fyDrift 14s ease-in-out infinite alternate}
+.fy-scene .s2{width:40rem;height:40rem;right:22rem;top:30rem;opacity:.3;animation:fyDrift 18s ease-in-out infinite alternate-reverse}
+.fy-scene .s3{width:24rem;height:10rem;right:10rem;top:44rem;background:#fff;opacity:.12;animation:fyDrift 11s ease-in-out infinite alternate}
+@keyframes fyDrift{from{transform:translate3d(0,0,0) rotate(0)}to{transform:translate3d(-12rem,4rem,0) rotate(14deg)}}
+.reduce-motion .fy-scene i,.lite .fy-scene i{animation:none}
+.fy-mark{position:absolute;right:16rem;top:20rem;transform:scale(3.2);transform-origin:center;opacity:.95;filter:drop-shadow(0 0 3rem var(--c))}
+.fy-mark .t-word{display:none}
+.layer.spot{align-items:stretch;justify-content:stretch}
+.layer.spot .panel{position:absolute;inset:0;width:auto;height:auto;margin:0;border-radius:0;background:#000;padding:0;opacity:0;transform:scale(1.03);transition:opacity .35s,transform .6s var(--spring-soft)}
+.layer.spot.open .panel{opacity:1;transform:none}
+.sp-bg{position:absolute;inset:0}
+.sp-bg img{width:100%;height:100%;object-fit:cover;animation:fyKb 30s ease-in-out infinite alternate}
+.sp-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.85),rgba(0,0,0,.3) 55%,transparent),linear-gradient(0deg,rgba(0,0,0,.75),transparent 45%)}
+.sp-copy{position:absolute;left:7rem;bottom:8rem;max-width:66rem;color:#fff}
+.sp-btns{display:flex;gap:1.4rem;margin-top:3rem}
+.sp-src{margin-top:2rem;font-size:calc(1.2rem * var(--ts));color:rgba(255,255,255,.6)}
+/* Control Centre */
+.layer.cc{justify-content:flex-end;align-items:flex-start;background:linear-gradient(270deg,rgba(0,0,0,.35),transparent 60%)}
+.layer.cc .panel{background:none!important;box-shadow:none!important;border:0!important;margin:3rem 3rem 0 0;width:52rem;padding:0;display:flex;flex-direction:column;gap:1.4rem;transform:translate3d(0,-2rem,0) scale(.96);transform-origin:top right;opacity:0;transition:transform .45s var(--spring),opacity .25s}
+.layer.cc.open .panel{transform:none;opacity:1}
+.layer.cc .panel::before{display:none}
+.cc-top,.cc-bottom{display:flex;gap:1.2rem;justify-content:flex-end;align-items:center}
+.cc-pill,.cc-round,.cc-tile,.cc-media,.cc-foot{background:rgba(205,215,235,.2);-webkit-backdrop-filter:blur(2.4rem) saturate(1.4);backdrop-filter:blur(2.4rem) saturate(1.4);border:.1rem solid rgba(255,255,255,.28);color:#fff;box-shadow:0 1rem 3rem rgba(0,0,0,.25)}
+.lite .cc-pill,.lite .cc-round,.lite .cc-tile,.lite .cc-media,.lite .cc-foot{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(60,66,80,.92)}
+.cc-pill{height:6rem;border-radius:3rem;padding:0 2.4rem;display:inline-flex;align-items:center;gap:1.1rem;font:inherit;font-size:calc(1.7rem * var(--ts));font-weight:600}
+.cc-pill .i{font-size:2.4rem}
+.cc-round{width:6rem;height:6rem;border-radius:50%;display:inline-grid;place-items:center;padding:0;flex:0 0 auto}
+.cc-round .i{font-size:2.6rem}
+.cc-round.on{background:rgba(255,255,255,.92);color:#16181d}
+.cc-round.flat{background:none;border:0;box-shadow:none;width:4.4rem;height:4.4rem;-webkit-backdrop-filter:none;backdrop-filter:none}
+.cc-round.flat .i{font-size:2rem;stroke-width:2.2}
+.cc-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto;gap:1.4rem}
+.cc-media{grid-row:1 / span 2;border-radius:3rem;padding:2rem;display:flex;flex-direction:column;gap:1.2rem;min-height:0}
+.cc-mtop{display:flex;align-items:center;gap:.6rem}
+.cc-art{width:7.6rem;height:7.6rem;border-radius:1.6rem;background:rgba(255,255,255,.14) center/cover;flex:0 0 auto;display:grid;place-items:center}
+.cc-art.none .i{font-size:3rem;opacity:.7}
+.cc-mbtn{display:flex;gap:.2rem;margin-left:auto}
+.cc-mtx{display:flex;flex-direction:column;gap:.3rem;margin-top:auto}
+.cc-mtx b{font-size:calc(1.8rem * var(--ts));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc-mtx small{font-size:calc(1.4rem * var(--ts));opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc-prog{height:.5rem;border-radius:.3rem;background:rgba(255,255,255,.25);overflow:hidden}
+.cc-prog i{display:block;height:100%;background:#fff;transform-origin:left}
+.cc-col{display:contents}
+.cc-tile{border-radius:4rem;min-height:9.4rem;padding:1.4rem 2rem 1.4rem 1.4rem;display:flex;align-items:center;gap:1.4rem;font:inherit;text-align:left;min-width:0}
+.cc-ic{width:6.4rem;height:6.4rem;border-radius:50%;background:rgba(255,255,255,.16);display:grid;place-items:center;flex:0 0 auto}
+.cc-ic .i{font-size:2.6rem}
+.cc-tile.blue .cc-ic{background:#3b82f6;color:#fff}
+.cc-tx{display:flex;flex-direction:column;gap:.2rem;min-width:0}
+.cc-tx b{font-size:calc(1.8rem * var(--ts));font-weight:700}
+.cc-tx small{font-size:calc(1.5rem * var(--ts));opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc-foot{align-self:flex-end;border-radius:2.4rem;padding:1rem 2.2rem;font-size:calc(1.4rem * var(--ts));font-weight:600}
+.cc-pill.focused,.cc-round.focused,.cc-tile.focused{background:#fff;color:#14161b;transform:scale(1.06);box-shadow:0 1.4rem 4rem rgba(0,0,0,.35)}
+.cc-tile.focused .cc-ic{background:transparent}
+.cc-tile.blue.focused .cc-ic{background:#3b82f6;color:#fff}
+.cc-round.flat.focused{background:rgba(255,255,255,.9)}
+.cc-pill,.cc-round,.cc-tile{transition:transform .35s var(--spring),background-color .2s,color .2s}
+.hc .cc-pill,.hc .cc-round,.hc .cc-tile,.hc .cc-media,.hc .cc-foot{background:#000;border-color:#fff}
 .qm-h{display:flex;align-items:center;gap:1rem;font-size:calc(2rem * var(--ts));font-weight:700;margin:0 1rem 1.6rem}
 .qm-list{flex:1;min-height:0}
 .qm-list .set-row{min-height:5.4rem}
@@ -646,6 +756,12 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
   <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></symbol>
   <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></symbol>
   <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.3a9.5 9.5 0 0 1 13 0M8.6 15.6a5 5 0 0 1 6.8 0"/><circle cx="12" cy="19" r="1.2"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M6 5v14"/><path d="M18 5.5v13L9 12z"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M18 5v14"/><path d="M6 5.5v13L15 12z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8.5 5.5v13M15.5 5.5v13"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18.3 6.5a8 8 0 0 1 0 11"/></symbol>
+  <symbol id="i-toggles" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="8" rx="4"/><rect x="5" y="13" width="14" height="8" rx="4"/><circle cx="15" cy="7" r="1.8"/><circle cx="9" cy="17" r="1.8"/></symbol>
+  <symbol id="i-access" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.2"/><circle cx="12" cy="7.3" r="1.3"/><path d="M7.5 10l4.5 1 4.5-1M12 11v3.2M12 14.2l-2.3 3.6M12 14.2l2.3 3.6"/></symbol>
   <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8.5"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></symbol>
   <symbol id="i-input" viewBox="0 0 24 24"><path d="M4 8h16v5l-2 3H6l-2-3z"/><path d="M8 11h8"/></symbol>
   <symbol id="i-keyb" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.1M9.5 10h.1M13 10h.1M16.5 10h.1M7 14h10"/></symbol>
@@ -694,10 +810,12 @@ svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke
   <section class="screen" id="s-launch" aria-label="Opening app" inert></section>
   <section class="screen" id="s-game" aria-label="Glow Snake" inert></section>
   <section class="screen" id="s-wall" aria-label="Wallpapers" inert></section>
+  <section class="screen" id="s-foryou" aria-label="For You" inert></section>
   <section class="screen" id="s-browser" aria-label="Browser" inert></section>
 </main>
 
 <div id="zoom" aria-hidden="true"></div>
+<div id="power" class="show boot" aria-hidden="true"><i class="pw-line"></i><div class="pw-logo"><svg class="i" viewBox="0 0 48 48"><use href="#i-logo"/></svg><span>Lumora</span></div></div>
 <div class="vc-hint glass-strong" aria-hidden="true">Cursor on — arrows move · OK clicks · Back turns it off</div>
 <div id="toast" class="glass-strong" role="status" aria-live="polite"></div>
 <div id="fps" aria-hidden="true"></div>
@@ -897,7 +1015,7 @@ const ACCENT_HEX = Object.fromEntries(ACCENTS.map(a => [a[0], a[2]]));
 /* =====================================================================
    SETTINGS — kept in this browser only (localStorage).
    ===================================================================== */
-const KEY = 'lumora.settings.v3', OLD_KEY = 'lumora.settings.v2';
+const KEY = 'lumora.settings.v3', OLD_KEY = 'lumora.settings.v2', VERSION = '2.1';
 /* ?tv=1 (used by the TV setup) opens services in the same tab so the remote's Back key returns to Lumora. */
 const TV_MODE = /[?&]tv=1\b/.test(location.search) || /Web0S|webOS|Tizen|SMART-TV|SmartTV/i.test(navigator.userAgent);
 /* Inside a preview pane or another page's frame, apps can't open in place. */
@@ -931,6 +1049,8 @@ const DEFAULTS = () => ({
   theme:'dark', wallpaper:'aerial-glacier', clock: hour24Default() ? '24' : '12', ambientAfter:5,
   reduceMotion: mm('(prefers-reduced-motion: reduce)'), contrast: mm('(prefers-contrast: more)'), transparency:false, textSize:'default',
   effects:'auto', showFps:false, ui: UI_DEFAULTS(),
+  power:{fast:true, onAnim:true, offAnim:true, resume:1, startup:'home', sleepTimer:0, autoSleep:240, screenOffKey:true, wakeNet:false, led:true},
+  foryou:{key:'', region:'', promos:true}, recent:[],
   assistant:{speak:true, voice:'', rate:1, voiceIn:'auto', lang:''},
   browser:{engine:'duckduckgo', cursorSpeed:'normal', openIn: 'same', openInChosen: false},
   apps:['netflix','youtube','disney','prime','hbomax','iplayer','spotify','twitch','paramount','browser','wallpapers','store','settings'],
@@ -951,8 +1071,9 @@ function load() {
     const o = JSON.parse(raw);
     if (migrated) { delete o.ui; delete o.wallpaper; }   // the new Home look starts from its own defaults
     const s = Object.assign(d, o);
-    for (const k of ['video', 'parental', 'browser', 'ui', 'assistant']) s[k] = Object.assign(DEFAULTS()[k], o[k] || {});
+    for (const k of ['video', 'parental', 'browser', 'ui', 'assistant', 'power', 'foryou']) s[k] = Object.assign(DEFAULTS()[k], o[k] || {});
     s.apps = (s.apps || []).filter(id => APPS[id]); s.games = (s.games || []).filter(id => APPS[id]);
+    s.recent = (s.recent || []).filter(id => APPS[id]); s.power.sleepTimer = 0;   // like a TV, the sleep timer doesn't survive switching off
     for (const sys of ['store', 'settings']) if (!s.apps.includes(sys) && !s.games.includes(sys)) s.apps.push(sys);
     if (s.ui.clock === 'small') s.ui.clock = 'corner';
     if (!WALLS.find(w => w.id === s.wallpaper) && s.wallpaper !== 'custom') s.wallpaper = 'aerial-glacier';
@@ -1384,6 +1505,7 @@ const SCREENS = {
   settings: {el: $('#s-settings'), def: () => setDefault(), back: setBack, enter: setEnter},
   launch:   {el: $('#s-launch'), def: () => $('#s-launch [data-def]') || $('#s-launch [data-f]'), back: () => show('home'), enter: launchEnter},
   game:     {el: $('#s-game'), def: () => $('#s-game .g-over:not(.off) [data-f]'), back: gameBack, enter: gameEnter, leave: gameLeave},
+  foryou:   {el: $('#s-foryou'), def: () => $('#s-foryou [data-row="fy-apps"] .tile'), back: () => show('home'), enter: fyEnter, leave: fyLeave},
   wall:     {el: $('#s-wall'), def: () => $(`#s-wall [data-k="w-${S.wallpaper}"]`), back: () => show('home'), enter: wallEnter, leave: wallLeave},
   browser:  {el: $('#s-browser'), def: () => brDefault(), back: brBack, enter: brEnter},
 };
@@ -1434,12 +1556,13 @@ function renderHome() {
 }
 function homeDefault() { const m = F.mem['home-apps']; return (m && m.isConnected) ? m : $('#row-apps [data-f]'); }
 const SHORTCUTS = [
+  {k: 'sc-fy', name: 'For You', icon: 'star', act: 'screen:foryou'},
   {k: 'sc-wall', name: 'Wallpapers', icon: 'image', act: 'screen:wall'},
   {k: 'sc-assist', name: 'Assistant', icon: 'mic', act: 'assist'},
   {k: 'sc-games', name: 'Gaming', icon: 'pad', act: 'scgames'},
   {k: 'sc-input', name: 'Input', icon: 'input', act: 'input'},
   {k: 'sc-web', name: 'Browser', icon: 'globe', act: 'open:browser'},
-  {k: 'sc-off', name: 'Sleep', icon: 'power', act: 'ambient'},
+  {k: 'sc-off', name: 'Sleep', icon: 'power', act: 'poweroff'},
 ];
 let siT = 0, siCur = '';
 function shelfInfo(id, force) {
@@ -1522,12 +1645,19 @@ function launch(id, el, opt = {}) {
     zoom(el, a, () => show(target));
     return;
   }
+  noteRecent(id); PW.app = id; PW.appT = Date.now(); snapshot();
   if (NATIVE) {
     const pkg = nativePkg(id);
-    if (pkg) { zoom(el, a, () => { LumoraNative.launch(pkg); setTimeout(() => { $('#zoom').style.opacity = '0'; }, 400); }); return; }
+    /* The app is started at once; the zoom plays over the top while Android brings it up, so nothing waits on the animation. */
+    if (pkg) { LumoraNative.launch(pkg); zoom(el, a, () => { setTimeout(() => { $('#zoom').style.opacity = '0'; }, 400); }); return; }
+    PW.app = '';
     toast(`${a.name} isn't installed on this TV yet — opening Google Play`, 'store'); getOnPlay(id); return;
   }
-  if (S.browser.openIn === 'same' && !EMBEDDED) { try { sessionStorage.setItem('lumora.return', id); } catch (e) {} zoom(el, a, () => { location.href = a.url; }); return; }
+  if (S.browser.openIn === 'same' && !EMBEDDED) { try { sessionStorage.setItem('lumora.return', id); } catch (e) {}
+    /* Start fetching the site straight away (the zoom only covers the wait). */
+    try { const l = document.createElement('link'); l.rel = 'preconnect'; l.href = new URL(a.url).origin; document.head.appendChild(l); } catch (e) {}
+    zoom(el, a, () => {}); location.href = a.url; return; }   // the current page keeps animating until the site's first bytes arrive
+  if (!EMBEDDED && !opt.voice) PW.app = '';
   if (opt.voice || EMBEDDED) { zoom(el, a, () => show('launch', {id, opened: false, voice: true})); return; }   // no key press behind a voice command, so the TV asks for one OK
   let w = null;
   try { w = window.open(a.url, '_blank'); if (w) w.opener = null; } catch (e) { w = null; }
@@ -1798,6 +1928,117 @@ function wallApply(id) {
 }
 function wallLeave() { setWallpaper(S.wallpaper); }
 
+/* ---------------- FOR YOU ----------------
+   Your three most recently used apps. For streaming services, the hero shows titles that really are new and really are
+   on that service in your country: TMDB's catalogue, with streaming availability from JustWatch, fetched with your own
+   free TMDB key. Nothing is invented — with no key or no data, it shows the app's own scene instead.
+   Only the service and the country are sent; your recently used list stays on this TV. */
+const FY = {idx: 0, cur: '', seq: 0, rel: {}, prov: null, promoIdx: 0};
+const TMDB_API = 'https://api.themoviedb.org/3', TMDB_IMG = 'https://image.tmdb.org/t/p/';
+/* TMDB provider names for each service, where they differ from the app's name. */
+const PROVIDER_NAMES = {prime: ['Amazon Prime Video', 'Prime Video'], hbomax: ['HBO Max', 'Max'], iplayer: ['BBC iPlayer'], itvx: ['ITVX'], ch4: ['Channel 4', 'All 4'],
+  paramount: ['Paramount Plus', 'Paramount+'], disney: ['Disney Plus'], peacock: ['Peacock Premium', 'Peacock'], tubi: ['Tubi TV', 'Tubi'], pluto: ['Pluto TV'], rakuten: ['Rakuten TV'], mubi: ['MUBI'],
+  crunchyroll: ['Crunchyroll'], hulu: ['Hulu'], plex: ['Plex'], netflix: ['Netflix'], dazn: ['DAZN'], ytkids: [], youtube: [], fubo: ['fuboTV', 'Fubo']};
+const fyRegion = () => (S.foryou.region || (navigator.language || '').split('-')[1] || 'GB').toUpperCase();
+function fyRecent() {
+  const r = S.recent.filter(id => APPS[id] && !APPS[id].builtin && !restricted(APPS[id]));
+  for (const id of S.apps) if (r.length < 3 && APPS[id] && !APPS[id].builtin && !r.includes(id) && !restricted(APPS[id])) r.push(id);
+  return r.slice(0, 3);
+}
+function noteRecent(id) { if (!APPS[id] || APPS[id].builtin) return; S.recent = [id, ...S.recent.filter(x => x !== id)].slice(0, 8); save(); }
+function tmdb(path, params = {}) {
+  const k = (S.foryou.key || '').trim(), u = new URL(TMDB_API + path), bearer = k.length > 60;
+  for (const [a, b] of Object.entries(params)) u.searchParams.set(a, b);
+  if (!bearer) u.searchParams.set('api_key', k);
+  return fetch(u, {headers: bearer ? {Authorization: 'Bearer ' + k, accept: 'application/json'} : {accept: 'application/json'}}).then(r => r.ok ? r.json() : Promise.reject(new Error('TMDB ' + r.status)));
+}
+const fyCache = (key, ttl, make) => {
+  const ck = 'lumora.fy.' + key;
+  try { const c = JSON.parse(localStorage.getItem(ck) || 'null'); if (c && Date.now() - c.t < ttl) return Promise.resolve(c.v); } catch (e) {}
+  return make().then(v => { try { localStorage.setItem(ck, JSON.stringify({t: Date.now(), v})); } catch (e) {} return v; });
+};
+function fyProviders() {
+  const R = fyRegion();
+  if (FY.provP && FY.provP.R === R) return FY.provP.p;
+  const p = FY.prov && FY.prov.R === R ? Promise.resolve(FY.prov.list) : fyCache('prov.' + R, 7 * 864e5, () => tmdb('/watch/providers/movie', {watch_region: R}).then(j => (j.results || []).map(p => [p.provider_id, p.provider_name])))
+    .then(list => { FY.prov = {R, list}; return list; }, e => { FY.provP = null; throw e; });
+  FY.provP = {R, p}; return p;
+}
+function fyProviderFor(id, list) {
+  const names = (PROVIDER_NAMES[id] || [APPS[id].name]).map(lnorm); if (!names.length) return null;
+  const m = list.find(([, n]) => names.includes(lnorm(n))); return m ? m[0] : null;
+}
+const isoDay = d => d.toISOString().slice(0, 10);
+/* New = first released in the last 120 days and streaming on that service in your country right now (subscription, free or with ads). */
+function fyReleases(id) {
+  if (!S.foryou.key) return Promise.resolve({state: 'nokey'});
+  if (PROVIDER_NAMES[id] && !PROVIDER_NAMES[id].length) return Promise.resolve({state: 'scene'});
+  const R = fyRegion();
+  return fyProviders().then(list => {
+    const pid = fyProviderFor(id, list); if (!pid) return {state: 'scene'};
+    const now = new Date(), from = new Date(now - 120 * 864e5), lang = (navigator.language || 'en-GB');
+    const base = {watch_region: R, with_watch_providers: pid, with_watch_monetization_types: 'flatrate|free|ads', sort_by: 'popularity.desc', include_adult: 'false', language: lang};
+    return fyCache(`rel.${R}.${pid}`, 6 * 36e5, () => Promise.all([
+      tmdb('/discover/movie', {...base, 'primary_release_date.gte': isoDay(from), 'primary_release_date.lte': isoDay(now), region: R}),
+      tmdb('/discover/tv', {...base, 'first_air_date.gte': isoDay(from), 'first_air_date.lte': isoDay(now)}),
+    ]).then(([m, t]) => [...(m.results || []).map(x => ({...x, kind: 'Film'})), ...(t.results || []).map(x => ({...x, kind: 'Series'}))]
+      .filter(x => x.backdrop_path && (x.overview || '').length > 20).sort((a, b) => b.popularity - a.popularity).slice(0, 10)
+      .map(x => ({title: x.title || x.name, date: x.release_date || x.first_air_date, kind: x.kind, overview: x.overview, rating: x.vote_count >= 20 ? x.vote_average : 0, bd: x.backdrop_path, poster: x.poster_path}))))
+      .then(items => items.length ? {state: 'ok', items, region: R} : {state: 'scene'});
+  }).catch(err => ({state: 'error', err: String(err && err.message || err)}));
+}
+const fyDate = d => { try { return new Date(d + 'T12:00:00').toLocaleDateString(undefined, {day: 'numeric', month: 'short', year: 'numeric'}); } catch (e) { return d; } };
+function fyEnter() {
+  const ids = fyRecent();
+  SCREENS.foryou.el.innerHTML = `<div class="fy-bg" id="fy-bg"></div><div class="fy-shade"></div>
+    <div class="scr-head"><div class="scr-title">${ico('star')}<span>For You</span></div><div class="fy-src" id="fy-src"></div></div>
+    <div class="fy-hero" id="fy-hero"></div>
+    <div class="fy-row"><div class="row-h"><span>Recently used</span></div><div class="track" data-row="fy-apps" data-onfocus="fy">${ids.map(id => tileHTML(id, {act: 'fy:' + id, k: 'fy-' + id})).join('')}</div></div>`;
+  if (!ids.length) $('#fy-hero').innerHTML = '<h1>Nothing here yet</h1><p>Apps you open will appear here.</p>';
+  ids.forEach(id => fyReleases(id).then(r => { FY.rel[id] = r; if (r.items) r.items.slice(0, 2).forEach(x => { new Image().src = TMDB_IMG + 'w1280' + x.bd; }); if (FY.cur === id) fyHero(id); }));
+}
+function fyLeave() { FY.cur = ''; }
+function fyFocus(id) { if (id === FY.cur) return; FY.cur = id; FY.idx = 0; glowFor(id); fyHero(id); }
+function fyBg(html) {
+  const bg = $('#fy-bg'); if (!bg) return; const el = document.createElement('div'); el.className = 'fy-layer'; el.innerHTML = html; bg.appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('on')));
+  const old = $$('.fy-layer', bg).filter(x => x !== el); setTimeout(() => old.forEach(o => o.remove()), 700);
+}
+/* The app's own scene: its colours and logo, drifting light. Used for YouTube, music and anything without release data. */
+const fyScene = id => { const a = APPS[id]; return `<div class="fy-scene" style="--c:${a.glow || '#888'}"><i class="s1"></i><i class="s2"></i><i class="s3"></i><div class="fy-mark">${logoInner(a)}</div></div>`; };
+function fyHero(id) {
+  const a = APPS[id], r = FY.rel[id], hero = $('#fy-hero'), src = $('#fy-src'); if (!hero) return;
+  const it = r && r.items && r.items[FY.idx % r.items.length];
+  if (it) {
+    fyBg(`<img src="${TMDB_IMG}w1280${it.bd}" alt="" decoding="async">`);
+    hero.innerHTML = `<div class="fy-kick" style="color:${a.glow}">New on ${esc(a.name)}</div><h1>${esc(it.title)}</h1>
+      <div class="fy-meta">${it.kind} · Released ${esc(fyDate(it.date))}${it.rating ? ` · ${ico('star')} ${it.rating.toFixed(1)}` : ''}</div><p>${esc(it.overview)}</p>`;
+    src.textContent = `New releases streaming on ${a.name} in ${r.region} · data: TMDB & JustWatch`;
+  } else {
+    fyBg(fyScene(id));
+    const why = !r ? 'Loading…' : r.state === 'nokey' && PROVIDER_NAMES[id] && PROVIDER_NAMES[id].length !== 0 && !['youtube'].includes(id) ? `To see what's really new on ${a.name}, add a free TMDB key in Settings › For You.` : r.state === 'error' ? `Couldn't reach TMDB right now (${r.err}).` : '';
+    hero.innerHTML = `<div class="fy-kick" style="color:${a.glow}">${esc(a.cat || 'App')}</div><h1>${esc(a.name)}</h1><p>${esc(id === 'youtube' ? 'Pick up where you left off.' : a.blurb || '')}</p>${why ? `<div class="fy-note">${ico('info')}<span>${esc(why)}</span></div>` : ''}`;
+    src.textContent = '';
+  }
+}
+/* Pressing an app in For You shows its spotlight first — the newest title on that service, or the app's scene —
+   with the app's Open button already selected, so a second OK opens it. */
+function fyPress(id, el) {
+  if (!S.foryou.promos) { launch(id, el); return; }
+  const a = APPS[id], r = FY.rel[id];
+  FY.promoIdx = FY.idx;
+  const body = () => { const it = r && r.items && r.items[FY.promoIdx % r.items.length];
+    return it ? `<div class="sp-bg"><img src="${TMDB_IMG}original${it.bd}" alt=""></div><div class="sp-shade"></div><div class="sp-copy">
+      <div class="fy-kick" style="color:${a.glow}">New on ${esc(a.name)}</div><h1>${esc(it.title)}</h1><div class="fy-meta">${it.kind} · Released ${esc(fyDate(it.date))}${it.rating ? ` · ${ico('star')} ${it.rating.toFixed(1)}` : ''}</div><p>${esc(it.overview)}</p>
+      <div class="sp-btns" data-row="sp-btns"><button class="btn primary fx" data-f data-act="spopen:${id}" id="sp-open" tabindex="-1">${ico('play')}Open ${esc(a.name)}</button>${r.items.length > 1 ? `<button class="btn fx" data-f data-act="spnext" tabindex="-1">${ico('next')}Next new title</button>` : ''}</div>
+      <div class="sp-src">Streaming on ${esc(a.name)} in ${esc(r.region)} · TMDB & JustWatch. Lumora isn't affiliated with ${esc(a.name)}.</div></div>`
+    : `<div class="sp-bg">${fyScene(id)}</div><div class="sp-shade"></div><div class="sp-copy"><div class="fy-kick" style="color:${a.glow}">${esc(a.cat || 'App')}</div><h1>${esc(a.name)}</h1><p>${esc(id === 'youtube' ? 'Pick up where you left off.' : a.blurb || '')}</p>
+      <div class="sp-btns" data-row="sp-btns"><button class="btn primary fx" data-f data-act="spopen:${id}" id="sp-open" tabindex="-1">${ico('play')}Open ${esc(a.name)}</button></div></div>`; };
+  const L = openLayer({cls: 'spot', label: a.name, html: body(), def: '#sp-open'});
+  L.spRender = () => { L.panel.innerHTML = body(); dropFocus(); setFocus($('#sp-open', L.panel)); };
+  L.spEl = el;
+}
+
 /* ---------------- BROWSER ---------------- */
 const BR = {built: false, url: '', hist: [], idx: -1};
 const FAVS = ['wikipedia', 'lichess', 'youtube', 'netflix', 'spotify', 'twitch', 'poki', 'crazygames', 'weather', 'bbcsport', 'ted', 'fast'];
@@ -1908,7 +2149,7 @@ function vcClick() {
 }
 
 /* ---------------- SETTINGS ---------------- */
-const SECTIONS = [['custom', 'Customise', 'wand'], ['assistant', 'Assistant', 'mic'], ['appearance', 'Appearance', 'palette'], ['video', 'Video & Audio', 'tv'], ['access', 'Accessibility', 'hand'], ['parental', 'Parental Controls', 'shield'], ['browser', 'Browser & Cursor', 'globe'], ['perf', 'Performance', 'gauge'], ['remote', 'Remote & Keys', 'remote'], ['privacy', 'Privacy', 'lock'], ['about', 'About', 'info']];
+const SECTIONS = [['custom', 'Customise', 'wand'], ['power', 'Power & Startup', 'power'], ['foryou', 'For You', 'star'], ['assistant', 'Assistant', 'mic'], ['appearance', 'Appearance', 'palette'], ['video', 'Video & Audio', 'tv'], ['access', 'Accessibility', 'hand'], ['parental', 'Parental Controls', 'shield'], ['browser', 'Browser & Cursor', 'globe'], ['perf', 'Performance', 'gauge'], ['remote', 'Remote & Keys', 'remote'], ['privacy', 'Privacy', 'lock'], ['about', 'About', 'info']];
 const SET = {sec: 'custom', built: false, unlocked: false, renderT: 0};
 function setBuild() {
   SCREENS.settings.el.innerHTML = `<div class="scr-head"><div class="scr-title">${ico('gear')}<span>Settings</span></div><div></div></div>
@@ -2041,7 +2282,28 @@ const SECTION_HTML = {
     ${infoRow('pv4', 'Voice', 'Your choice', '', 'Lumora understands commands on this TV. Listening uses on-device recognition when the browser has it; otherwise only with your permission, the browser sends audio to its own online service. Spoken replies use the device’s built-in voices.')}
     ${infoRow('pv3', 'Sign-in & subscriptions', 'With each service', '', 'You log in and pay for services like Disney+ on their official sites, under their own privacy policies. Lumora never sees your password or card.')}
     ${actRow('erase', 'Erase all local data', 'Resets every setting, your Home layout and the Parental Controls PIN.', 'erase', ico('trash'))}`,
-  about: () => { const D = detectDisplay(); return `<div class="about-hero lg"><svg class="logo" aria-hidden="true"><use href="#i-logo"/></svg><div><h2>Lumora OS</h2><p>Version 2.0 · Concept build</p></div></div>
+  power: () => { const left = PW.timerEnd ? Math.max(1, Math.round((PW.timerEnd - Date.now()) / 60000)) : 0; return `<div class="set-h">Power & Startup</div><p class="set-lead">How Lumora starts, sleeps and comes back. Like a TV's own power menu, but it all stays on this device.</p>
+    <div class="group">Start-up</div>
+    ${toggleRow('power.fast', 'Fast start', 'Keeps the start-up short and skips the logo. Wallpapers and app lists are kept ready so Home appears straight away.', S.power.fast)}
+    ${choiceRow('power.resume', 'Resume where you left off', 'Switch back on within this time and Lumora returns to the same screen and item, and reopens the app you were in.', [[0, 'Off'], [1, '1 min'], [5, '5 min'], [15, '15 min'], [60, '1 hour'], [-1, 'Always']], S.power.resume)}
+    ${choiceRow('power.startup', 'Start-up screen', 'Where Lumora opens when it isn\'t resuming.', [['home', 'Home'], ['foryou', 'For You']], S.power.startup)}
+    ${toggleRow('power.onAnim', 'Switch-on animation', 'A line of light opens into Home.', S.power.onAnim)}
+    ${toggleRow('power.offAnim', 'Switch-off animation', 'The picture folds into a line of light.', S.power.offAnim)}
+    <div class="group">Sleep</div>
+    ${choiceRow('power.sleepTimer', 'Sleep timer', left ? `Turning off in about ${left} min. Resets when the TV is switched off.` : 'Turns Lumora off after a set time. Resets when the TV is switched off.', [[0, 'Off'], [15, '15 min'], [30, '30 min'], [60, '1 hr'], [90, '90 min'], [120, '2 hr']], S.power.sleepTimer)}
+    ${choiceRow('power.autoSleep', 'Auto sleep', 'Turns off when nothing has been pressed for this long while Lumora is on screen, with a one-minute warning. Apps you are watching aren\'t interrupted.', [[0, 'Off'], [60, '1 hour'], [120, '2 hours'], [240, '4 hours']], S.power.autoSleep)}
+    ${actRow('pw-screenoff', 'Screen off', 'Turns the picture off and keeps the sound. Press any button to turn it back on.', 'screenoff', ico('moon'))}
+    ${actRow('pw-off', 'Turn off now', NATIVE ? 'Goes to standby. Press any button to switch back on.' : 'Lumora goes to standby. Your TV\'s power button still switches the TV itself off.', 'poweroff', ico('power'))}
+    <div class="group">Network & light</div>
+    ${toggleRow('power.wakeNet', 'Wake on network', 'Let a phone on the same Wi-Fi switch the TV on. Needs support from the TV hardware.', S.power.wakeNet, SIM)}
+    ${toggleRow('power.led', 'Standby light', 'Show the light on the front of the TV while it is off.', S.power.led, SIM)}`; },
+  foryou: () => `<div class="set-h">For You</div><p class="set-lead">For You shows your three most recently used apps. For streaming services it shows titles that are genuinely new on that service in your country, from TMDB (with streaming data from JustWatch). Lumora never makes titles up: without a key it shows each app's own scene instead.</p>
+    ${actRow('fy-key', 'TMDB API key', S.foryou.key ? 'Saved on this TV — select to change or remove' : 'Get one free at themoviedb.org › Settings › API, then type it here', 'fykey', S.foryou.key ? '••••' + esc(S.foryou.key.slice(-4)) : 'Not set')}
+    ${choiceRow('foryou.region', 'Country', 'Which country\'s catalogue to show.', [['', 'Auto (' + ((navigator.language || '').split('-')[1] || 'GB').toUpperCase() + ')'], ['GB', 'UK'], ['US', 'US'], ['IE', 'Ireland'], ['CA', 'Canada'], ['AU', 'Australia']], S.foryou.region)}
+    ${toggleRow('foryou.promos', 'Show what\'s new first', 'Pressing an app in For You shows its newest title, with Open already selected. Turn off to open apps straight away.', S.foryou.promos)}
+    ${actRow('fy-clear', 'Clear recently used', S.recent.length ? S.recent.slice(0, 3).map(id => APPS[id].name).join(', ') : 'Nothing yet', 'fyclear', ico('trash'))}
+    <div class="note" style="margin-top:2rem">${ico('lock')}<div>Your recently used list stays on this TV. When a key is set, Lumora asks TMDB for new releases by service and country only; nothing about you is sent. This product uses the TMDB API but is not endorsed or certified by TMDB.</div></div>`,
+  about: () => { const D = detectDisplay(); return `<div class="about-hero lg"><svg class="logo" aria-hidden="true"><use href="#i-logo"/></svg><div><h2>Lumora OS</h2><p>Version ${VERSION} · Concept build</p></div></div>
     <div class="card lg fx concept" data-f data-k="ab-concept" tabindex="-1"><p><b>Concept — not affiliated with Apple, Netflix, Disney or Google.</b></p><p>Lumora is an original design study for a smart-TV interface. It is not a product and is not endorsed by, or connected to, any TV maker, streaming service or brand shown in it.</p></div>
     <div style="height:1.2rem"></div>
     <div class="card lg fx" data-f data-k="ab-tm" tabindex="-1"><p>Netflix, YouTube, Disney+, Prime Video, BBC iPlayer, Spotify, Twitch and all other names and logos are trademarks of their respective owners, shown only to identify each service. Logo marks come from Simple Icons (CC0 artwork, including earlier releases); Disney+, PBS KIDS, Nat Geo Kids, Poki and CrazyGames have no free logo file, so they appear as wordmarks.</p><p>Selecting a service opens its official website, where you sign in and manage any subscription. Store apps are free; Lumora itself never takes payments.</p></div>
@@ -2071,6 +2333,8 @@ function afterChange(k) {
   applySettings();
   if (k === 'clock') tick();
   if (k === 'ambientAfter') bumpIdle();
+  if (k === 'power.sleepTimer') { setSleepTimer(S.power.sleepTimer); }
+  if (k === 'foryou.region') { FY.prov = FY.provP = null; FY.rel = {}; }
   if (k === 'reduceMotion' && F.cur) ensureVisible(F.cur);
   if (!k || k.startsWith('pcat.') || k.startsWith('phide.')) { renderHome(); storeRefresh(); }
   if (k === 'ui.accent' || k === 'ui.glow' || k === 'resetui') { const m = F.mem['home-apps']; const id = (m && m.isConnected && m.dataset.app) || S.apps[0]; glowFor(id, true); shelfInfo(id, true); }
@@ -2190,7 +2454,13 @@ function understand(text) {
     if (/\b(change|next|another|different|new|random|switch)\b/.test(t)) { const ix = WALLS.findIndex(x => x.id === S.wallpaper); const w2 = WALLS[(ix + 1) % WALLS.length]; return {reply: `Here's ${w2.name}.`, run: () => { S.wallpaper = w2.id; save(); setWallpaper(w2.id); }}; }
     return {reply: 'Opening Wallpapers.', run: () => show('wall')};
   }
-  if (/\b(ambient|screensaver|screen saver|good ?night|sleep|clock only)\b/.test(t)) return {reply: 'Goodnight.', run: () => enterAmbient()};
+  { const m = t.match(/\bsleep timer\b.*?(\d+)\s*(hours?|hrs?|minutes?|mins?)?/) || t.match(/\b(?:turn|switch) off in (\d+)\s*(hours?|hrs?|minutes?|mins?)?/);
+    if (m) { const n = Number(m[1]) * (/^h/.test(m[2] || '') ? 60 : 1); return {reply: `Okay, turning off in ${n >= 60 && n % 60 === 0 ? n / 60 + (n === 60 ? ' hour' : ' hours') : n + ' minutes'}.`, run: () => setSleepTimer(Math.min(600, n))}; }
+    if (/\b(cancel|stop|turn off) (the )?sleep timer\b/.test(t)) return {reply: 'Sleep timer off.', run: () => setSleepTimer(0)}; }
+  if (/\bscreen off\b|\bturn off the screen\b/.test(t)) return {reply: 'Screen off. Press any button to turn it back on.', run: () => setTimeout(screenOff, 1200)};
+  if (/\b(turn|switch|power) (the )?(tv |telly |lumora )?off\b|\b(turn|switch|power) off\b|\bstandby\b|\bgo to sleep\b|\bgood ?night\b/.test(t)) return {reply: 'Goodnight.', run: () => setTimeout(powerOff, 900)};
+  if (/\bfor you\b|\bwhat'?s new\b|\bnew releases?\b/.test(t)) return {reply: 'Here’s what’s new for you.', run: () => show('foryou')};
+  if (/\b(ambient|screensaver|screen saver|sleep|clock only)\b/.test(t)) return {reply: 'Here’s the clock.', run: () => enterAmbient()};
   if (/\bfull ?screen\b/.test(t)) return {reply: 'Browsers only allow full screen from a button press, so I’ve opened Control Centre — press OK on Full screen.', run: () => openQuick()};
   if (/\bcursor\b/.test(t)) { const on = !off; return {reply: `Remote cursor ${on ? 'on' : 'off'}.`, run: () => { if (VC.on !== on) vcToggle(on); }}; }
   let m = t.match(/\b(?:search|look up|google)\s+(?:the\s+)?(?:web|internet|online)\s+(?:for\s+)?(.+)$/) || t.match(/^google\s+(.+)$/);
@@ -2308,23 +2578,62 @@ function asHandle(text) {
 }
 
 /* Control Centre */
-function quickHTML() {
-  return `<div class="glass-strong panel-bg"></div><div class="qm-h">${ico('sliders')} Control Centre</div><div class="qm-list vscroll" data-row="qm" data-vlock>
-    ${choiceRow('theme', 'Theme', '', [['dark', 'Dark'], ['light', 'Light']], S.theme === 'auto' ? (darkMQ.matches ? 'dark' : 'light') : S.theme)}
-    ${choiceRow('ui.accent', 'Accent', '', ACCENTS.slice(0, 3), S.ui.accent)}
-    ${toggleRow('reduceMotion', 'Reduce Motion', '', S.reduceMotion)}
-    ${actRow('qwall', 'Wallpapers', wallName(), 'screen:wall', ico('image'))}
-    ${actRow('qassist', 'Lumora Assistant', 'Open apps and change settings by voice', 'assist', ico('mic'))}
-    ${actRow('qcursor', 'Remote cursor', 'Point and click with the arrows', 'cursor', ico('cursor'))}
-    ${actRow('amb', 'Ambient screen', 'Show only the clock', 'ambient', ico('moon'))}
-    ${actRow('fs', 'Full screen', '', 'fullscreen', ico('full'))}
-    ${actRow('qcustom', 'Customise', '', 'screen:settings', ico('wand'))}</div>`;
+/* Control Centre: live device status where this device lets Lumora read it (the Lumora app for Google TV reports
+   network, audio output, memory, storage and what's playing); otherwise it says what it can't see rather than guessing. */
+const DEV = {st: null, np: null};
+function devStatus() {
+  if (NATIVE && LumoraNative.status) { try { return JSON.parse(LumoraNative.status()); } catch (e) {} }
+  const c = navigator.connection || {}; const online = navigator.onLine !== false;
+  return {net: !online ? 'none' : c.type === 'ethernet' ? 'ethernet' : c.type === 'wifi' ? 'wifi' : 'online', ssid: '', audio: '', ram: navigator.deviceMemory ? navigator.deviceMemory * 2 ** 30 : 0, ramApprox: true, storage: DEV.st && DEV.st.storage || 0, storageOwn: true};
 }
-function openQuick() { const L = openLayer({cls: 'side', label: 'Control Centre', html: quickHTML(), def: '.opt.sel'}); L.qm = true; }
+function nowPlaying() { if (NATIVE && LumoraNative.nowPlaying) { try { return JSON.parse(LumoraNative.nowPlaying() || 'null'); } catch (e) {} } return null; }
+const gb = b => b >= 2 ** 30 ? (b / 2 ** 30).toFixed(1).replace(/\.0$/, '') + ' GB' : Math.round(b / 2 ** 20) + ' MB';
+function ccNet(st) { return st.net === 'none' ? ['Not connected', 'Wi-Fi'] : st.net === 'ethernet' ? ['Ethernet', 'Network'] : st.net === 'wifi' ? [st.ssid || 'Connected', 'Wi-Fi'] : ['Online', 'Network']; }
+function ccFoot(st) {
+  const parts = [];
+  if (st.ram) parts.push(st.ramApprox ? `${gb(st.ram)} RAM` : `${gb(st.ram)} RAM free`);
+  if (st.storage) parts.push(st.storageOwn ? `${gb(st.storage)} free for Lumora` : `${gb(st.storage)} storage free`);
+  return parts.join(' · ') || 'Lumora ' + VERSION;
+}
+function quickHTML() {
+  const st = DEV.st = Object.assign(DEV.st || {}, devStatus()), np = DEV.np = nowPlaying(), [netName, netKind] = ccNet(st);
+  const audio = st.audio || (NATIVE ? 'TV speakers' : 'Set on your TV');
+  const art = np && np.art ? `<span class="cc-art" style="background-image:url('${np.art}')"></span>` : `<span class="cc-art none">${ico('music')}</span>`;
+  const btn = (k, act, ic, label, cls = '') => `<button class="cc-round fx${cls}" data-f data-k="${k}" data-act="${act}" aria-label="${label}" tabindex="-1">${ico(ic)}</button>`;
+  const tile = (k, act, ic, t, sub, cls = '') => `<button class="cc-tile fx${cls}" data-f data-k="${k}" data-act="${act}" tabindex="-1"><span class="cc-ic">${ico(ic)}</span><span class="cc-tx"><b>${esc(t)}</b><small>${esc(sub)}</small></span></button>`;
+  return `<div class="cc-top" data-row="cc-top">
+      <button class="cc-pill fx" data-f data-k="cc-store" data-act="open:store" tabindex="-1">${ico('store')}<span>Store</span></button>
+      <button class="cc-pill fx" data-f data-k="cc-netpill" data-act="ccnet" tabindex="-1">${ico('wifi')}<span>${esc(netName)}</span></button>
+      ${btn('cc-self', 'quick', 'toggles', 'Control Centre', ' on')}${btn('cc-gear', 'screen:settings', 'gear', 'Settings')}
+    </div>
+    <div class="cc-grid">
+      <div class="cc-media" data-row="cc-media">
+        <div class="cc-mtop">${art}<div class="cc-mbtn">${btn('cc-prev', 'media:prev', 'prev', 'Previous', ' flat')}${btn('cc-play', 'media:play', np && np.playing ? 'pause' : 'play', np && np.playing ? 'Pause' : 'Play', ' flat')}${btn('cc-next', 'media:next', 'next', 'Next', ' flat')}</div></div>
+        <div class="cc-mtx"><b>${esc(np && np.title || 'Nothing playing')}</b><small>${esc(np ? np.artist || np.app || '' : NATIVE ? 'Play music or video in any app' : 'Works with apps on Google TV')}</small></div>
+        <div class="cc-prog"><i style="transform:scaleX(${np && np.dur ? Math.min(1, np.pos / np.dur) : 0})"></i></div>
+      </div>
+      <div class="cc-col" data-row="cc-r1">${tile('cc-wifi', 'ccnet', 'wifi', netKind, netName, ' blue')}</div>
+      <div class="cc-col" data-row="cc-r2">${tile('cc-audio', 'ccaudio', 'speaker', 'Audio', audio)}</div>
+      <div class="cc-col" data-row="cc-r3">${tile('cc-clock', 'ambient', 'moon', 'Clock', 'Start now')}</div>
+      <div class="cc-col" data-row="cc-r3">${tile('cc-wall', 'screen:wall', 'image', 'Wallpaper', wallName())}</div>
+    </div>
+    <div class="cc-bottom" data-row="cc-bottom">${btn('cc-search', 'search', 'search', 'Search')}${btn('cc-access', 'settings:access', 'access', 'Accessibility')}${btn('cc-input', 'input', 'tv', 'Inputs')}${btn('cc-power', 'poweroff', 'power', 'Turn off')}</div>
+    <div class="cc-foot" id="cc-foot">${esc(ccFoot(st))}</div>`;
+}
+function openQuick() {
+  if (layers.find(l => l.qm)) { closeAllLayers(); return; }
+  const L = openLayer({cls: 'cc', label: 'Control Centre', html: quickHTML(), def: '[data-k="cc-wall"]'}); L.qm = true;
+  if (!NATIVE && navigator.storage && navigator.storage.estimate) navigator.storage.estimate().then(e => { if (e.quota) { DEV.st.storage = Math.max(0, e.quota - (e.usage || 0)); const f = $('#cc-foot'); if (f) f.textContent = ccFoot(DEV.st); } }).catch(() => {});
+  clearInterval(DEV.t); DEV.t = setInterval(() => { if (!layers.includes(L)) { clearInterval(DEV.t); return; } if (NATIVE) refreshQuick(L); }, 2000);
+}
 function refreshQuick(L) {
   const k = F.cur && L.panel.contains(F.cur) ? F.cur.dataset.k : null;
   L.panel.innerHTML = quickHTML();
   const n = k && $(`[data-k="${CSS.escape(k)}"]`, L.panel); dropFocus(); n ? setFocus(n, {noScroll: true}) : ensureFocus();
+}
+function ccMedia(cmd) {
+  if (NATIVE && LumoraNative.media) { LumoraNative.media(cmd); const L = layers.find(l => l.qm); setTimeout(() => L && layers.includes(L) && refreshQuick(L), 350); return; }
+  toast('Music controls work in the Lumora app on Google TV', 'music');
 }
 function toggleFullscreen() {
   try {
@@ -2394,6 +2703,7 @@ function gameLeave() { G.run = false; cancelAnimationFrame(G.raf); }
 const HOOKS = {
   tab(el) { if (!el.dataset.tab) return; clearTimeout(ST.tabT); ST.tabT = setTimeout(() => { if (F.cur === el && ST.tab !== el.dataset.tab) selectTab(el.dataset.tab); }, 110); },
   side(el) { const s = el.dataset.sec; if (!s || s === SET.sec) return; clearTimeout(SET.renderT); SET.renderT = setTimeout(() => { if (F.cur !== el) return; SET.sec = s; SET.unlocked = false; $$('#s-settings .side-item').forEach(b => b.classList.toggle('sel', b.dataset.sec === s)); renderSection(true); }, 90); },
+  fy(el) { if (el.dataset.app) fyFocus(el.dataset.app); },
   wall(el) { const id = el.dataset.wall; if (!id || id === wallFocus) return; wallFocus = id; wallPaint($$('#wall-track [data-wall]').indexOf(el)); setWallpaper(id); wallCopy(id); },
 };
 function activate(el) {
@@ -2405,6 +2715,9 @@ function activate(el) {
     case 'open': openApp(v, el); break;
     case 'search': show('store', {tab: 'search'}); break;
     case 'quick': openQuick(); break;
+    case 'media': ccMedia(v); break;
+    case 'ccnet': if (NATIVE && LumoraNative.openSettings) LumoraNative.openSettings('wifi'); else toast(navigator.onLine === false ? 'Not connected to the internet' : 'Connected — change networks in your TV\'s own settings', 'wifi'); break;
+    case 'ccaudio': if (NATIVE && LumoraNative.openSettings) LumoraNative.openSettings('sound'); else toast('Sound output is set in your TV\'s own settings', 'speaker'); break;
     case 'assist': openAssistant(); break;
     case 'aslisten': listen(); break;
     case 'astype': asType(); break;
@@ -2427,6 +2740,15 @@ function activate(el) {
     case 'set': { const j = v.lastIndexOf(':'); doSet(el, v.slice(0, j), v.slice(j + 1)); break; }
     case 'wpapply': wallApply(v); break;
     case 'wpcat': wallSetCat(v); break;
+    case 'fy': fyPress(v, el); break;
+    case 'spopen': { const L = layers.find(l => l.spEl !== undefined); const t = L && L.spEl; closeAllLayers(); launch(v, t); break; }
+    case 'spnext': { const L = layers.find(l => l.spRender); if (L) { FY.promoIdx++; L.spRender(); } break; }
+    case 'settings': closeAllLayers(); show('settings', {sec: v}); break;
+    case 'poweroff': powerOff(); break;
+    case 'screenoff': screenOff(); break;
+    case 'sleeptimer': setSleepTimer(Number(v)); if (curScreen === 'settings') renderSection(); break;
+    case 'fykey': openKeyboard({title: 'TMDB API key', value: S.foryou.key, ph: 'Paste or type your key', go: 'Save', onDone: t => { S.foryou.key = t.trim(); save(); try { for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k.startsWith('lumora.fy.')) localStorage.removeItem(k); } } catch (e) {} FY.prov = FY.provP = null; FY.rel = {}; renderSection(); toast(S.foryou.key ? 'TMDB key saved on this TV' : 'TMDB key removed', 'star'); }}); break;
+    case 'fyclear': S.recent = []; save(); renderSection(); toast('Recently used apps cleared', 'trash'); break;
     case 'ambient': enterAmbient(); break;
     case 'scgames': { const g = $('#row-games [data-f]'); if (g && S.ui.games) setFocus(g, {dir: 'down'}); else { show('store'); openCat('Games'); } break; }
     case 'input': if (NATIVE && LumoraNative.openInputs) LumoraNative.openInputs(); else toast('Use your remote’s Input button — on Google TV, Lumora opens the input list here', 'input'); break;
@@ -2480,6 +2802,7 @@ let hold = null;
 function setKbd(on) { root.classList.toggle('kbd', on); }
 const searching = () => curScreen === 'store' && ST.view === 'tabs' && ST.tab === 'search' && !layers.length;
 document.addEventListener('keydown', e => {
+  if (powerKeyGate(e)) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   let k = keyOf(e); if (!k) return;
   e.preventDefault(); setKbd(true); bumpIdle();
@@ -2520,7 +2843,7 @@ document.addEventListener('keydown', e => {
     case 'home': if (!e.repeat) goHome(); break;
     case 'menu': if (!e.repeat && !moving && F.cur && F.cur.dataset.hold) openOptions(F.cur); break;
     case 'assist': case 'red': if (!e.repeat) openAssistant(); break;
-    case 'green': if (!e.repeat) { if (layers.find(l => l.qm)) closeAllLayers(); else openQuick(); } break;
+    case 'green': if (!e.repeat) openQuick(); break;
     case 'yellow': if (!e.repeat) { closeAllLayers(); show('store', {tab: 'search'}); } break;
     case 'blue': if (!e.repeat) { closeAllLayers(); show('settings'); } break;
   }
@@ -2608,6 +2931,119 @@ function frame(t) {
 document.addEventListener('visibilitychange', () => { last = performance.now(); frames = 0; lastF = 0; });
 
 /* =====================================================================
+   POWER — start-up and switch-off animations, standby, sleep timer,
+   auto sleep, screen off, and resuming exactly where you were.
+   ===================================================================== */
+const PW = {state: 'on', timerEnd: 0, warn: null, lastInput: Date.now(), app: '', appT: 0};
+const RESUME_KEY = 'lumora.resume';
+const pwEl = $('#power');
+const pwFast = () => S.power.fast || S.reduceMotion;
+/* A small snapshot of what's on screen, written every couple of seconds and whenever Lumora is hidden, so a
+   power cut or an accidental switch-off can come back to the same screen, item and app. */
+function snapshot() {
+  if (PW.state === 'booting') return;
+  const f = F.cur && !layers.length ? F.cur : null;
+  const snap = {t: Date.now(), screen: curScreen === 'launch' ? 'home' : curScreen, k: f && f.dataset.k || '', sec: SET.sec, wallCat, br: curScreen === 'browser' ? BR.url : '', app: PW.app, appT: PW.appT, fy: FY.idx};
+  try { localStorage.setItem(RESUME_KEY, JSON.stringify(snap)); } catch (e) {}
+}
+function resumeSnap() {
+  const win = S.power.resume; if (!win) return null;
+  let snap = null; try { snap = JSON.parse(localStorage.getItem(RESUME_KEY) || 'null'); } catch (e) {}
+  if (!snap || !snap.t) return null;
+  let offAt = snap.t;
+  if (NATIVE && LumoraNative.resumeInfo) { try { const r = JSON.parse(LumoraNative.resumeInfo()); if (r.offAt) offAt = Math.max(offAt, r.offAt); if (r.pkg && !snap.app) snap.pkg = r.pkg; } catch (e) {} }
+  snap.age = Date.now() - offAt;
+  return win < 0 || snap.age <= win * 60000 ? snap : null;
+}
+function applyResume(snap) {
+  try {
+    if (snap.wallCat) wallCat = snap.wallCat;
+    if (snap.screen && SCREENS[snap.screen] && snap.screen !== 'home') show(snap.screen, snap.screen === 'settings' ? {sec: snap.sec} : undefined);
+    if (snap.screen === 'browser' && snap.br && typeof brGo === 'function') brGo(snap.br);
+    const t = snap.k && $(`#s-${curScreen} [data-k="${CSS.escape(snap.k)}"]`); if (t && visible(t)) setFocus(t);
+  } catch (e) {}
+  const app = snap.app && APPS[snap.app] ? snap.app : null;
+  if (app) {
+    toast(`Resuming ${APPS[app].name}… press Back to stay on Lumora`, 'power');
+    PW.resumeT = setTimeout(() => { PW.resumeT = 0; const el = $(`#home-stack [data-app="${CSS.escape(app)}"]`); launch(app, el, {resume: true}); }, 900);
+  } else if (snap.screen !== 'home' || snap.k) toast('Back where you left off', 'power');
+}
+/* Switch on: a line of light opens into the Home screen. Fast start skips the logo. */
+function powerOn(reason = 'boot') {
+  clearTimeout(PW.offT); root.classList.remove('pw-standby', 'pw-screenoff', 'pw-going');
+  if (NATIVE && LumoraNative.wake) try { LumoraNative.wake(); } catch (e) {}
+  PW.state = 'on'; PW.lastInput = Date.now();
+  if (!S.power.onAnim) { pwEl.className = ''; return; }
+  pwEl.className = 'show ' + (pwFast() ? 'pw-quick' : 'pw-full');
+  void pwEl.offsetWidth; pwEl.classList.add('go'); root.classList.add('pw-enter');
+  const total = S.reduceMotion ? 260 : pwFast() ? 560 : 1250;
+  clearTimeout(PW.onT); PW.onT = setTimeout(() => { pwEl.className = ''; root.classList.remove('pw-enter'); }, total);
+}
+/* Switch off: the picture folds into a line of light and fades out, then Lumora rests on a black standby screen. */
+function powerOff(why = '') {
+  if (PW.state !== 'on') return;
+  closeAllLayers(); pwWarnClose(); if (VC.on) vcToggle(false);
+  PW.state = 'going'; snapshot();
+  const done = () => { root.classList.remove('pw-going'); root.classList.add('pw-standby'); PW.state = 'standby'; pwEl.className = 'show standby';
+    if (NATIVE && LumoraNative.sleep) try { LumoraNative.sleep(); } catch (e) {} };
+  if (!S.power.offAnim || S.reduceMotion) { pwEl.className = 'show standby fade'; setTimeout(done, S.reduceMotion ? 250 : 0); return; }
+  root.classList.add('pw-going'); PW.offT = setTimeout(done, 820);
+  if (why) toast(why, 'power');
+}
+function screenOff() {
+  closeAllLayers(); PW.state = 'screenoff'; root.classList.add('pw-screenoff'); pwEl.className = 'show standby fade';
+  if (NATIVE && LumoraNative.sleep) try { LumoraNative.sleep(); } catch (e) {}
+}
+function screenOn() { root.classList.remove('pw-screenoff'); pwEl.className = ''; PW.state = 'on'; PW.lastInput = Date.now(); if (NATIVE && LumoraNative.wake) try { LumoraNative.wake(); } catch (e) {} }
+/* Any key (or click) while asleep wakes Lumora; the switch-on animation plays and everything is as it was. */
+function powerKeyGate(e) {
+  const pk = /^(Power|PowerOff|Standby|Sleep)$/.test(e.key || '') || e.keyCode === 409;
+  if (PW.state === 'standby') { if (e.type === 'keydown' && !e.repeat) powerOn('wake'); e.preventDefault(); return true; }
+  if (PW.state === 'screenoff') { if (e.type === 'keydown' && !e.repeat) screenOn(); e.preventDefault(); return true; }
+  if (PW.state === 'going' || PW.state === 'booting') { e.preventDefault(); return true; }
+  PW.lastInput = Date.now();
+  if (PW.warn) { if (e.type === 'keydown' && !e.repeat && !pk) { pwWarnClose(true); e.preventDefault(); return true; } }
+  if (pk && e.type === 'keydown' && !e.repeat) { e.preventDefault(); powerOff(); return true; }
+  if (PW.resumeT && e.type === 'keydown') { const k = keyOf(e); if (k === 'back') { clearTimeout(PW.resumeT); PW.resumeT = 0; toast('Staying on Lumora', 'home'); e.preventDefault(); return true; } }
+  return false;
+}
+document.addEventListener('pointerdown', e => { if (PW.state === 'standby') { powerOn('wake'); e.preventDefault(); e.stopPropagation(); } else if (PW.state === 'screenoff') { screenOn(); e.preventDefault(); e.stopPropagation(); } else PW.lastInput = Date.now(); }, true);
+/* The 60-second warning before a sleep timer or auto sleep turns the TV off. */
+function pwWarn(reason) {
+  if (PW.warn || PW.state !== 'on') return;
+  let left = 60;
+  const L = openLayer({label: 'Turning off soon', html: `<div class="dlg glass-strong pw-warn"><div class="pw-ring"><b id="pw-left">60</b></div><h2>Turning off in a minute</h2><p>${esc(reason)}</p><div class="actions">
+    <button class="btn fx" data-f data-act="pwnow" tabindex="-1">Turn off now</button><button class="btn primary fx" data-f data-act="pwstay" id="pw-stay" tabindex="-1">Stay on</button></div></div>`, def: '#pw-stay', onClose: () => pwWarnClose()});
+  PW.warn = {L, t: setInterval(() => { left--; const b = $('#pw-left'); if (b) b.textContent = left; if (left <= 0) { pwWarnClose(); powerOff(); } }, 1000)};
+}
+function pwWarnClose(stay) {
+  const w = PW.warn; if (!w) return; PW.warn = null; clearInterval(w.t);
+  if (layers.includes(w.L)) closeLayer(w.L);
+  if (stay) { PW.lastInput = Date.now(); if (PW.timerEnd) { PW.timerEnd = 0; S.power.sleepTimer = 0; save(); } toast('Staying on', 'power'); }
+}
+function setSleepTimer(min) {
+  S.power.sleepTimer = min; save(); PW.timerEnd = min ? Date.now() + min * 60000 : 0;
+  toast(min ? `Sleep timer: turning off in ${min} min` : 'Sleep timer off', 'moon');
+}
+setInterval(() => {
+  if (PW.state !== 'on') return;
+  const now = Date.now();
+  if (PW.timerEnd && now >= PW.timerEnd - 60000) { PW.timerEnd = 0; S.power.sleepTimer = 0; save(); pwWarn('The sleep timer has ended.'); }
+  else if (S.power.autoSleep && document.visibilityState === 'visible' && now - PW.lastInput >= S.power.autoSleep * 60000 - 60000) pwWarn(`Nothing has been pressed for ${S.power.autoSleep >= 60 ? S.power.autoSleep / 60 + ' hours' : S.power.autoSleep + ' minutes'}.`);
+}, 5000);
+setInterval(() => { if (PW.state === 'on' && document.visibilityState === 'visible') snapshot(); }, 2000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { snapshot(); return; }
+  if (PW.app && Date.now() - PW.appT > 1500) { PW.app = ''; snapshot(); }   // back in Lumora after an app
+});
+addEventListener('pagehide', snapshot);
+/* The Lumora app for Google TV reports when the screen turns off and on, so waking the TV plays the switch-on animation. */
+window.__lumoraPower = what => {
+  if (what === 'off') { snapshot(); if (PW.state === 'on' && !PW.app && document.visibilityState === 'visible') { root.classList.add('pw-standby'); PW.state = 'standby'; pwEl.className = 'show standby'; } }
+  else if (what === 'wake' || what === 'on') { if (PW.app || document.visibilityState !== 'visible') return; powerOn('wake'); }
+};
+
+/* =====================================================================
    BOOT
    ===================================================================== */
 let bootMs = 0;
@@ -2617,7 +3053,11 @@ tick();
 renderHome();
 SCREENS.home.el.classList.add('active'); SCREENS.home.el.removeAttribute('inert'); root.classList.add('on-home');
 ensureFocus();
-try { const back = sessionStorage.getItem('lumora.return'); sessionStorage.removeItem('lumora.return'); const t = back && $(`#home-stack [data-app="${CSS.escape(back)}"]`); if (t) { setFocus(t); toast(`Back from ${APPS[back].name}`, 'home'); } } catch (e) {}
+let back = null;
+try { back = sessionStorage.getItem('lumora.return'); sessionStorage.removeItem('lumora.return'); const t = back && $(`#home-stack [data-app="${CSS.escape(back)}"]`); if (t) { setFocus(t); toast(`Back from ${APPS[back].name}`, 'home'); } } catch (e) {}
+const snap = back ? null : resumeSnap();
+if (snap) applyResume(snap); else if (!back && S.power.startup === 'foryou') show('foryou');
+powerOn('boot');
 if (EMBEDDED) toast('Preview mode — open index.html in Chrome, Edge or on your TV so apps open inside Lumora', 'info');
 if (F.cur && F.cur.dataset.app) { glowFor(F.cur.dataset.app, true); shelfInfo(F.cur.dataset.app, true); }
 bootMs = Math.round(performance.now());
